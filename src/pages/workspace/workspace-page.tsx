@@ -1,10 +1,25 @@
+import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { LibrarySidebar } from '../../components/shared/library-sidebar'
 import { TopToolbar } from '../../components/shared/top-toolbar'
 import { CanvasStage } from '../../features/canvas/components/canvas-stage'
+import { getProjectById } from '../../features/project/services/project-service'
 
 export function WorkspacePage() {
   const { projectId } = useParams()
+  const [projectName, setProjectName] = useState('Untitled Project')
+
+  useEffect(() => {
+    async function loadProject() {
+      if (!projectId) return
+      const project = await getProjectById(projectId)
+      if (project) {
+        setProjectName(project.name)
+      }
+    }
+
+    void loadProject()
+  }, [projectId])
 
   return (
     <div className="flex min-h-screen bg-[var(--background)] text-[var(--text-primary)]">
@@ -18,9 +33,7 @@ export function WorkspacePage() {
             <button type="button" className="text-sm text-[var(--text-secondary)]">
               {'<'}
             </button>
-            <h1 className="text-sm font-semibold text-[var(--text-primary)]">
-              {projectId === 'brand-identity' ? 'Brand Identity Exploration' : 'Untitled Project'}
-            </h1>
+            <h1 className="text-sm font-semibold text-[var(--text-primary)]">{projectName}</h1>
           </div>
 
           <div className="min-h-0 flex-1">
