@@ -1,0 +1,82 @@
+import { db } from '../../../db/client'
+import type { ProjectRecord } from '../../../types/project'
+
+const seededProjects: ProjectRecord[] = [
+  {
+    id: 'brand-identity',
+    name: 'Brand Identity Exploration',
+    summary: 'Moodboards and typographic references for the desktop application.',
+    updatedAt: new Date('2026-05-12T14:20:00').toISOString(),
+    createdAt: new Date('2026-05-10T10:00:00').toISOString(),
+    nodeCount: 24,
+    initials: 'UI SM',
+    thumbnailVariant: 'sand',
+  },
+  {
+    id: 'app-ui-components',
+    name: 'App UI Components',
+    summary: 'Shared library of components for the workspace experience.',
+    updatedAt: new Date('2026-05-11T16:00:00').toISOString(),
+    createdAt: new Date('2026-05-09T09:30:00').toISOString(),
+    nodeCount: 12,
+    initials: 'UI',
+    thumbnailVariant: 'steel',
+  },
+  {
+    id: 'personal-knowledge',
+    name: 'Personal Knowledge Notes',
+    summary: 'Articles, references, and random thoughts worth revisiting later.',
+    updatedAt: new Date('2026-05-09T13:00:00').toISOString(),
+    createdAt: new Date('2026-05-05T08:20:00').toISOString(),
+    nodeCount: 3,
+    initials: 'ME',
+    thumbnailVariant: 'mist',
+  },
+  {
+    id: 'product-architecture',
+    name: 'Product Architecture',
+    summary: 'Mapping systems, module ideas, and interaction behaviors.',
+    updatedAt: new Date('2026-05-04T11:00:00').toISOString(),
+    createdAt: new Date('2026-04-28T15:45:00').toISOString(),
+    nodeCount: 89,
+    initials: 'UX AI',
+    thumbnailVariant: 'mint',
+  },
+]
+
+function nowIso() {
+  return new Date().toISOString()
+}
+
+export async function ensureProjectSeed() {
+  const count = await db.projects.count()
+  if (count === 0) {
+    await db.projects.bulkPut(seededProjects)
+  }
+}
+
+export async function listProjects() {
+  return db.projects.orderBy('updatedAt').reverse().toArray()
+}
+
+export async function getProjectById(id: string) {
+  return db.projects.get(id)
+}
+
+export async function createProject() {
+  const id = crypto.randomUUID()
+  const timestamp = nowIso()
+  const project: ProjectRecord = {
+    id,
+    name: 'Untitled Project',
+    summary: 'A fresh canvas for links, images, notes, and AI insight.',
+    updatedAt: timestamp,
+    createdAt: timestamp,
+    nodeCount: 0,
+    initials: 'NEW',
+    thumbnailVariant: 'mist',
+  }
+
+  await db.projects.add(project)
+  return project
+}
