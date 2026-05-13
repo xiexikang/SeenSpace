@@ -1,12 +1,63 @@
-import { Info, Trash2 } from 'lucide-react'
-import type { WorkspaceNode } from '../../types/workspace'
+import {
+  AlignCenterHorizontal,
+  AlignCenterVertical,
+  AlignEndHorizontal,
+  AlignEndVertical,
+  AlignStartHorizontal,
+  AlignStartVertical,
+  BetweenHorizonalStart,
+  BetweenVerticalStart,
+  Copy,
+  Info,
+  Layers3,
+  Trash2,
+  X,
+} from 'lucide-react'
+import type { WorkspaceEdge, WorkspaceNode } from '../../types/workspace'
+
+const relationshipPresets = [
+  'supports',
+  'references',
+  'contrasts with',
+  'derived from',
+  'depends on',
+  'clusters with',
+]
+
+const layoutActions = [
+  { id: 'align-left', label: 'Align Left', icon: AlignStartVertical },
+  { id: 'align-center-x', label: 'Center X', icon: AlignCenterVertical },
+  { id: 'align-right', label: 'Align Right', icon: AlignEndVertical },
+  { id: 'align-top', label: 'Align Top', icon: AlignStartHorizontal },
+  { id: 'align-center-y', label: 'Center Y', icon: AlignCenterHorizontal },
+  { id: 'align-bottom', label: 'Align Bottom', icon: AlignEndHorizontal },
+  { id: 'distribute-x', label: 'Distribute X', icon: BetweenHorizonalStart },
+  { id: 'distribute-y', label: 'Distribute Y', icon: BetweenVerticalStart },
+] as const
+
+type LayoutActionId = (typeof layoutActions)[number]['id']
 
 type WorkspaceInspectorProps = {
   node?: WorkspaceNode
-  onChange: (
-    updates: Partial<WorkspaceNode['data']>,
-  ) => void
+  edge?: WorkspaceEdge
+  edgeSourceTitle?: string
+  edgeTargetTitle?: string
+  selectedNodeCount: number
+  selectedEdgeCount: number
+  batchCategory: string
+  batchTagsText: string
+  onChange: (updates: Partial<WorkspaceNode['data']>) => void
   onDelete: () => void
+  onDeleteMany: () => void
+  onDuplicateMany: () => void
+  onDeleteEdge: () => void
+  onDeleteManyEdges: () => void
+  onEdgeLabelChange: (value: string) => void
+  onBatchCategoryChange: (value: string) => void
+  onBatchTagsChange: (value: string) => void
+  onApplyBatchMeta: () => void
+  onApplyLayout: (action: LayoutActionId) => void
+  onClearSelection: () => void
 }
 
 function renderTypeFields(
@@ -103,20 +154,230 @@ function renderTypeFields(
   )
 }
 
-export function WorkspaceInspector({ node, onChange, onDelete }: WorkspaceInspectorProps) {
+export function WorkspaceInspector({
+  node,
+  edge,
+  edgeSourceTitle,
+  edgeTargetTitle,
+  selectedNodeCount,
+  selectedEdgeCount,
+  batchCategory,
+  batchTagsText,
+  onChange,
+  onDelete,
+  onDeleteMany,
+  onDuplicateMany,
+  onDeleteEdge,
+  onDeleteManyEdges,
+  onEdgeLabelChange,
+  onBatchCategoryChange,
+  onBatchTagsChange,
+  onApplyBatchMeta,
+  onApplyLayout,
+  onClearSelection,
+}: WorkspaceInspectorProps) {
+  const isNodeMultiSelect = selectedNodeCount > 1
+  const isEdgeMultiSelect = selectedEdgeCount > 1 && selectedNodeCount === 0
+  const isEdgeSingleSelect = selectedEdgeCount === 1 && selectedNodeCount === 0
+
   return (
     <aside className="flex w-[320px] shrink-0 flex-col rounded-[28px] border border-[var(--border)] bg-[var(--panel)] p-4 shadow-[var(--shadow-sm)]">
-      <div className="mb-4 flex items-center gap-2">
-        <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[var(--panel-elevated)] text-[var(--text-secondary)]">
-          <Info className="h-4 w-4" />
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[var(--panel-elevated)] text-[var(--text-secondary)]">
+            {isNodeMultiSelect || isEdgeMultiSelect ? (
+              <Layers3 className="h-4 w-4" />
+            ) : (
+              <Info className="h-4 w-4" />
+            )}
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-[var(--text-primary)]">Inspector</div>
+            <div className="text-xs text-[var(--text-secondary)]">
+              {isNodeMultiSelect
+                ? 'Batch actions for selected nodes'
+                : isEdgeSingleSelect || isEdgeMultiSelect
+                  ? 'Inspect selected connections'
+                  : 'Edit the selected canvas item'}
+            </div>
+          </div>
         </div>
-        <div>
-          <div className="text-sm font-semibold text-[var(--text-primary)]">Inspector</div>
-          <div className="text-xs text-[var(--text-secondary)]">Edit the selected canvas item</div>
-        </div>
+
+        {selectedNodeCount > 0 || selectedEdgeCount > 0 ? (
+          <button
+            type="button"
+            onClick={onClearSelection}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        ) : null}
       </div>
 
-      {node ? (
+      {isNodeMultiSelect ? (
+        <div className="flex flex-1 flex-col">
+          <div className="mb-4 rounded-2xl border border-[var(--border)] bg-[var(--panel-elevated)] px-3 py-2 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-secondary)]">
+            {selectedNodeCount} nodes selected
+          </div>
+
+          <div className="mb-4 rounded-[24px] border border-dashed border-[var(--border)] bg-[var(--background)] p-4">
+            <p className="text-sm leading-6 text-[var(--text-secondary)]">
+              Batch metadata helps group notes, images, and links into the same lane without opening each card.
+            </p>
+          </div>
+
+          <div className="mb-4 rounded-[24px] border border-[var(--border)] bg-[var(--background)] p-4">
+            <div className="mb-3 text-xs font-medium text-[var(--text-secondary)]">Layout Tools</div>
+            <p className="mb-3 text-xs leading-5 text-[var(--text-muted)]">
+              Alignment and distribution now respect each node's measured card size.
+            </p>
+            <div className="grid grid-cols-4 gap-2">
+              {layoutActions.map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => onApplyLayout(id)}
+                  title={label}
+                  className="inline-flex h-10 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--panel)] text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
+                >
+                  <Icon className="h-4 w-4" />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <label className="mb-4 block">
+            <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Batch Category</div>
+            <input
+              value={batchCategory}
+              onChange={(event) => onBatchCategoryChange(event.target.value)}
+              placeholder="Moodboard, Research, Launch..."
+              className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+            />
+          </label>
+
+          <label className="mb-4 block">
+            <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Batch Tags</div>
+            <textarea
+              value={batchTagsText}
+              onChange={(event) => onBatchTagsChange(event.target.value)}
+              placeholder="editorial, restraint, warm gray"
+              rows={4}
+              className="w-full resize-none rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm leading-6 text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+            />
+          </label>
+
+          <button
+            type="button"
+            onClick={onApplyBatchMeta}
+            className="mb-3 inline-flex h-10 items-center justify-center rounded-2xl bg-[var(--text-primary)] px-4 text-sm font-medium text-[var(--background)]"
+          >
+            Apply Metadata
+          </button>
+
+          <button
+            type="button"
+            onClick={onDuplicateMany}
+            className="mb-3 inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
+          >
+            <Copy className="h-4 w-4" />
+            Duplicate Selected
+          </button>
+
+          <button
+            type="button"
+            onClick={onDeleteMany}
+            className="mt-auto inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete Selected
+          </button>
+        </div>
+      ) : isEdgeMultiSelect ? (
+        <div className="flex flex-1 flex-col">
+          <div className="mb-4 rounded-2xl border border-[var(--border)] bg-[var(--panel-elevated)] px-3 py-2 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-secondary)]">
+            {selectedEdgeCount} connections selected
+          </div>
+
+          <div className="mb-4 rounded-[24px] border border-dashed border-[var(--border)] bg-[var(--background)] p-4">
+            <p className="text-sm leading-6 text-[var(--text-secondary)]">
+              These links define how notes, images, and references talk to each other across the board.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onDeleteManyEdges}
+            className="mt-auto inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete Connections
+          </button>
+        </div>
+      ) : isEdgeSingleSelect && edge ? (
+        <div className="flex flex-1 flex-col">
+          <div className="mb-4 rounded-2xl border border-[var(--border)] bg-[var(--panel-elevated)] px-3 py-2 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-secondary)]">
+            connection
+          </div>
+
+          <label className="mb-4 block">
+            <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Relationship Label</div>
+            <input
+              value={typeof edge.label === 'string' ? edge.label : ''}
+              onChange={(event) => onEdgeLabelChange(event.target.value)}
+              placeholder="supports, contradicts, derives from..."
+              className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+            />
+          </label>
+
+          <div className="mb-4">
+            <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Quick Relationships</div>
+            <div className="flex flex-wrap gap-2">
+              {relationshipPresets.map((preset) => {
+                const isActive = edge.label === preset
+
+                return (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => onEdgeLabelChange(preset)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      isActive
+                        ? 'border-[var(--text-primary)] bg-[var(--panel-elevated)] text-[var(--text-primary)]'
+                        : 'border-[var(--border)] bg-[var(--panel)] text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="mb-4 rounded-[24px] border border-[var(--border)] bg-[var(--background)] p-4">
+            <div className="mb-2 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
+              Source
+            </div>
+            <div className="text-sm text-[var(--text-primary)]">{edgeSourceTitle ?? edge.source}</div>
+          </div>
+
+          <div className="mb-6 rounded-[24px] border border-[var(--border)] bg-[var(--background)] p-4">
+            <div className="mb-2 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
+              Target
+            </div>
+            <div className="text-sm text-[var(--text-primary)]">{edgeTargetTitle ?? edge.target}</div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onDeleteEdge}
+            className="mt-auto inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete Connection
+          </button>
+        </div>
+      ) : node ? (
         <div className="flex flex-1 flex-col">
           <div className="mb-4 rounded-2xl border border-[var(--border)] bg-[var(--panel-elevated)] px-3 py-2 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-secondary)]">
             {node.type}
@@ -164,7 +425,7 @@ export function WorkspaceInspector({ node, onChange, onDelete }: WorkspaceInspec
       ) : (
         <div className="flex flex-1 items-center justify-center rounded-[24px] border border-dashed border-[var(--border)] bg-[var(--background)] p-6 text-center">
           <p className="text-sm leading-6 text-[var(--text-secondary)]">
-            Select a node on the canvas to edit its title, notes, and metadata.
+            Select one or more nodes or connections to edit details or remove them in a batch.
           </p>
         </div>
       )}

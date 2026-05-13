@@ -16,8 +16,10 @@ export function NodeFrame({
 }: NodeFrameProps) {
   return (
     <div
-      className={`min-w-[220px] max-w-[300px] rounded-[20px] border bg-[var(--panel)] p-3 shadow-[var(--shadow-sm)] transition-shadow ${
-        selected ? 'border-[var(--text-primary)]' : 'border-[var(--border)]'
+      className={`min-w-[220px] max-w-[300px] rounded-[20px] border bg-[var(--panel)] p-3 transition-all ${
+        selected
+          ? 'border-[var(--text-primary)] shadow-[0_0_0_2px_rgba(24,24,27,0.08),0_18px_42px_rgba(24,24,27,0.14)]'
+          : 'border-[var(--border)] shadow-[var(--shadow-sm)]'
       }`}
     >
       <Handle
