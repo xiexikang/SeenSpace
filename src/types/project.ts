@@ -1,3 +1,5 @@
+import type { WorkspaceSnapshot } from './workspace'
+
 export type ProjectViewMode = 'grid' | 'list'
 
 export type ProjectRecord = {
@@ -9,4 +11,5 @@ export type ProjectRecord = {
   nodeCount: number
   initials: string
   thumbnailVariant: 'sand' | 'steel' | 'mist' | 'mint'
+  canvas: WorkspaceSnapshot
 }

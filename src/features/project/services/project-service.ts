@@ -1,5 +1,14 @@
 import { db } from '../../../db/client'
 import type { ProjectRecord } from '../../../types/project'
+import type { WorkspaceSnapshot } from '../../../types/workspace'
+
+function createEmptyCanvas(): WorkspaceSnapshot {
+  return {
+    nodes: [],
+    edges: [],
+    viewport: { x: 0, y: 0, zoom: 1 },
+  }
+}
 
 const seededProjects: ProjectRecord[] = [
   {
@@ -11,6 +20,7 @@ const seededProjects: ProjectRecord[] = [
     nodeCount: 24,
     initials: 'UI SM',
     thumbnailVariant: 'sand',
+    canvas: createEmptyCanvas(),
   },
   {
     id: 'app-ui-components',
@@ -21,6 +31,7 @@ const seededProjects: ProjectRecord[] = [
     nodeCount: 12,
     initials: 'UI',
     thumbnailVariant: 'steel',
+    canvas: createEmptyCanvas(),
   },
   {
     id: 'personal-knowledge',
@@ -31,6 +42,7 @@ const seededProjects: ProjectRecord[] = [
     nodeCount: 3,
     initials: 'ME',
     thumbnailVariant: 'mist',
+    canvas: createEmptyCanvas(),
   },
   {
     id: 'product-architecture',
@@ -41,6 +53,7 @@ const seededProjects: ProjectRecord[] = [
     nodeCount: 89,
     initials: 'UX AI',
     thumbnailVariant: 'mint',
+    canvas: createEmptyCanvas(),
   },
 ]
 
@@ -48,19 +61,38 @@ function nowIso() {
   return new Date().toISOString()
 }
 
+function normalizeProject(project: ProjectRecord): ProjectRecord {
+  return {
+    ...project,
+    canvas: project.canvas ?? createEmptyCanvas(),
+  }
+}
+
 export async function ensureProjectSeed() {
   const count = await db.projects.count()
   if (count === 0) {
     await db.projects.bulkPut(seededProjects)
+    return
   }
+
+  const projects = await db.projects.toArray()
+  await Promise.all(
+    projects.map(async (project) => {
+      if (!project.canvas) {
+        await db.projects.update(project.id, { canvas: createEmptyCanvas() })
+      }
+    }),
+  )
 }
 
 export async function listProjects() {
-  return db.projects.orderBy('updatedAt').reverse().toArray()
+  const projects = await db.projects.orderBy('updatedAt').reverse().toArray()
+  return projects.map(normalizeProject)
 }
 
 export async function getProjectById(id: string) {
-  return db.projects.get(id)
+  const project = await db.projects.get(id)
+  return project ? normalizeProject(project) : undefined
 }
 
 export async function createProject() {
@@ -75,8 +107,17 @@ export async function createProject() {
     nodeCount: 0,
     initials: 'NEW',
     thumbnailVariant: 'mist',
+    canvas: createEmptyCanvas(),
   }
 
   await db.projects.add(project)
   return project
+}
+
+export async function updateProjectCanvas(id: string, canvas: WorkspaceSnapshot) {
+  await db.projects.update(id, {
+    canvas,
+    updatedAt: nowIso(),
+    nodeCount: canvas.nodes.length,
+  })
 }
