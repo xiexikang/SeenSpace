@@ -5,32 +5,37 @@ import {
   Background,
   BackgroundVariant,
   type Connection,
-  type NodeChange,
   type EdgeChange,
-  type NodeTypes,
+  type NodeChange,
   type ReactFlowInstance,
   ReactFlow,
   useEdgesState,
   useNodesState,
 } from '@xyflow/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { WorkspaceEdge, WorkspaceNode, WorkspaceNodeType, WorkspaceSnapshot } from '../../../types/workspace'
-import { createWorkspaceNode } from '../lib/workspace-factories'
+import type {
+  WorkspaceEdge,
+  WorkspaceNode,
+  WorkspaceNodeType,
+  WorkspaceSnapshot,
+} from '../../../types/workspace'
+import { nodeTypes } from '../../nodes/components/node-renderer'
+import { createWorkspaceNode } from '../../nodes/services/node-factory'
 import { CanvasEmptyState } from './canvas-empty-state'
-import { WorkspaceNodeCard } from './workspace-node-card'
 import { ZoomControls } from './zoom-controls'
-
-const nodeTypes: NodeTypes = {
-  note: WorkspaceNodeCard,
-  web: WorkspaceNodeCard,
-  image: WorkspaceNodeCard,
-}
 
 type CanvasStageProps = {
   snapshot: WorkspaceSnapshot
   onSnapshotChange?: (snapshot: WorkspaceSnapshot) => void
   onSelectionChange?: (selectedNodeId?: string) => void
 }
+
+const addableNodeTypes: Array<{ type: WorkspaceNodeType; label: string }> = [
+  { type: 'note', label: 'Add Note' },
+  { type: 'image', label: 'Add Image' },
+  { type: 'web', label: 'Add Web Clip' },
+  { type: 'tag_meta', label: 'Add Tag / Meta' },
+]
 
 export function CanvasStage({
   snapshot,
@@ -100,15 +105,15 @@ export function CanvasStage({
 
   return (
     <div className="relative h-full min-h-[680px] overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--canvas)] shadow-[var(--shadow-sm)]">
-      <div className="absolute left-5 top-5 z-10 flex items-center gap-2">
-        {(['note', 'image', 'web'] as WorkspaceNodeType[]).map((type) => (
+      <div className="absolute left-5 top-5 z-10 flex flex-wrap items-center gap-2">
+        {addableNodeTypes.map(({ type, label }) => (
           <button
             key={type}
             type="button"
             onClick={() => addNode(type)}
-            className="rounded-full border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-xs font-medium capitalize text-[var(--text-primary)] shadow-[var(--shadow-sm)]"
+            className="rounded-full border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] shadow-[var(--shadow-sm)]"
           >
-            Add {type}
+            {label}
           </button>
         ))}
       </div>

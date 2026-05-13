@@ -3,12 +3,104 @@ import type { WorkspaceNode } from '../../types/workspace'
 
 type WorkspaceInspectorProps = {
   node?: WorkspaceNode
-  onChange: (updates: {
-    title?: string
-    description?: string
-    meta?: string
-  }) => void
+  onChange: (
+    updates: Partial<WorkspaceNode['data']>,
+  ) => void
   onDelete: () => void
+}
+
+function renderTypeFields(
+  node: WorkspaceNode,
+  onChange: (updates: Partial<WorkspaceNode['data']>) => void,
+) {
+  if (node.type === 'note') {
+    return (
+      <label className="mb-4 block">
+        <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Body</div>
+        <textarea
+          value={node.data.body ?? ''}
+          onChange={(event) => onChange({ body: event.target.value })}
+          rows={5}
+          className="w-full resize-none rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm leading-6 text-[var(--text-primary)] outline-none"
+        />
+      </label>
+    )
+  }
+
+  if (node.type === 'web') {
+    return (
+      <>
+        <label className="mb-4 block">
+          <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">URL</div>
+          <input
+            value={node.data.url ?? ''}
+            onChange={(event) => onChange({ url: event.target.value })}
+            className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none"
+          />
+        </label>
+        <label className="mb-4 block">
+          <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Domain</div>
+          <input
+            value={node.data.domain ?? ''}
+            onChange={(event) => onChange({ domain: event.target.value })}
+            className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none"
+          />
+        </label>
+      </>
+    )
+  }
+
+  if (node.type === 'image') {
+    return (
+      <>
+        <label className="mb-4 block">
+          <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Image URL</div>
+          <input
+            value={node.data.imageUrl ?? ''}
+            onChange={(event) => onChange({ imageUrl: event.target.value })}
+            className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none"
+          />
+        </label>
+        <label className="mb-4 block">
+          <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Palette</div>
+          <input
+            value={node.data.palette ?? ''}
+            onChange={(event) => onChange({ palette: event.target.value })}
+            className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none"
+          />
+        </label>
+      </>
+    )
+  }
+
+  return (
+    <>
+      <label className="mb-4 block">
+        <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Category</div>
+        <input
+          value={node.data.category ?? ''}
+          onChange={(event) => onChange({ category: event.target.value })}
+          className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none"
+        />
+      </label>
+      <label className="mb-6 block">
+        <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Tags</div>
+        <textarea
+          value={(node.data.tags ?? []).join(', ')}
+          onChange={(event) =>
+            onChange({
+              tags: event.target.value
+                .split(',')
+                .map((value) => value.trim())
+                .filter(Boolean),
+            })
+          }
+          rows={4}
+          className="w-full resize-none rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm leading-6 text-[var(--text-primary)] outline-none"
+        />
+      </label>
+    </>
+  )
 }
 
 export function WorkspaceInspector({ node, onChange, onDelete }: WorkspaceInspectorProps) {
@@ -44,12 +136,12 @@ export function WorkspaceInspector({ node, onChange, onDelete }: WorkspaceInspec
             <textarea
               value={node.data.description ?? ''}
               onChange={(event) => onChange({ description: event.target.value })}
-              rows={5}
+              rows={4}
               className="w-full resize-none rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm leading-6 text-[var(--text-primary)] outline-none"
             />
           </label>
 
-          <label className="mb-6 block">
+          <label className="mb-4 block">
             <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Meta Label</div>
             <input
               value={node.data.meta ?? ''}
@@ -57,6 +149,8 @@ export function WorkspaceInspector({ node, onChange, onDelete }: WorkspaceInspec
               className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none"
             />
           </label>
+
+          {renderTypeFields(node, onChange)}
 
           <button
             type="button"
