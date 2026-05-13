@@ -1,0 +1,96 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e6]:
+      - img [ref=e8]
+      - generic [ref=e10]:
+        - generic [ref=e11]: Library
+        - generic [ref=e12]: Inspiration
+    - navigation [ref=e13]:
+      - generic [ref=e14]:
+        - button "All Notes" [ref=e15]:
+          - img [ref=e16]
+          - generic [ref=e19]: All Notes
+        - button "Images" [ref=e20]:
+          - img [ref=e21]
+          - generic [ref=e25]: Images
+        - button "Web Clips" [ref=e26]:
+          - img [ref=e27]
+          - generic [ref=e30]: Web Clips
+        - button "Favorites" [ref=e31]:
+          - img [ref=e32]
+          - generic [ref=e34]: Favorites
+    - generic [ref=e35]:
+      - button "Settings" [ref=e36]:
+        - img [ref=e37]
+        - generic [ref=e40]: Settings
+      - button "Trash" [ref=e41]:
+        - img [ref=e42]
+        - generic [ref=e45]: Trash
+  - main [ref=e46]:
+    - generic [ref=e47]:
+      - generic [ref=e48]: SeenSpace (见间)
+      - generic [ref=e49]:
+        - img [ref=e50]
+        - textbox "Search" [ref=e53]:
+          - /placeholder: Search canvas...
+      - generic [ref=e54]:
+        - button "Toggle theme" [ref=e55]:
+          - img [ref=e56]
+          - text: Dark
+        - button [ref=e58]:
+          - img [ref=e59]
+        - button "Assistant" [ref=e65]
+    - generic [ref=e66]:
+      - generic [ref=e67]:
+        - generic [ref=e68]:
+          - link [ref=e69] [cursor=pointer]:
+            - /url: /
+            - img [ref=e70]
+          - generic [ref=e72]:
+            - heading "Untitled Project" [level=1] [ref=e73]
+            - generic [ref=e74]:
+              - generic [ref=e75]:
+                - img [ref=e76]
+                - text: Saved locally
+              - generic [ref=e78]: 1 nodes
+              - generic [ref=e79]: 0 connections
+        - generic [ref=e80]:
+          - button [ref=e81]:
+            - img [ref=e82]
+          - button [disabled] [ref=e85]:
+            - img [ref=e86]
+          - generic [ref=e89]: Local-first canvas workspace
+      - generic [ref=e90]:
+        - generic [ref=e92]:
+          - generic [ref=e93]:
+            - button "Add Note" [active] [ref=e94]
+            - button "Add Image" [ref=e95]
+            - button "Add Web Clip" [ref=e96]
+            - button "Add Tag / Meta" [ref=e97]
+          - application [ref=e98]:
+            - group [ref=e129]:
+              - generic [ref=e131]:
+                - generic [ref=e134]: Note
+                - generic [ref=e135]:
+                  - generic [ref=e136]: Blank Note
+                  - paragraph [ref=e137]: A quick thought worth keeping close to the canvas.
+                  - generic [ref=e138]: Capture a thought, prompt, or observation directly on the canvas.
+            - img
+          - generic [ref=e104]:
+            - button "Snap" [ref=e105]:
+              - img [ref=e106]
+              - text: Snap
+            - button [ref=e108]:
+              - img [ref=e109]
+            - button "180%" [ref=e140]:
+              - img [ref=e111]
+              - text: 180%
+            - button [ref=e116]:
+              - img [ref=e117]
+        - complementary [ref=e118]:
+          - generic [ref=e120]:
+            - img [ref=e122]
+            - generic [ref=e124]:
+              - generic [ref=e125]: Inspector
+              - generic [ref=e126]: Edit the selected canvas item
+          - paragraph [ref=e128]: Select one or more nodes or connections to edit details or remove them in a batch.

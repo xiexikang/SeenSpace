@@ -1,0 +1,197 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e6]:
+      - img [ref=e8]
+      - generic [ref=e10]:
+        - generic [ref=e11]: Library
+        - generic [ref=e12]: Inspiration
+    - navigation [ref=e13]:
+      - generic [ref=e14]:
+        - button "All Notes" [ref=e15]:
+          - img [ref=e16]
+          - generic [ref=e19]: All Notes
+        - button "Images" [ref=e20]:
+          - img [ref=e21]
+          - generic [ref=e25]: Images
+        - button "Web Clips" [ref=e26]:
+          - img [ref=e27]
+          - generic [ref=e30]: Web Clips
+        - button "Favorites" [ref=e31]:
+          - img [ref=e32]
+          - generic [ref=e34]: Favorites
+    - generic [ref=e35]:
+      - button "Settings" [ref=e36]:
+        - img [ref=e37]
+        - generic [ref=e40]: Settings
+      - button "Trash" [ref=e41]:
+        - img [ref=e42]
+        - generic [ref=e45]: Trash
+  - main [ref=e46]:
+    - generic [ref=e47]:
+      - generic [ref=e48]: SeenSpace (见间)
+      - generic [ref=e49]:
+        - img [ref=e50]
+        - textbox "Search" [ref=e53]:
+          - /placeholder: Search canvas...
+      - generic [ref=e54]:
+        - button "Toggle theme" [ref=e55]:
+          - img [ref=e56]
+          - text: Dark
+        - button [ref=e58]:
+          - img [ref=e59]
+        - button "Assistant" [ref=e65]
+    - generic [ref=e66]:
+      - generic [ref=e67]:
+        - generic [ref=e68]:
+          - link [ref=e69] [cursor=pointer]:
+            - /url: /
+            - img [ref=e70]
+          - generic [ref=e72]:
+            - heading "Untitled Project" [level=1] [ref=e73]
+            - generic [ref=e74]:
+              - generic [ref=e75]:
+                - img [ref=e76]
+                - text: Saved locally
+              - generic [ref=e78]: 2 nodes
+              - generic [ref=e79]: 0 connections
+        - generic [ref=e80]:
+          - button [ref=e81]:
+            - img [ref=e82]
+          - button [disabled] [ref=e85]:
+            - img [ref=e86]
+          - generic [ref=e152]:
+            - img [ref=e182]
+            - text: Group 1 selected
+          - button "Group" [ref=e186]:
+            - img [ref=e187]
+            - text: Group
+          - button "Ungroup" [ref=e190]:
+            - img [ref=e191]
+            - text: Ungroup
+          - button "Expand" [active] [ref=e298]:
+            - img [ref=e299]
+            - text: Expand
+          - button "Duplicate" [ref=e199]:
+            - img [ref=e200]
+            - text: Duplicate
+          - button "Clear" [ref=e203]:
+            - img [ref=e204]
+            - text: Clear
+          - button "Delete Selected" [ref=e207]:
+            - img [ref=e208]
+            - text: Delete Selected
+      - generic [ref=e90]:
+        - generic [ref=e92]:
+          - generic [ref=e93]:
+            - button "Add Note" [ref=e94]
+            - button "Add Image" [ref=e95]
+            - button "Add Web Clip" [ref=e96]
+            - button "Add Tag / Meta" [ref=e97]
+          - application [ref=e98]:
+            - group [ref=e129]:
+              - generic [ref=e131]:
+                - generic [ref=e133]:
+                  - generic [ref=e134]: Note
+                  - generic [ref=e304]: Group 1
+                - generic [ref=e305]:
+                  - generic [ref=e306]:
+                    - generic [ref=e307]: Collapsed Group
+                    - generic [ref=e308]: 2 items
+                  - generic [ref=e310]: Note
+                  - generic [ref=e312]:
+                    - img [ref=e313]
+                    - generic [ref=e315]: "2"
+                  - generic [ref=e316]:
+                    - generic [ref=e317]:
+                      - generic [ref=e318]:
+                        - generic [ref=e319]: Peek
+                        - generic [ref=e320]: Blank Note
+                      - generic [ref=e321]: Hover
+                    - generic:
+                      - generic:
+                        - generic: Group Preview
+                        - generic: 2 items
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic: Blank Note
+                            - generic: Note
+                          - generic: A quick thought worth keeping close to the canvas.
+                - generic [ref=e135]:
+                  - generic [ref=e136]: Blank Note
+                  - paragraph [ref=e137]: A quick thought worth keeping close to the canvas.
+                  - generic [ref=e138]: Capture a thought, prompt, or observation directly on the canvas.
+            - img
+          - generic [ref=e280]:
+            - button "Group 1" [ref=e281]
+            - generic [ref=e282]: "2"
+            - button [ref=e283]:
+              - img [ref=e322]
+          - generic [ref=e104]:
+            - button "Snap" [ref=e105]:
+              - img [ref=e106]
+              - text: Snap
+            - button [ref=e108]:
+              - img [ref=e109]
+            - button "180%" [ref=e140]:
+              - img [ref=e111]
+              - text: 180%
+            - button [ref=e116]:
+              - img [ref=e117]
+        - complementary [ref=e118]:
+          - generic [ref=e119]:
+            - generic [ref=e120]:
+              - img [ref=e211]
+              - generic [ref=e124]:
+                - generic [ref=e125]: Inspector
+                - generic [ref=e126]: Batch actions for selected nodes
+            - button [ref=e161]:
+              - img [ref=e162]
+          - generic [ref=e127]:
+            - generic [ref=e165]: Group 1 selected
+            - paragraph [ref=e216]: Batch metadata helps group notes, images, and links into the same lane without opening each card.
+            - generic [ref=e217]:
+              - button "Group" [ref=e218]:
+                - img [ref=e219]
+                - text: Group
+              - button "Expand" [ref=e327]:
+                - img [ref=e328]
+                - text: Expand
+            - button "Remove Group" [ref=e295]:
+              - img [ref=e296]
+              - text: Remove Group
+            - generic [ref=e225]:
+              - generic [ref=e226]: Layout Tools
+              - paragraph [ref=e227]: Alignment and distribution now respect each node's measured card size.
+              - generic [ref=e228]:
+                - button "Align Left" [ref=e229]:
+                  - img [ref=e230]
+                - button "Center X" [ref=e233]:
+                  - img [ref=e234]
+                - button "Align Right" [ref=e239]:
+                  - img [ref=e240]
+                - button "Align Top" [ref=e243]:
+                  - img [ref=e244]
+                - button "Center Y" [ref=e247]:
+                  - img [ref=e248]
+                - button "Align Bottom" [ref=e253]:
+                  - img [ref=e254]
+                - button "Distribute X" [ref=e257]:
+                  - img [ref=e258]
+                - button "Distribute Y" [ref=e262]:
+                  - img [ref=e263]
+            - generic [ref=e175]:
+              - generic [ref=e176]: Batch Category
+              - textbox "Batch Category" [ref=e267]:
+                - /placeholder: Moodboard, Research, Launch...
+            - generic [ref=e268]:
+              - generic [ref=e269]: Batch Tags
+              - textbox "Batch Tags" [ref=e270]:
+                - /placeholder: editorial, restraint, warm gray
+            - button "Apply Metadata" [ref=e271]
+            - button "Duplicate Selected" [ref=e272]:
+              - img [ref=e273]
+              - text: Duplicate Selected
+            - button "Delete Selected" [ref=e276]:
+              - img [ref=e277]
+              - text: Delete Selected

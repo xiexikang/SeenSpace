@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useCallback, useRef, useState, type ReactNode } from 'react'
 import { Handle, Position } from '@xyflow/react'
 import { Globe, Image as ImageIcon, NotebookText, Tags } from 'lucide-react'
 import type { CollapsedGroupSummary } from '../../../types/workspace'
@@ -27,6 +27,25 @@ export function NodeFrame({
     tag_meta: Tags,
   } as const
   const isCollapsedGroupCard = Boolean(collapsedGroupSummary)
+  const frameRef = useRef<HTMLDivElement | null>(null)
+  const [peekSide, setPeekSide] = useState<'left' | 'right'>('right')
+
+  const handlePeekPointerEnter = useCallback(() => {
+    if (!frameRef.current || typeof window === 'undefined') return
+
+    const rect = frameRef.current.getBoundingClientRect()
+    const peekWidth = window.innerWidth >= 640 ? 280 : 260
+    const gap = 12
+    const rightSpace = window.innerWidth - rect.right
+    const leftSpace = rect.left
+
+    if (rightSpace < peekWidth + gap && leftSpace > rightSpace) {
+      setPeekSide('left')
+      return
+    }
+
+    setPeekSide('right')
+  }, [])
 
   return (
     <div className="group/node relative">
@@ -38,6 +57,7 @@ export function NodeFrame({
       ) : null}
 
       <div
+        ref={frameRef}
         className={`relative min-w-[220px] max-w-[300px] rounded-[20px] border bg-[var(--panel)] p-3 transition-all ${
           selected
             ? 'border-[var(--text-primary)] shadow-[0_0_0_2px_rgba(24,24,27,0.08),0_18px_42px_rgba(24,24,27,0.14)]'
@@ -100,7 +120,7 @@ export function NodeFrame({
             })}
           </div>
           {collapsedGroupSummary.previewItems.length > 0 ? (
-            <div className="mt-3">
+            <div className="mt-3" onPointerEnter={handlePeekPointerEnter}>
               <div className="flex items-center justify-between gap-2 rounded-[14px] border border-[var(--border)] bg-[var(--panel)] px-3 py-2">
                 <div className="min-w-0">
                   <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
@@ -115,7 +135,13 @@ export function NodeFrame({
                 </div>
               </div>
 
-              <div className="pointer-events-none absolute left-full top-6 z-30 ml-3 w-[260px] origin-left rounded-[18px] border border-[rgba(24,24,27,0.1)] bg-[rgba(255,255,255,0.97)] p-3 opacity-0 shadow-[0_18px_40px_rgba(24,24,27,0.14)] backdrop-blur-sm transition-all duration-150 group-hover/node:translate-x-0 group-hover/node:opacity-100 group-hover/node:shadow-[0_22px_46px_rgba(24,24,27,0.18)] sm:w-[280px] translate-x-1">
+              <div
+                className={`pointer-events-none absolute top-6 z-30 w-[260px] rounded-[18px] border border-[rgba(24,24,27,0.1)] bg-[rgba(255,255,255,0.97)] p-3 opacity-0 shadow-[0_18px_40px_rgba(24,24,27,0.14)] backdrop-blur-sm transition-all duration-150 group-hover/node:opacity-100 group-hover/node:shadow-[0_22px_46px_rgba(24,24,27,0.18)] sm:w-[280px] ${
+                  peekSide === 'left'
+                    ? 'right-full mr-3 origin-right -translate-x-1 group-hover/node:translate-x-0'
+                    : 'left-full ml-3 origin-left translate-x-1 group-hover/node:translate-x-0'
+                }`}
+              >
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <div className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
                     Group Preview

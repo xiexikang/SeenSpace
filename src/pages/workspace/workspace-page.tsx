@@ -176,7 +176,7 @@ function duplicateSelectedNodes(nodes: WorkspaceNode[], selectedNodeIds: string[
   const selectedNodes = nodes.filter((node) => selectedSet.has(node.id))
 
   if (selectedNodes.length === 0) {
-    return { nodes, duplicatedIds: [] as string[] }
+    return { nodes, duplicatedIds: [] as string[], duplicatedVisibleIds: [] as string[] }
   }
 
   const groupIdMap = new Map<string, { id: string; label: string; leadSourceId?: string }>()
@@ -218,6 +218,7 @@ function duplicateSelectedNodes(nodes: WorkspaceNode[], selectedNodeIds: string[
         groupId: nextGroupId,
         groupLabel: nextGroupLabel,
         groupLeadId: node.data.groupLeadId,
+        groupCollapsed: node.data.groupId ? false : node.data.groupCollapsed,
       },
       selected: false,
     }
@@ -238,9 +239,14 @@ function duplicateSelectedNodes(nodes: WorkspaceNode[], selectedNodeIds: string[
     }
   })
 
+  const duplicatedVisibleIds = normalizedDuplicates
+    .filter((node) => !node.data.groupCollapsed || node.id === node.data.groupLeadId)
+    .map((node) => node.id)
+
   return {
     nodes: [...nodes, ...normalizedDuplicates],
     duplicatedIds: normalizedDuplicates.map((node) => node.id),
+    duplicatedVisibleIds,
   }
 }
 
@@ -273,6 +279,7 @@ export function WorkspacePage() {
   const [batchCategory, setBatchCategory] = useState('')
   const [batchTagsText, setBatchTagsText] = useState('')
   const [historyIndex, setHistoryIndex] = useState(0)
+  const [canvasStageVersion, setCanvasStageVersion] = useState(0)
   const historyRef = useRef<WorkspaceSnapshot[]>([emptySnapshot])
 
   useEffect(() => {
@@ -424,9 +431,13 @@ export function WorkspacePage() {
       nodes: result.nodes,
     }
 
-    setSelectedNodeIds(result.duplicatedIds)
+    setSelectedNodeIds([])
     setSelectedEdgeIds([])
+    setCanvasStageVersion((current) => current + 1)
     void persistSnapshot(nextSnapshot)
+    window.requestAnimationFrame(() => {
+      setSelectedNodeIds(result.duplicatedVisibleIds)
+    })
   }
 
   function handleCreateGroup() {
@@ -882,6 +893,7 @@ export function WorkspacePage() {
           <div className="flex min-h-0 flex-1 gap-4">
             <div className="min-w-0 flex-1">
               <CanvasStage
+                key={`${projectId ?? 'workspace'}-${canvasStageVersion}`}
                 snapshot={snapshot}
                 selectedNodeIds={selectedNodeIds}
                 onSelectGroup={handleSelectGroupById}

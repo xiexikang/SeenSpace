@@ -184,20 +184,23 @@ function buildRenderableNodes(snapshotNodes: WorkspaceNode[], selectedNodeIds: s
   )
 
   return {
-    nodes: snapshotNodes.map((node) => ({
-      ...node,
-      data: {
-        ...node.data,
-        collapsedGroupSummary:
-          node.data.groupId &&
-          groupStateById.get(node.data.groupId)?.collapsed &&
-          node.id === groupStateById.get(node.data.groupId)?.leadId
-            ? groupSummaryById.get(node.data.groupId)
-            : undefined,
-      },
-      selected: selectedNodeIds.includes(node.id),
-      hidden: hiddenNodeIds.has(node.id),
-    })),
+    nodes: snapshotNodes.map((node) => {
+      const hidden = hiddenNodeIds.has(node.id)
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          collapsedGroupSummary:
+            node.data.groupId &&
+            groupStateById.get(node.data.groupId)?.collapsed &&
+            node.id === groupStateById.get(node.data.groupId)?.leadId
+              ? groupSummaryById.get(node.data.groupId)
+              : undefined,
+        },
+        selected: !hidden && selectedNodeIds.includes(node.id),
+        hidden,
+      }
+    }),
     hiddenNodeIds,
   }
 }
@@ -236,13 +239,17 @@ export function CanvasStage({
   useEffect(() => {
     setNodes((currentNodes) => {
       const currentSelectedNodeIds = currentNodes.filter((node) => node.selected).map((node) => node.id)
-      if (arraysEqual(currentSelectedNodeIds, selectedNodeIds)) {
+      const visibleSelectedNodeIds = currentNodes
+        .filter((node) => !node.hidden && selectedNodeIds.includes(node.id))
+        .map((node) => node.id)
+
+      if (arraysEqual(currentSelectedNodeIds, visibleSelectedNodeIds)) {
         return currentNodes
       }
 
       return currentNodes.map((node) => ({
         ...node,
-        selected: selectedNodeIds.includes(node.id),
+        selected: visibleSelectedNodeIds.includes(node.id),
       }))
     })
   }, [selectedNodeIds, setNodes])
