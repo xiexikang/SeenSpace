@@ -25,6 +25,7 @@ import type {
 } from '../../../types/workspace'
 import { nodeTypes } from '../../nodes/components/node-renderer'
 import { createWorkspaceNode } from '../../nodes/services/node-factory'
+import { buildRenderableNodes, getVisibleSelectedNodeIds } from '../../workspace/services/group-operations'
 import { CanvasEmptyState } from './canvas-empty-state'
 import { ZoomControls } from './zoom-controls'
 
@@ -43,13 +44,6 @@ const addableNodeTypes: Array<{ type: WorkspaceNodeType; label: string }> = [
   { type: 'web', label: 'Add Web Clip' },
   { type: 'tag_meta', label: 'Add Tag / Meta' },
 ]
-
-const nodeTypeLabels: Record<WorkspaceNodeType, string> = {
-  note: 'Note',
-  image: 'Image',
-  web: 'Web Clip',
-  tag_meta: 'Tag / Meta',
-}
 
 const fallbackNodeSize = { width: 260, height: 180 }
 const snapThreshold = 10
@@ -108,103 +102,6 @@ function arraysEqual(left: string[], right: string[]) {
   return left.every((value, index) => value === right[index])
 }
 
-function buildRenderableNodes(snapshotNodes: WorkspaceNode[], selectedNodeIds: string[]) {
-  const groupStateById = new Map<
-    string,
-    {
-      leadId: string
-      collapsed: boolean
-    }
-  >()
-  const groupSummaryById = new Map<
-    string,
-    {
-      memberCount: number
-      typeLabels: string[]
-      typeCounts: Array<{ type: WorkspaceNodeType; count: number }>
-      previewItems: Array<{
-        id: string
-        title: string
-        typeLabel: string
-        subtitle?: string
-      }>
-    }
-  >()
-
-  snapshotNodes.forEach((node) => {
-    if (!node.data.groupId) return
-    if (!groupStateById.has(node.data.groupId)) {
-      groupStateById.set(node.data.groupId, {
-        leadId: node.data.groupLeadId ?? node.id,
-        collapsed: Boolean(node.data.groupCollapsed),
-      })
-    }
-  })
-
-  groupStateById.forEach((_state, groupId) => {
-    const groupNodes = snapshotNodes.filter((node) => node.data.groupId === groupId)
-    const typeCountMap = new Map<WorkspaceNodeType, number>()
-    groupNodes.forEach((node) => {
-      typeCountMap.set(node.type, (typeCountMap.get(node.type) ?? 0) + 1)
-    })
-    groupSummaryById.set(groupId, {
-      memberCount: groupNodes.length,
-      typeLabels: Array.from(new Set(groupNodes.map((node) => nodeTypeLabels[node.type]))),
-      typeCounts: Array.from(typeCountMap.entries()).map(([type, count]) => ({ type, count })),
-      previewItems: groupNodes
-        .filter((node) => node.id !== (groupStateById.get(groupId)?.leadId ?? ''))
-        .map((node) => ({
-          id: node.id,
-          title: node.data.title,
-          typeLabel: nodeTypeLabels[node.type],
-          subtitle:
-            node.data.description ??
-            ('body' in node.data
-              ? node.data.body
-              : 'domain' in node.data
-                ? node.data.domain ?? node.data.url
-                : 'category' in node.data
-                  ? node.data.category
-                  : undefined),
-        }))
-        .filter((item) => Boolean(item.title))
-        .slice(0, 3),
-    })
-  })
-
-  const hiddenNodeIds = new Set(
-    snapshotNodes
-      .filter(
-        (node) =>
-          node.data.groupId &&
-          groupStateById.get(node.data.groupId)?.collapsed &&
-          node.id !== groupStateById.get(node.data.groupId)?.leadId,
-      )
-      .map((node) => node.id),
-  )
-
-  return {
-    nodes: snapshotNodes.map((node) => {
-      const hidden = hiddenNodeIds.has(node.id)
-      return {
-        ...node,
-        data: {
-          ...node.data,
-          collapsedGroupSummary:
-            node.data.groupId &&
-            groupStateById.get(node.data.groupId)?.collapsed &&
-            node.id === groupStateById.get(node.data.groupId)?.leadId
-              ? groupSummaryById.get(node.data.groupId)
-              : undefined,
-        },
-        selected: !hidden && selectedNodeIds.includes(node.id),
-        hidden,
-      }
-    }),
-    hiddenNodeIds,
-  }
-}
-
 export function CanvasStage({
   snapshot,
   selectedNodeIds = [],
@@ -239,9 +136,7 @@ export function CanvasStage({
   useEffect(() => {
     setNodes((currentNodes) => {
       const currentSelectedNodeIds = currentNodes.filter((node) => node.selected).map((node) => node.id)
-      const visibleSelectedNodeIds = currentNodes
-        .filter((node) => !node.hidden && selectedNodeIds.includes(node.id))
-        .map((node) => node.id)
+      const visibleSelectedNodeIds = getVisibleSelectedNodeIds(currentNodes, selectedNodeIds)
 
       if (arraysEqual(currentSelectedNodeIds, visibleSelectedNodeIds)) {
         return currentNodes

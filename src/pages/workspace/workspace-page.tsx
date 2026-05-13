@@ -1,12 +1,31 @@
 import { ArrowLeft, Check, Copy, FolderInput, FolderOpen, Layers3, Maximize2, Minimize2, Redo2, Trash2, Undo2, X } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { LibrarySidebar } from '../../components/shared/library-sidebar'
 import { TopToolbar } from '../../components/shared/top-toolbar'
 import { WorkspaceInspector } from '../../components/workspace/workspace-inspector'
 import { CanvasStage } from '../../features/canvas/components/canvas-stage'
 import { getProjectById, updateProjectCanvas } from '../../features/project/services/project-service'
-import type { TagMetaNodeData, WorkspaceEdge, WorkspaceNode, WorkspaceSnapshot } from '../../types/workspace'
+import {
+  deleteNodesFromSnapshot,
+  duplicateSelectedNodes,
+  toggleGroupCollapse,
+  ungroupSelectedNodes,
+} from '../../features/workspace/services/group-operations'
+import {
+  getRedoHistoryState,
+  getUndoHistoryState,
+  pushHistoryEntry,
+  snapshotsEqual,
+} from '../../features/workspace/services/workspace-history'
+import { resolveWorkspaceKeyboardAction } from '../../features/workspace/services/workspace-keyboard'
+import { deriveWorkspaceSelectionState } from '../../features/workspace/services/workspace-selection'
+import {
+  applyBatchMetadata,
+  type LayoutActionId,
+  updateSelectedNodesLayout,
+} from '../../features/workspace/services/workspace-transforms'
+import type { WorkspaceEdge, WorkspaceNode, WorkspaceSnapshot } from '../../types/workspace'
 
 const emptySnapshot: WorkspaceSnapshot = {
   nodes: [],
@@ -14,27 +33,7 @@ const emptySnapshot: WorkspaceSnapshot = {
   viewport: { x: 0, y: 0, zoom: 1 },
 }
 
-const duplicateOffset = { x: 44, y: 44 }
 const historyLimit = 80
-const fallbackNodeSize = { width: 260, height: 180 }
-
-type LayoutActionId =
-  | 'align-left'
-  | 'align-center-x'
-  | 'align-right'
-  | 'align-top'
-  | 'align-center-y'
-  | 'align-bottom'
-  | 'distribute-x'
-  | 'distribute-y'
-
-function parseTags(value: string) {
-  return value
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean)
-}
-
 function sanitizeSnapshot(snapshot: WorkspaceSnapshot): WorkspaceSnapshot {
   return {
     ...snapshot,
@@ -49,10 +48,6 @@ function sanitizeSnapshot(snapshot: WorkspaceSnapshot): WorkspaceSnapshot {
     })),
     edges: snapshot.edges.map((edge) => ({ ...edge, selected: false })),
   }
-}
-
-function snapshotsEqual(left: WorkspaceSnapshot, right: WorkspaceSnapshot) {
-  return JSON.stringify(left) === JSON.stringify(right)
 }
 
 function sameIds(left: string[], right: string[]) {
@@ -74,180 +69,6 @@ function nextGroupLabel(nodes: WorkspaceNode[]) {
 
 function getGroupNodeIds(nodes: WorkspaceNode[], groupId: string) {
   return nodes.filter((node) => node.data.groupId === groupId).map((node) => node.id)
-}
-
-function updateSelectedNodesLayout(
-  nodes: WorkspaceNode[],
-  selectedNodeIds: string[],
-  action: LayoutActionId,
-) {
-  const selectedSet = new Set(selectedNodeIds)
-  const selectedNodes = nodes.filter((node) => selectedSet.has(node.id))
-
-  if (selectedNodes.length < 2) {
-    return nodes
-  }
-
-  const updates = new Map<string, WorkspaceNode['position']>()
-  const bounds = selectedNodes.map((node) => {
-    const width = node.measured?.width ?? node.width ?? fallbackNodeSize.width
-    const height = node.measured?.height ?? node.height ?? fallbackNodeSize.height
-
-    return {
-      node,
-      left: node.position.x,
-      right: node.position.x + width,
-      top: node.position.y,
-      bottom: node.position.y + height,
-      width,
-      height,
-    }
-  })
-
-  const left = Math.min(...bounds.map((bound) => bound.left))
-  const right = Math.max(...bounds.map((bound) => bound.right))
-  const centerX = (left + right) / 2
-  const top = Math.min(...bounds.map((bound) => bound.top))
-  const bottom = Math.max(...bounds.map((bound) => bound.bottom))
-  const centerY = (top + bottom) / 2
-
-  if (action === 'align-left') {
-    selectedNodes.forEach((node) => updates.set(node.id, { ...node.position, x: left }))
-  }
-
-  if (action === 'align-center-x') {
-    bounds.forEach((bound) =>
-      updates.set(bound.node.id, { ...bound.node.position, x: centerX - bound.width / 2 }),
-    )
-  }
-
-  if (action === 'align-right') {
-    bounds.forEach((bound) =>
-      updates.set(bound.node.id, { ...bound.node.position, x: right - bound.width }),
-    )
-  }
-
-  if (action === 'align-top') {
-    selectedNodes.forEach((node) => updates.set(node.id, { ...node.position, y: top }))
-  }
-
-  if (action === 'align-center-y') {
-    bounds.forEach((bound) =>
-      updates.set(bound.node.id, { ...bound.node.position, y: centerY - bound.height / 2 }),
-    )
-  }
-
-  if (action === 'align-bottom') {
-    bounds.forEach((bound) =>
-      updates.set(bound.node.id, { ...bound.node.position, y: bottom - bound.height }),
-    )
-  }
-
-  if (action === 'distribute-x') {
-    const sorted = [...bounds].sort((a, b) => a.left - b.left)
-    const totalWidth = sorted.reduce((sum, bound) => sum + bound.width, 0)
-    const gap = sorted.length > 1 ? Math.max((right - left - totalWidth) / (sorted.length - 1), 0) : 0
-    let cursor = left
-    sorted.forEach((bound) => {
-      updates.set(bound.node.id, { ...bound.node.position, x: cursor })
-      cursor += bound.width + gap
-    })
-  }
-
-  if (action === 'distribute-y') {
-    const sorted = [...bounds].sort((a, b) => a.top - b.top)
-    const totalHeight = sorted.reduce((sum, bound) => sum + bound.height, 0)
-    const gap = sorted.length > 1 ? Math.max((bottom - top - totalHeight) / (sorted.length - 1), 0) : 0
-    let cursor = top
-    sorted.forEach((bound) => {
-      updates.set(bound.node.id, { ...bound.node.position, y: cursor })
-      cursor += bound.height + gap
-    })
-  }
-
-  return nodes.map((node) => {
-    const nextPosition = updates.get(node.id)
-    return nextPosition ? { ...node, position: nextPosition } : node
-  })
-}
-
-function duplicateSelectedNodes(nodes: WorkspaceNode[], selectedNodeIds: string[]) {
-  const selectedSet = new Set(selectedNodeIds)
-  const selectedNodes = nodes.filter((node) => selectedSet.has(node.id))
-
-  if (selectedNodes.length === 0) {
-    return { nodes, duplicatedIds: [] as string[], duplicatedVisibleIds: [] as string[] }
-  }
-
-  const groupIdMap = new Map<string, { id: string; label: string; leadSourceId?: string }>()
-  const duplicateIdMap = new Map<string, string>()
-  const duplicates = selectedNodes.map((node) => {
-    let nextGroupId = node.data.groupId
-    let nextGroupLabel = node.data.groupLabel
-
-    if (node.data.groupId && node.data.groupLabel) {
-      const existing = groupIdMap.get(node.data.groupId)
-      if (existing) {
-        nextGroupId = existing.id
-        nextGroupLabel = existing.label
-      } else {
-        const created = {
-          id: crypto.randomUUID(),
-          label: `${node.data.groupLabel} Copy`,
-          leadSourceId: node.data.groupLeadId,
-        }
-        groupIdMap.set(node.data.groupId, created)
-        nextGroupId = created.id
-        nextGroupLabel = created.label
-      }
-    }
-
-    const duplicateId = crypto.randomUUID()
-    duplicateIdMap.set(node.id, duplicateId)
-
-    return {
-      ...node,
-      id: duplicateId,
-      position: {
-        x: node.position.x + duplicateOffset.x,
-        y: node.position.y + duplicateOffset.y,
-      },
-      data: {
-        ...node.data,
-        title: node.data.title.endsWith(' Copy') ? node.data.title : `${node.data.title} Copy`,
-        groupId: nextGroupId,
-        groupLabel: nextGroupLabel,
-        groupLeadId: node.data.groupLeadId,
-        groupCollapsed: node.data.groupId ? false : node.data.groupCollapsed,
-      },
-      selected: false,
-    }
-  })
-
-  const normalizedDuplicates = duplicates.map((node) => {
-    if (!node.data.groupId || !node.data.groupLeadId) {
-      return node
-    }
-
-    const duplicatedLeadId = duplicateIdMap.get(node.data.groupLeadId) ?? node.id
-    return {
-      ...node,
-      data: {
-        ...node.data,
-        groupLeadId: duplicatedLeadId,
-      },
-    }
-  })
-
-  const duplicatedVisibleIds = normalizedDuplicates
-    .filter((node) => !node.data.groupCollapsed || node.id === node.data.groupLeadId)
-    .map((node) => node.id)
-
-  return {
-    nodes: [...nodes, ...normalizedDuplicates],
-    duplicatedIds: normalizedDuplicates.map((node) => node.id),
-    duplicatedVisibleIds,
-  }
 }
 
 function nudgeSelectedNodes(nodes: WorkspaceNode[], selectedNodeIds: string[], xDelta: number, yDelta: number) {
@@ -298,32 +119,19 @@ export function WorkspacePage() {
     void loadProject()
   }, [projectId])
 
-  const selectedNodes = useMemo(
-    () => snapshot.nodes.filter((node) => selectedNodeIds.includes(node.id)),
-    [selectedNodeIds, snapshot.nodes],
-  )
-
-  const selectedEdges = useMemo(
-    () => snapshot.edges.filter((edge) => selectedEdgeIds.includes(edge.id)),
-    [selectedEdgeIds, snapshot.edges],
-  )
-
-  const selectedNode = selectedNodes.length === 1 ? selectedNodes[0] : undefined
-  const selectedEdge = selectedEdges.length === 1 ? selectedEdges[0] : undefined
-  const sourceNode = selectedEdge
-    ? snapshot.nodes.find((node) => node.id === selectedEdge.source)
-    : undefined
-  const targetNode = selectedEdge
-    ? snapshot.nodes.find((node) => node.id === selectedEdge.target)
-    : undefined
-  const activeGroupId =
-    selectedNodes.length > 0 &&
-    selectedNodes.every((node) => node.data.groupId && node.data.groupId === selectedNodes[0].data.groupId)
-      ? selectedNodes[0].data.groupId
-      : undefined
-  const activeGroupLabel = activeGroupId ? selectedNodes[0]?.data.groupLabel : undefined
-  const activeGroupCollapsed = activeGroupId ? Boolean(selectedNodes[0]?.data.groupCollapsed) : false
-  const canUngroupSelection = selectedNodes.some((node) => node.data.groupId)
+  const {
+    selectedNodes,
+    selectedNode,
+    selectedEdge,
+    sourceNode,
+    targetNode,
+    activeGroupId,
+    activeGroupLabel,
+    activeGroupCollapsed,
+    canUngroupSelection,
+    totalSelectionCount,
+    selectionSummary,
+  } = deriveWorkspaceSelectionState(snapshot, selectedNodeIds, selectedEdgeIds)
   const canUndo = historyIndex > 0
   const canRedo = historyIndex < historyRef.current.length - 1
 
@@ -346,9 +154,9 @@ export function WorkspacePage() {
 
     if (shouldRecordHistory) {
       if (!snapshotsEqual(currentSnapshot, cleanSnapshot)) {
-        const nextHistory = [...historyRef.current.slice(0, historyIndex + 1), cleanSnapshot].slice(-historyLimit)
-        historyRef.current = nextHistory
-        setHistoryIndex(nextHistory.length - 1)
+        const nextHistoryState = pushHistoryEntry(historyRef.current, historyIndex, cleanSnapshot, historyLimit)
+        historyRef.current = nextHistoryState.history
+        setHistoryIndex(nextHistoryState.historyIndex)
       }
     }
 
@@ -377,37 +185,30 @@ export function WorkspacePage() {
 
   function handleUndo() {
     if (!canUndo) return
-    const nextIndex = historyIndex - 1
-    const previousSnapshot = historyRef.current[nextIndex]
+    const previousHistoryState = getUndoHistoryState(historyRef.current, historyIndex)
+    const previousSnapshot = previousHistoryState.snapshot
     if (!previousSnapshot) return
     setSelectedNodeIds([])
     setSelectedEdgeIds([])
-    setHistoryIndex(nextIndex)
+    setHistoryIndex(previousHistoryState.historyIndex)
     void persistSnapshot(previousSnapshot, { recordHistory: false })
   }
 
   function handleRedo() {
     if (!canRedo) return
-    const nextIndex = historyIndex + 1
-    const nextSnapshot = historyRef.current[nextIndex]
+    const nextHistoryState = getRedoHistoryState(historyRef.current, historyIndex)
+    const nextSnapshot = nextHistoryState.snapshot
     if (!nextSnapshot) return
     setSelectedNodeIds([])
     setSelectedEdgeIds([])
-    setHistoryIndex(nextIndex)
+    setHistoryIndex(nextHistoryState.historyIndex)
     void persistSnapshot(nextSnapshot, { recordHistory: false })
   }
 
   function deleteNodes(nodeIds: string[]) {
     if (nodeIds.length === 0) return
 
-    const idSet = new Set(nodeIds)
-    const nextSnapshot: WorkspaceSnapshot = {
-      ...snapshot,
-      nodes: snapshot.nodes.filter((node) => !idSet.has(node.id)),
-      edges: snapshot.edges.filter((edge) => !idSet.has(edge.source) && !idSet.has(edge.target)),
-    }
-
-    applySnapshotWithoutSelection(nextSnapshot)
+    applySnapshotWithoutSelection(deleteNodesFromSnapshot(snapshot, nodeIds))
   }
 
   function deleteEdges(edgeIds: string[]) {
@@ -468,27 +269,8 @@ export function WorkspacePage() {
 
   function handleUngroup() {
     if (selectedNodeIds.length === 0) return
-    const selectedGroups = new Set(
-      selectedNodes.map((node) => node.data.groupId).filter((groupId): groupId is string => Boolean(groupId)),
-    )
-    if (selectedGroups.size === 0) return
-    const nextSnapshot: WorkspaceSnapshot = {
-      ...snapshot,
-      nodes: snapshot.nodes.map((node) =>
-        selectedGroups.has(node.data.groupId ?? '')
-          ? {
-              ...node,
-              data: {
-              ...node.data,
-              groupId: undefined,
-              groupLabel: undefined,
-              groupLeadId: undefined,
-              groupCollapsed: undefined,
-            },
-          }
-          : node,
-      ),
-    }
+    const nextSnapshot = ungroupSelectedNodes(snapshot, selectedNodeIds)
+    if (snapshotsEqual(snapshot, nextSnapshot)) return
     void persistSnapshot(nextSnapshot)
   }
 
@@ -506,28 +288,11 @@ export function WorkspacePage() {
   }
 
   function handleToggleGroupCollapse(groupId: string) {
-    const memberIds = getGroupNodeIds(snapshot.nodes, groupId)
-    if (memberIds.length === 0) return
-    const currentGroup = snapshot.nodes.find((node) => node.data.groupId === groupId)
-    const nextCollapsed = !currentGroup?.data.groupCollapsed
-    const memberIdSet = new Set(memberIds)
-    const nextSnapshot: WorkspaceSnapshot = {
-      ...snapshot,
-      nodes: snapshot.nodes.map((node) =>
-        memberIdSet.has(node.id)
-          ? {
-              ...node,
-              data: {
-                ...node.data,
-                groupCollapsed: nextCollapsed,
-              },
-            }
-          : node,
-      ),
-    }
-    setSelectedNodeIds(memberIds)
+    const result = toggleGroupCollapse(snapshot, groupId)
+    if (result.memberIds.length === 0) return
+    setSelectedNodeIds(result.memberIds)
     setSelectedEdgeIds([])
-    void persistSnapshot(nextSnapshot)
+    void persistSnapshot(result.snapshot)
   }
 
   useEffect(() => {
@@ -537,78 +302,70 @@ export function WorkspacePage() {
       const isTyping =
         tagName === 'INPUT' || tagName === 'TEXTAREA' || target?.isContentEditable === true
 
-      if (isTyping) return
+      const action = resolveWorkspaceKeyboardAction({
+        isTyping,
+        key: event.key,
+        metaKey: event.metaKey,
+        ctrlKey: event.ctrlKey,
+        altKey: event.altKey,
+        shiftKey: event.shiftKey,
+        selectedNodeCount: selectedNodeIds.length,
+        selectedEdgeCount: selectedEdgeIds.length,
+        canUndo,
+        canRedo,
+        canUngroupSelection,
+      })
 
-      const key = event.key.toLowerCase()
-      if ((event.metaKey || event.ctrlKey) && !event.altKey) {
-        if (key === 'z' && event.shiftKey) {
-          event.preventDefault()
-          handleRedo()
-          return
-        }
-        if (key === 'y') {
-          event.preventDefault()
-          handleRedo()
-          return
-        }
-        if (key === 'z') {
-          event.preventDefault()
-          handleUndo()
-          return
-        }
-        if (key === 'd' && selectedNodeIds.length > 0) {
-          event.preventDefault()
-          handleDuplicateMany()
-          return
-        }
-        if (key === 'g' && event.shiftKey && canUngroupSelection) {
-          event.preventDefault()
-          handleUngroup()
-          return
-        }
-        if (key === 'g' && selectedNodeIds.length > 1) {
-          event.preventDefault()
-          handleCreateGroup()
-          return
-        }
+      if (!action) return
+
+      event.preventDefault()
+
+      if (action.type === 'redo') {
+        handleRedo()
+        return
       }
 
-      if (event.key === 'Escape' && (selectedNodeIds.length > 0 || selectedEdgeIds.length > 0)) {
-        event.preventDefault()
+      if (action.type === 'undo') {
+        handleUndo()
+        return
+      }
+
+      if (action.type === 'duplicate-selection') {
+        handleDuplicateMany()
+        return
+      }
+
+      if (action.type === 'ungroup-selection') {
+        handleUngroup()
+        return
+      }
+
+      if (action.type === 'group-selection') {
+        handleCreateGroup()
+        return
+      }
+
+      if (action.type === 'clear-selection') {
         clearSelection()
         return
       }
 
-      if (event.key === 'Delete' || event.key === 'Backspace') {
-        if (selectedNodeIds.length > 0) {
-          event.preventDefault()
-          deleteNodes(selectedNodeIds)
-          return
-        }
-        if (selectedEdgeIds.length > 0) {
-          event.preventDefault()
-          deleteEdges(selectedEdgeIds)
-          return
-        }
+      if (action.type === 'delete-selected-nodes') {
+        deleteNodes(selectedNodeIds)
+        return
       }
 
-      if (selectedNodeIds.length > 0) {
-        const step = event.shiftKey ? 24 : 8
-        const movementByKey: Record<string, { x: number; y: number }> = {
-          ArrowLeft: { x: -step, y: 0 },
-          ArrowRight: { x: step, y: 0 },
-          ArrowUp: { x: 0, y: -step },
-          ArrowDown: { x: 0, y: step },
+      if (action.type === 'delete-selected-edges') {
+        deleteEdges(selectedEdgeIds)
+        return
+      }
+
+      if (action.type === 'nudge-selected-nodes') {
+        const nextSnapshot: WorkspaceSnapshot = {
+          ...snapshot,
+          nodes: nudgeSelectedNodes(snapshot.nodes, selectedNodeIds, action.delta.x, action.delta.y),
         }
-        const movement = movementByKey[event.key]
-        if (movement) {
-          event.preventDefault()
-          const nextSnapshot: WorkspaceSnapshot = {
-            ...snapshot,
-            nodes: nudgeSelectedNodes(snapshot.nodes, selectedNodeIds, movement.x, movement.y),
-          }
-          void persistSnapshot(nextSnapshot)
-        }
+        void persistSnapshot(nextSnapshot)
       }
     }
 
@@ -673,28 +430,9 @@ export function WorkspacePage() {
   function applyBatchMeta() {
     if (selectedNodeIds.length < 2) return
 
-    const idSet = new Set(selectedNodeIds)
-    const tags = parseTags(batchTagsText)
     const nextSnapshot: WorkspaceSnapshot = {
       ...snapshot,
-      nodes: snapshot.nodes.map((node) => {
-        if (!idSet.has(node.id)) return node
-
-        const currentTags = 'tags' in node.data ? node.data.tags ?? [] : []
-        const mergedTags = Array.from(new Set([...currentTags, ...tags]))
-
-        return {
-          ...node,
-          data: {
-            ...node.data,
-            ...(batchCategory ? { meta: batchCategory } : {}),
-            ...(('category' in node.data || node.type === 'tag_meta')
-              ? ({ category: batchCategory || (node.data as TagMetaNodeData).category } as Partial<TagMetaNodeData>)
-              : {}),
-            ...(tags.length > 0 ? { tags: mergedTags } : {}),
-          },
-        }
-      }),
+      nodes: applyBatchMetadata(snapshot.nodes, selectedNodeIds, batchCategory, batchTagsText),
     }
 
     void persistSnapshot(nextSnapshot)
@@ -717,18 +455,6 @@ export function WorkspacePage() {
   function handleDeleteManyEdges() {
     deleteEdges(selectedEdgeIds)
   }
-
-  const totalSelectionCount = selectedNodeIds.length + selectedEdgeIds.length
-  const selectionSummary =
-    selectedNodeIds.length > 0
-      ? activeGroupLabel
-        ? `${activeGroupLabel} selected`
-        : `${selectedNodeIds.length} node${selectedNodeIds.length > 1 ? 's' : ''} selected`
-      : selectedEdgeIds.length > 0
-        ? selectedEdges.length === 1
-          ? `${selectedEdges[0].label || 'connection'} selected`
-          : `${selectedEdgeIds.length} connection${selectedEdgeIds.length > 1 ? 's' : ''} selected`
-        : 'Local-first canvas workspace'
 
   return (
     <div className="flex min-h-screen bg-[var(--background)] text-[var(--text-primary)]">
