@@ -1,5 +1,6 @@
 import '@xyflow/react/dist/style.css'
 
+import { Maximize2, Minimize2 } from 'lucide-react'
 import {
   addEdge,
   Background,
@@ -29,6 +30,9 @@ import { ZoomControls } from './zoom-controls'
 
 type CanvasStageProps = {
   snapshot: WorkspaceSnapshot
+  selectedNodeIds?: string[]
+  onSelectGroup?: (groupId: string) => void
+  onToggleGroupCollapse?: (groupId: string) => void
   onSnapshotChange?: (snapshot: WorkspaceSnapshot) => void
   onSelectionChange?: (selection: { nodeIds: string[]; edgeIds: string[] }) => void
 }
@@ -39,6 +43,13 @@ const addableNodeTypes: Array<{ type: WorkspaceNodeType; label: string }> = [
   { type: 'web', label: 'Add Web Clip' },
   { type: 'tag_meta', label: 'Add Tag / Meta' },
 ]
+
+const nodeTypeLabels: Record<WorkspaceNodeType, string> = {
+  note: 'Note',
+  image: 'Image',
+  web: 'Web Clip',
+  tag_meta: 'Tag / Meta',
+}
 
 const fallbackNodeSize = { width: 260, height: 180 }
 const snapThreshold = 10
@@ -74,12 +85,133 @@ function getNodeRect(node: WorkspaceNode | Node) {
   }
 }
 
+function getBoundsFromRects(rects: ReturnType<typeof getNodeRect>[]) {
+  const left = Math.min(...rects.map((rect) => rect.left))
+  const right = Math.max(...rects.map((rect) => rect.right))
+  const top = Math.min(...rects.map((rect) => rect.top))
+  const bottom = Math.max(...rects.map((rect) => rect.bottom))
+
+  return {
+    left,
+    right,
+    top,
+    bottom,
+    centerX: (left + right) / 2,
+    centerY: (top + bottom) / 2,
+    width: right - left,
+    height: bottom - top,
+  }
+}
+
+function arraysEqual(left: string[], right: string[]) {
+  if (left.length !== right.length) return false
+  return left.every((value, index) => value === right[index])
+}
+
+function buildRenderableNodes(snapshotNodes: WorkspaceNode[], selectedNodeIds: string[]) {
+  const groupStateById = new Map<
+    string,
+    {
+      leadId: string
+      collapsed: boolean
+    }
+  >()
+  const groupSummaryById = new Map<
+    string,
+    {
+      memberCount: number
+      typeLabels: string[]
+      typeCounts: Array<{ type: WorkspaceNodeType; count: number }>
+      previewItems: Array<{
+        id: string
+        title: string
+        typeLabel: string
+        subtitle?: string
+      }>
+    }
+  >()
+
+  snapshotNodes.forEach((node) => {
+    if (!node.data.groupId) return
+    if (!groupStateById.has(node.data.groupId)) {
+      groupStateById.set(node.data.groupId, {
+        leadId: node.data.groupLeadId ?? node.id,
+        collapsed: Boolean(node.data.groupCollapsed),
+      })
+    }
+  })
+
+  groupStateById.forEach((_state, groupId) => {
+    const groupNodes = snapshotNodes.filter((node) => node.data.groupId === groupId)
+    const typeCountMap = new Map<WorkspaceNodeType, number>()
+    groupNodes.forEach((node) => {
+      typeCountMap.set(node.type, (typeCountMap.get(node.type) ?? 0) + 1)
+    })
+    groupSummaryById.set(groupId, {
+      memberCount: groupNodes.length,
+      typeLabels: Array.from(new Set(groupNodes.map((node) => nodeTypeLabels[node.type]))),
+      typeCounts: Array.from(typeCountMap.entries()).map(([type, count]) => ({ type, count })),
+      previewItems: groupNodes
+        .filter((node) => node.id !== (groupStateById.get(groupId)?.leadId ?? ''))
+        .map((node) => ({
+          id: node.id,
+          title: node.data.title,
+          typeLabel: nodeTypeLabels[node.type],
+          subtitle:
+            node.data.description ??
+            ('body' in node.data
+              ? node.data.body
+              : 'domain' in node.data
+                ? node.data.domain ?? node.data.url
+                : 'category' in node.data
+                  ? node.data.category
+                  : undefined),
+        }))
+        .filter((item) => Boolean(item.title))
+        .slice(0, 3),
+    })
+  })
+
+  const hiddenNodeIds = new Set(
+    snapshotNodes
+      .filter(
+        (node) =>
+          node.data.groupId &&
+          groupStateById.get(node.data.groupId)?.collapsed &&
+          node.id !== groupStateById.get(node.data.groupId)?.leadId,
+      )
+      .map((node) => node.id),
+  )
+
+  return {
+    nodes: snapshotNodes.map((node) => ({
+      ...node,
+      data: {
+        ...node.data,
+        collapsedGroupSummary:
+          node.data.groupId &&
+          groupStateById.get(node.data.groupId)?.collapsed &&
+          node.id === groupStateById.get(node.data.groupId)?.leadId
+            ? groupSummaryById.get(node.data.groupId)
+            : undefined,
+      },
+      selected: selectedNodeIds.includes(node.id),
+      hidden: hiddenNodeIds.has(node.id),
+    })),
+    hiddenNodeIds,
+  }
+}
+
 export function CanvasStage({
   snapshot,
+  selectedNodeIds = [],
+  onSelectGroup,
+  onToggleGroupCollapse,
   onSnapshotChange,
   onSelectionChange,
 }: CanvasStageProps) {
-  const [nodes, setNodes, onNodesChangeBase] = useNodesState<WorkspaceNode>(snapshot.nodes)
+  const initialRenderState = buildRenderableNodes(snapshot.nodes, selectedNodeIds)
+  const [nodes, setNodes, onNodesChangeBase] = useNodesState<WorkspaceNode>(initialRenderState.nodes)
   const [edges, setEdges, onEdgesChangeBase] = useEdgesState<WorkspaceEdge>(snapshot.edges)
   const [zoomLabel, setZoomLabel] = useState(`${Math.round(snapshot.viewport.zoom * 100)}%`)
   const [viewport, setViewport] = useState(snapshot.viewport)
@@ -89,11 +221,73 @@ export function CanvasStage({
   const saveTimeoutRef = useRef<number | null>(null)
 
   useEffect(() => {
-    setNodes(snapshot.nodes)
-    setEdges(snapshot.edges)
+    const renderState = buildRenderableNodes(snapshot.nodes, selectedNodeIds)
+    setNodes(renderState.nodes)
+    setEdges(
+      snapshot.edges.map((edge) => ({
+        ...edge,
+        hidden: renderState.hiddenNodeIds.has(edge.source) || renderState.hiddenNodeIds.has(edge.target),
+      })),
+    )
     setZoomLabel(`${Math.round(snapshot.viewport.zoom * 100)}%`)
     setViewport(snapshot.viewport)
   }, [setEdges, setNodes, snapshot])
+
+  useEffect(() => {
+    setNodes((currentNodes) => {
+      const currentSelectedNodeIds = currentNodes.filter((node) => node.selected).map((node) => node.id)
+      if (arraysEqual(currentSelectedNodeIds, selectedNodeIds)) {
+        return currentNodes
+      }
+
+      return currentNodes.map((node) => ({
+        ...node,
+        selected: selectedNodeIds.includes(node.id),
+      }))
+    })
+  }, [selectedNodeIds, setNodes])
+
+  const groupOverlays = useMemo(() => {
+    const groups = new Map<
+      string,
+      {
+        label: string
+        collapsed: boolean
+        leadId: string
+        nodes: WorkspaceNode[]
+      }
+    >()
+
+    nodes.forEach((node) => {
+      if (!node.data.groupId || !node.data.groupLabel) return
+      const existing = groups.get(node.data.groupId)
+      if (existing) {
+        existing.nodes.push(node)
+        return
+      }
+      groups.set(node.data.groupId, {
+        label: node.data.groupLabel,
+        collapsed: Boolean(node.data.groupCollapsed),
+        leadId: node.data.groupLeadId ?? node.id,
+        nodes: [node],
+      })
+    })
+
+    return Array.from(groups.entries()).map(([groupId, group]) => {
+      const leadNode = group.nodes.find((node) => node.id === group.leadId) ?? group.nodes[0]
+      const rects = (group.collapsed ? [leadNode] : group.nodes).map((node) => getNodeRect(node))
+      const bounds = getBoundsFromRects(rects)
+      const selected = group.nodes.some((node) => selectedNodeIds.includes(node.id))
+      return {
+        groupId,
+        label: group.label,
+        collapsed: group.collapsed,
+        selected,
+        memberCount: group.nodes.length,
+        bounds,
+      }
+    })
+  }, [nodes, selectedNodeIds])
 
   const emitSnapshot = useMemo(
     () => () => {
@@ -148,8 +342,14 @@ export function CanvasStage({
     const currentNodes = flowRef.current?.getNodes() as WorkspaceNode[] | undefined
     if (!currentNodes) return
 
-    const draggedRect = getNodeRect(draggedNode)
-    const otherNodes = currentNodes.filter((node) => node.id !== draggedNode.id)
+    const draggedGroupNodes =
+      draggedNode.selected
+        ? currentNodes.filter((node) => node.selected)
+        : currentNodes.filter((node) => node.id === draggedNode.id)
+    const draggedGroupIds = new Set(draggedGroupNodes.map((node) => node.id))
+    const draggedGroupRects = draggedGroupNodes.map((node) => getNodeRect(node))
+    const draggedRect = getBoundsFromRects(draggedGroupRects)
+    const otherNodes = currentNodes.filter((node) => !draggedGroupIds.has(node.id) && !node.hidden)
     let bestX:
       | {
           delta: number
@@ -328,13 +528,20 @@ export function CanvasStage({
           ? snappedYBase
           : Math.round(snappedYBase / gridSize) * gridSize,
     }
+    const appliedDelta = {
+      x: nextPosition.x - draggedRect.left,
+      y: nextPosition.y - draggedRect.top,
+    }
 
     setNodes((current) =>
       current.map((node) =>
-        node.id === draggedNode.id
+        draggedGroupIds.has(node.id)
           ? {
               ...node,
-              position: nextPosition,
+              position: {
+                x: node.position.x + appliedDelta.x,
+                y: node.position.y + appliedDelta.y,
+              },
             }
           : node,
       ),
@@ -390,8 +597,22 @@ export function CanvasStage({
           scheduleSnapshotSave()
         }}
         onSelectionChange={({ nodes: selectedNodes, edges: selectedEdges }) => {
+          const selectedGroupIds = Array.from(
+            new Set(selectedNodes.map((node) => node.data.groupId).filter((groupId): groupId is string => Boolean(groupId))),
+          )
+          const expandedNodeIds =
+            selectedGroupIds.length > 0
+              ? ((flowRef.current?.getNodes() as WorkspaceNode[] | undefined) ?? [])
+                  .filter(
+                    (node) =>
+                      selectedNodes.some((selected) => selected.id === node.id) ||
+                      selectedGroupIds.includes(node.data.groupId ?? ''),
+                  )
+                  .map((node) => node.id)
+              : selectedNodes.map((node) => node.id)
+
           onSelectionChange?.({
-            nodeIds: selectedNodes.map((node) => node.id),
+            nodeIds: expandedNodeIds,
             edgeIds: selectedEdges.map((edge) => edge.id),
           })
         }}
@@ -422,6 +643,45 @@ export function CanvasStage({
           color="var(--canvas-dot)"
         />
       </ReactFlow>
+
+      {groupOverlays.map((group) => (
+        <div
+          key={group.groupId}
+          className="pointer-events-none absolute z-[15]"
+          style={{
+            left: group.bounds.left * viewport.zoom + viewport.x - 12,
+            top: group.bounds.top * viewport.zoom + viewport.y - 32,
+            width: group.bounds.width * viewport.zoom + 24,
+            height: group.bounds.height * viewport.zoom + 44,
+          }}
+        >
+          <div
+            className={`absolute inset-x-0 bottom-0 rounded-[24px] border border-dashed ${
+              group.selected
+                ? 'border-[var(--text-primary)] bg-[rgba(24,24,27,0.03)]'
+                : 'border-[var(--border)] bg-[rgba(255,255,255,0.45)]'
+            }`}
+            style={{ top: 24 }}
+          />
+          <div className="pointer-events-auto absolute left-3 top-0 flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-3 py-1.5 shadow-[var(--shadow-sm)]">
+            <button
+              type="button"
+              onClick={() => onSelectGroup?.(group.groupId)}
+              className="text-xs font-medium text-[var(--text-primary)]"
+            >
+              {group.label}
+            </button>
+            <span className="text-[11px] text-[var(--text-muted)]">{group.memberCount}</span>
+            <button
+              type="button"
+              onClick={() => onToggleGroupCollapse?.(group.groupId)}
+              className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
+            >
+              {group.collapsed ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
+            </button>
+          </div>
+        </div>
+      ))}
 
       {guideLines.map((guide, index) =>
         guide.kind === 'alignment-vertical' ? (

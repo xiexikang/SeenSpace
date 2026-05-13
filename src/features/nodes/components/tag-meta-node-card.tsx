@@ -8,6 +8,8 @@ export function TagMetaNodeCard({ data, selected }: NodeProps<TagMetaNode>) {
       typeLabel="Tag / Meta"
       accentClassName="bg-[rgba(171,145,194,0.16)] text-[var(--text-secondary)]"
       selected={selected}
+      groupLabel={data.groupCollapsed ? data.groupLabel : undefined}
+      collapsedGroupSummary={data.groupCollapsed ? data.collapsedGroupSummary : undefined}
     >
       <div className="space-y-3">
         <div>

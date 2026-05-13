@@ -8,6 +8,8 @@ export function ImageNodeCard({ data, selected }: NodeProps<ImageNode>) {
       typeLabel="Image"
       accentClassName="bg-[rgba(125,170,151,0.18)] text-[var(--text-secondary)]"
       selected={selected}
+      groupLabel={data.groupCollapsed ? data.groupLabel : undefined}
+      collapsedGroupSummary={data.groupCollapsed ? data.collapsedGroupSummary : undefined}
     >
       <div className="space-y-3">
         <div className="rounded-[18px] border border-[var(--border)] bg-[linear-gradient(135deg,rgba(182,196,210,0.36),rgba(237,240,243,0.92))] p-3">

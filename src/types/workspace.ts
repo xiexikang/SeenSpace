@@ -2,10 +2,27 @@ import type { Edge, Node, Viewport } from '@xyflow/react'
 
 export type WorkspaceNodeType = 'note' | 'web' | 'image' | 'tag_meta'
 
+export type CollapsedGroupSummary = {
+  memberCount: number
+  typeLabels: string[]
+  typeCounts: Array<{ type: WorkspaceNodeType; count: number }>
+  previewItems: Array<{
+    id: string
+    title: string
+    typeLabel: string
+    subtitle?: string
+  }>
+}
+
 type WorkspaceNodeDataBase = {
   title: string
   description?: string
   meta?: string
+  groupId?: string
+  groupLabel?: string
+  groupLeadId?: string
+  groupCollapsed?: boolean
+  collapsedGroupSummary?: CollapsedGroupSummary
 }
 
 export type NoteNodeData = WorkspaceNodeDataBase & {

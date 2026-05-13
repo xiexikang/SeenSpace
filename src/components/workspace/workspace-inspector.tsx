@@ -8,8 +8,12 @@ import {
   BetweenHorizonalStart,
   BetweenVerticalStart,
   Copy,
+  FolderInput,
+  FolderOpen,
   Info,
   Layers3,
+  Maximize2,
+  Minimize2,
   Trash2,
   X,
 } from 'lucide-react'
@@ -46,6 +50,9 @@ type WorkspaceInspectorProps = {
   selectedEdgeCount: number
   batchCategory: string
   batchTagsText: string
+  activeGroupLabel?: string
+  activeGroupCollapsed?: boolean
+  canUngroupSelection: boolean
   onChange: (updates: Partial<WorkspaceNode['data']>) => void
   onDelete: () => void
   onDeleteMany: () => void
@@ -57,6 +64,10 @@ type WorkspaceInspectorProps = {
   onBatchTagsChange: (value: string) => void
   onApplyBatchMeta: () => void
   onApplyLayout: (action: LayoutActionId) => void
+  onCreateGroup: () => void
+  onUngroup: () => void
+  onSelectGroup: () => void
+  onToggleGroupCollapse: () => void
   onClearSelection: () => void
 }
 
@@ -163,6 +174,9 @@ export function WorkspaceInspector({
   selectedEdgeCount,
   batchCategory,
   batchTagsText,
+  activeGroupLabel,
+  activeGroupCollapsed = false,
+  canUngroupSelection,
   onChange,
   onDelete,
   onDeleteMany,
@@ -174,6 +188,10 @@ export function WorkspaceInspector({
   onBatchTagsChange,
   onApplyBatchMeta,
   onApplyLayout,
+  onCreateGroup,
+  onUngroup,
+  onSelectGroup,
+  onToggleGroupCollapse,
   onClearSelection,
 }: WorkspaceInspectorProps) {
   const isNodeMultiSelect = selectedNodeCount > 1
@@ -217,7 +235,7 @@ export function WorkspaceInspector({
       {isNodeMultiSelect ? (
         <div className="flex flex-1 flex-col">
           <div className="mb-4 rounded-2xl border border-[var(--border)] bg-[var(--panel-elevated)] px-3 py-2 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-secondary)]">
-            {selectedNodeCount} nodes selected
+            {activeGroupLabel ? `${activeGroupLabel} selected` : `${selectedNodeCount} nodes selected`}
           </div>
 
           <div className="mb-4 rounded-[24px] border border-dashed border-[var(--border)] bg-[var(--background)] p-4">
@@ -225,6 +243,41 @@ export function WorkspaceInspector({
               Batch metadata helps group notes, images, and links into the same lane without opening each card.
             </p>
           </div>
+
+          <div className="mb-4 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={onCreateGroup}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--panel)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
+            >
+              <FolderInput className="h-4 w-4" />
+              Group
+            </button>
+            <button
+              type="button"
+              onClick={activeGroupLabel ? onToggleGroupCollapse : onUngroup}
+              disabled={!canUngroupSelection && !activeGroupLabel}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--panel)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)] disabled:opacity-40"
+            >
+              {activeGroupLabel ? (
+                activeGroupCollapsed ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />
+              ) : (
+                <FolderOpen className="h-4 w-4" />
+              )}
+              {activeGroupLabel ? (activeGroupCollapsed ? 'Expand' : 'Collapse') : 'Ungroup'}
+            </button>
+          </div>
+
+          {activeGroupLabel ? (
+            <button
+              type="button"
+              onClick={onUngroup}
+              className="mb-4 inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--panel)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
+            >
+              <FolderOpen className="h-4 w-4" />
+              Remove Group
+            </button>
+          ) : null}
 
           <div className="mb-4 rounded-[24px] border border-[var(--border)] bg-[var(--background)] p-4">
             <div className="mb-3 text-xs font-medium text-[var(--text-secondary)]">Layout Tools</div>
@@ -382,6 +435,35 @@ export function WorkspaceInspector({
           <div className="mb-4 rounded-2xl border border-[var(--border)] bg-[var(--panel-elevated)] px-3 py-2 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-secondary)]">
             {node.type}
           </div>
+
+          {node.data.groupLabel ? (
+            <div className="mb-4 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={onSelectGroup}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--panel)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
+              >
+                <FolderInput className="h-4 w-4" />
+                {node.data.groupLabel}
+              </button>
+              <button
+                type="button"
+                onClick={onUngroup}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--panel)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
+              >
+                <FolderOpen className="h-4 w-4" />
+                Ungroup
+              </button>
+              <button
+                type="button"
+                onClick={onToggleGroupCollapse}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--panel)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
+              >
+                {node.data.groupCollapsed ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+                {node.data.groupCollapsed ? 'Expand' : 'Collapse'}
+              </button>
+            </div>
+          ) : null}
 
           <label className="mb-4 block">
             <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Title</div>

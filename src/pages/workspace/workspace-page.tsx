@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, Copy, Layers3, Redo2, Trash2, Undo2, X } from 'lucide-react'
+import { ArrowLeft, Check, Copy, FolderInput, FolderOpen, Layers3, Maximize2, Minimize2, Redo2, Trash2, Undo2, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { LibrarySidebar } from '../../components/shared/library-sidebar'
@@ -38,13 +38,42 @@ function parseTags(value: string) {
 function sanitizeSnapshot(snapshot: WorkspaceSnapshot): WorkspaceSnapshot {
   return {
     ...snapshot,
-    nodes: snapshot.nodes.map((node) => ({ ...node, selected: false })),
+    nodes: snapshot.nodes.map((node) => ({
+      ...node,
+      selected: false,
+      hidden: false,
+      data: {
+        ...node.data,
+        collapsedGroupSummary: undefined,
+      },
+    })),
     edges: snapshot.edges.map((edge) => ({ ...edge, selected: false })),
   }
 }
 
 function snapshotsEqual(left: WorkspaceSnapshot, right: WorkspaceSnapshot) {
   return JSON.stringify(left) === JSON.stringify(right)
+}
+
+function sameIds(left: string[], right: string[]) {
+  if (left.length !== right.length) return false
+  const leftSorted = [...left].sort()
+  const rightSorted = [...right].sort()
+  return leftSorted.every((value, index) => value === rightSorted[index])
+}
+
+function nextGroupLabel(nodes: WorkspaceNode[]) {
+  const usedNumbers = nodes
+    .map((node) => node.data.groupLabel)
+    .filter(Boolean)
+    .map((label) => Number(label?.replace('Group ', '')))
+    .filter((value) => Number.isFinite(value))
+  const max = usedNumbers.length > 0 ? Math.max(...usedNumbers) : 0
+  return `Group ${max + 1}`
+}
+
+function getGroupNodeIds(nodes: WorkspaceNode[], groupId: string) {
+  return nodes.filter((node) => node.data.groupId === groupId).map((node) => node.id)
 }
 
 function updateSelectedNodesLayout(
@@ -70,8 +99,6 @@ function updateSelectedNodesLayout(
       right: node.position.x + width,
       top: node.position.y,
       bottom: node.position.y + height,
-      centerX: node.position.x + width / 2,
-      centerY: node.position.y + height / 2,
       width,
       height,
     }
@@ -79,12 +106,10 @@ function updateSelectedNodesLayout(
 
   const left = Math.min(...bounds.map((bound) => bound.left))
   const right = Math.max(...bounds.map((bound) => bound.right))
-  const centerX =
-    (Math.min(...bounds.map((bound) => bound.left)) + Math.max(...bounds.map((bound) => bound.right))) / 2
+  const centerX = (left + right) / 2
   const top = Math.min(...bounds.map((bound) => bound.top))
   const bottom = Math.max(...bounds.map((bound) => bound.bottom))
-  const centerY =
-    (Math.min(...bounds.map((bound) => bound.top)) + Math.max(...bounds.map((bound) => bound.bottom))) / 2
+  const centerY = (top + bottom) / 2
 
   if (action === 'align-left') {
     selectedNodes.forEach((node) => updates.set(node.id, { ...node.position, x: left }))
@@ -121,8 +146,7 @@ function updateSelectedNodesLayout(
   if (action === 'distribute-x') {
     const sorted = [...bounds].sort((a, b) => a.left - b.left)
     const totalWidth = sorted.reduce((sum, bound) => sum + bound.width, 0)
-    const span = right - left
-    const gap = sorted.length > 1 ? Math.max((span - totalWidth) / (sorted.length - 1), 0) : 0
+    const gap = sorted.length > 1 ? Math.max((right - left - totalWidth) / (sorted.length - 1), 0) : 0
     let cursor = left
     sorted.forEach((bound) => {
       updates.set(bound.node.id, { ...bound.node.position, x: cursor })
@@ -133,8 +157,7 @@ function updateSelectedNodesLayout(
   if (action === 'distribute-y') {
     const sorted = [...bounds].sort((a, b) => a.top - b.top)
     const totalHeight = sorted.reduce((sum, bound) => sum + bound.height, 0)
-    const span = bottom - top
-    const gap = sorted.length > 1 ? Math.max((span - totalHeight) / (sorted.length - 1), 0) : 0
+    const gap = sorted.length > 1 ? Math.max((bottom - top - totalHeight) / (sorted.length - 1), 0) : 0
     let cursor = top
     sorted.forEach((bound) => {
       updates.set(bound.node.id, { ...bound.node.position, y: cursor })
@@ -156,23 +179,68 @@ function duplicateSelectedNodes(nodes: WorkspaceNode[], selectedNodeIds: string[
     return { nodes, duplicatedIds: [] as string[] }
   }
 
-  const duplicates = selectedNodes.map((node) => ({
-    ...node,
-    id: crypto.randomUUID(),
-    position: {
-      x: node.position.x + duplicateOffset.x,
-      y: node.position.y + duplicateOffset.y,
-    },
-    data: {
-      ...node.data,
-      title: node.data.title.endsWith(' Copy') ? node.data.title : `${node.data.title} Copy`,
-    },
-    selected: false,
-  }))
+  const groupIdMap = new Map<string, { id: string; label: string; leadSourceId?: string }>()
+  const duplicateIdMap = new Map<string, string>()
+  const duplicates = selectedNodes.map((node) => {
+    let nextGroupId = node.data.groupId
+    let nextGroupLabel = node.data.groupLabel
+
+    if (node.data.groupId && node.data.groupLabel) {
+      const existing = groupIdMap.get(node.data.groupId)
+      if (existing) {
+        nextGroupId = existing.id
+        nextGroupLabel = existing.label
+      } else {
+        const created = {
+          id: crypto.randomUUID(),
+          label: `${node.data.groupLabel} Copy`,
+          leadSourceId: node.data.groupLeadId,
+        }
+        groupIdMap.set(node.data.groupId, created)
+        nextGroupId = created.id
+        nextGroupLabel = created.label
+      }
+    }
+
+    const duplicateId = crypto.randomUUID()
+    duplicateIdMap.set(node.id, duplicateId)
+
+    return {
+      ...node,
+      id: duplicateId,
+      position: {
+        x: node.position.x + duplicateOffset.x,
+        y: node.position.y + duplicateOffset.y,
+      },
+      data: {
+        ...node.data,
+        title: node.data.title.endsWith(' Copy') ? node.data.title : `${node.data.title} Copy`,
+        groupId: nextGroupId,
+        groupLabel: nextGroupLabel,
+        groupLeadId: node.data.groupLeadId,
+      },
+      selected: false,
+    }
+  })
+
+  const normalizedDuplicates = duplicates.map((node) => {
+    if (!node.data.groupId || !node.data.groupLeadId) {
+      return node
+    }
+
+    const duplicatedLeadId = duplicateIdMap.get(node.data.groupLeadId) ?? node.id
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        groupLeadId: duplicatedLeadId,
+      },
+    }
+  })
 
   return {
-    nodes: [...nodes, ...duplicates],
-    duplicatedIds: duplicates.map((node) => node.id),
+    nodes: [...nodes, ...normalizedDuplicates],
+    duplicatedIds: normalizedDuplicates.map((node) => node.id),
   }
 }
 
@@ -241,6 +309,14 @@ export function WorkspacePage() {
   const targetNode = selectedEdge
     ? snapshot.nodes.find((node) => node.id === selectedEdge.target)
     : undefined
+  const activeGroupId =
+    selectedNodes.length > 0 &&
+    selectedNodes.every((node) => node.data.groupId && node.data.groupId === selectedNodes[0].data.groupId)
+      ? selectedNodes[0].data.groupId
+      : undefined
+  const activeGroupLabel = activeGroupId ? selectedNodes[0]?.data.groupLabel : undefined
+  const activeGroupCollapsed = activeGroupId ? Boolean(selectedNodes[0]?.data.groupCollapsed) : false
+  const canUngroupSelection = selectedNodes.some((node) => node.data.groupId)
   const canUndo = historyIndex > 0
   const canRedo = historyIndex < historyRef.current.length - 1
 
@@ -254,9 +330,14 @@ export function WorkspacePage() {
   async function persistSnapshot(nextSnapshot: WorkspaceSnapshot, options?: { recordHistory?: boolean }) {
     const cleanSnapshot = sanitizeSnapshot(nextSnapshot)
     const shouldRecordHistory = options?.recordHistory ?? true
+    const currentSnapshot = historyRef.current[historyIndex] ?? snapshot
+
+    if (snapshotsEqual(currentSnapshot, cleanSnapshot)) {
+      setSnapshot((existing) => (snapshotsEqual(existing, cleanSnapshot) ? existing : cleanSnapshot))
+      return
+    }
 
     if (shouldRecordHistory) {
-      const currentSnapshot = historyRef.current[historyIndex] ?? snapshot
       if (!snapshotsEqual(currentSnapshot, cleanSnapshot)) {
         const nextHistory = [...historyRef.current.slice(0, historyIndex + 1), cleanSnapshot].slice(-historyLimit)
         historyRef.current = nextHistory
@@ -316,9 +397,7 @@ export function WorkspacePage() {
     const nextSnapshot: WorkspaceSnapshot = {
       ...snapshot,
       nodes: snapshot.nodes.filter((node) => !idSet.has(node.id)),
-      edges: snapshot.edges.filter(
-        (edge) => !idSet.has(edge.source) && !idSet.has(edge.target),
-      ),
+      edges: snapshot.edges.filter((edge) => !idSet.has(edge.source) && !idSet.has(edge.target)),
     }
 
     applySnapshotWithoutSelection(nextSnapshot)
@@ -350,6 +429,96 @@ export function WorkspacePage() {
     void persistSnapshot(nextSnapshot)
   }
 
+  function handleCreateGroup() {
+    if (selectedNodeIds.length < 2) return
+    const groupId = crypto.randomUUID()
+    const groupLabel = nextGroupLabel(snapshot.nodes)
+    const leadId = selectedNodeIds[0]
+    const idSet = new Set(selectedNodeIds)
+    const nextSnapshot: WorkspaceSnapshot = {
+      ...snapshot,
+      nodes: snapshot.nodes.map((node) =>
+        idSet.has(node.id)
+          ? {
+              ...node,
+              data: {
+              ...node.data,
+              groupId,
+              groupLabel,
+              groupLeadId: leadId,
+              groupCollapsed: false,
+            },
+          }
+          : node,
+      ),
+    }
+    void persistSnapshot(nextSnapshot)
+  }
+
+  function handleUngroup() {
+    if (selectedNodeIds.length === 0) return
+    const selectedGroups = new Set(
+      selectedNodes.map((node) => node.data.groupId).filter((groupId): groupId is string => Boolean(groupId)),
+    )
+    if (selectedGroups.size === 0) return
+    const nextSnapshot: WorkspaceSnapshot = {
+      ...snapshot,
+      nodes: snapshot.nodes.map((node) =>
+        selectedGroups.has(node.data.groupId ?? '')
+          ? {
+              ...node,
+              data: {
+              ...node.data,
+              groupId: undefined,
+              groupLabel: undefined,
+              groupLeadId: undefined,
+              groupCollapsed: undefined,
+            },
+          }
+          : node,
+      ),
+    }
+    void persistSnapshot(nextSnapshot)
+  }
+
+  function handleSelectGroup() {
+    if (!selectedNode?.data.groupId) return
+    const groupNodeIds = getGroupNodeIds(snapshot.nodes, selectedNode.data.groupId)
+    setSelectedNodeIds(groupNodeIds)
+    setSelectedEdgeIds([])
+  }
+
+  function handleSelectGroupById(groupId: string) {
+    const groupNodeIds = getGroupNodeIds(snapshot.nodes, groupId)
+    setSelectedNodeIds(groupNodeIds)
+    setSelectedEdgeIds([])
+  }
+
+  function handleToggleGroupCollapse(groupId: string) {
+    const memberIds = getGroupNodeIds(snapshot.nodes, groupId)
+    if (memberIds.length === 0) return
+    const currentGroup = snapshot.nodes.find((node) => node.data.groupId === groupId)
+    const nextCollapsed = !currentGroup?.data.groupCollapsed
+    const memberIdSet = new Set(memberIds)
+    const nextSnapshot: WorkspaceSnapshot = {
+      ...snapshot,
+      nodes: snapshot.nodes.map((node) =>
+        memberIdSet.has(node.id)
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                groupCollapsed: nextCollapsed,
+              },
+            }
+          : node,
+      ),
+    }
+    setSelectedNodeIds(memberIds)
+    setSelectedEdgeIds([])
+    void persistSnapshot(nextSnapshot)
+  }
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null
@@ -366,22 +535,29 @@ export function WorkspacePage() {
           handleRedo()
           return
         }
-
         if (key === 'y') {
           event.preventDefault()
           handleRedo()
           return
         }
-
         if (key === 'z') {
           event.preventDefault()
           handleUndo()
           return
         }
-
         if (key === 'd' && selectedNodeIds.length > 0) {
           event.preventDefault()
           handleDuplicateMany()
+          return
+        }
+        if (key === 'g' && event.shiftKey && canUngroupSelection) {
+          event.preventDefault()
+          handleUngroup()
+          return
+        }
+        if (key === 'g' && selectedNodeIds.length > 1) {
+          event.preventDefault()
+          handleCreateGroup()
           return
         }
       }
@@ -398,7 +574,6 @@ export function WorkspacePage() {
           deleteNodes(selectedNodeIds)
           return
         }
-
         if (selectedEdgeIds.length > 0) {
           event.preventDefault()
           deleteEdges(selectedEdgeIds)
@@ -414,7 +589,6 @@ export function WorkspacePage() {
           ArrowUp: { x: 0, y: -step },
           ArrowDown: { x: 0, y: step },
         }
-
         const movement = movementByKey[event.key]
         if (movement) {
           event.preventDefault()
@@ -429,10 +603,9 @@ export function WorkspacePage() {
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [canRedo, canUndo, historyIndex, selectedNodeIds, selectedEdgeIds, snapshot])
+  }, [canRedo, canUndo, canUngroupSelection, historyIndex, selectedNodeIds, selectedEdgeIds, snapshot, selectedNode, selectedNodes])
 
   function handleSnapshotChange(nextSnapshot: WorkspaceSnapshot) {
-    setSnapshot(nextSnapshot)
     void persistSnapshot(nextSnapshot)
   }
 
@@ -505,9 +678,7 @@ export function WorkspacePage() {
             ...node.data,
             ...(batchCategory ? { meta: batchCategory } : {}),
             ...(('category' in node.data || node.type === 'tag_meta')
-              ? ({ category: batchCategory || (node.data as TagMetaNodeData).category } as Partial<
-                  TagMetaNodeData
-                >)
+              ? ({ category: batchCategory || (node.data as TagMetaNodeData).category } as Partial<TagMetaNodeData>)
               : {}),
             ...(tags.length > 0 ? { tags: mergedTags } : {}),
           },
@@ -539,7 +710,9 @@ export function WorkspacePage() {
   const totalSelectionCount = selectedNodeIds.length + selectedEdgeIds.length
   const selectionSummary =
     selectedNodeIds.length > 0
-      ? `${selectedNodeIds.length} node${selectedNodeIds.length > 1 ? 's' : ''} selected`
+      ? activeGroupLabel
+        ? `${activeGroupLabel} selected`
+        : `${selectedNodeIds.length} node${selectedNodeIds.length > 1 ? 's' : ''} selected`
       : selectedEdgeIds.length > 0
         ? selectedEdges.length === 1
           ? `${selectedEdges[0].label || 'connection'} selected`
@@ -600,14 +773,42 @@ export function WorkspacePage() {
                     {selectionSummary}
                   </div>
                   {selectedNodeIds.length > 0 ? (
-                    <button
-                      type="button"
-                      onClick={handleDuplicateMany}
-                      className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]"
-                    >
-                      <Copy className="h-3.5 w-3.5" />
-                      Duplicate
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleCreateGroup}
+                        className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]"
+                      >
+                        <FolderInput className="h-3.5 w-3.5" />
+                        Group
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleUngroup}
+                        disabled={!canUngroupSelection}
+                        className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)] disabled:opacity-40"
+                      >
+                        <FolderOpen className="h-3.5 w-3.5" />
+                        Ungroup
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => activeGroupId && handleToggleGroupCollapse(activeGroupId)}
+                        disabled={!activeGroupId}
+                        className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)] disabled:opacity-40"
+                      >
+                        {activeGroupCollapsed ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
+                        {activeGroupCollapsed ? 'Expand' : 'Collapse'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDuplicateMany}
+                        className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                        Duplicate
+                      </button>
+                    </>
                   ) : null}
                   <button
                     type="button"
@@ -631,6 +832,26 @@ export function WorkspacePage() {
                   <div className="rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]">
                     {selectionSummary}
                   </div>
+                  {selectedNode?.data.groupLabel ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleSelectGroup}
+                        className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]"
+                      >
+                        <FolderInput className="h-3.5 w-3.5" />
+                        Select Group
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => selectedNode.data.groupId && handleToggleGroupCollapse(selectedNode.data.groupId)}
+                        className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]"
+                      >
+                        {selectedNode.data.groupCollapsed ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
+                        {selectedNode.data.groupCollapsed ? 'Expand' : 'Collapse'}
+                      </button>
+                    </>
+                  ) : null}
                   {selectedNodeIds.length > 0 ? (
                     <button
                       type="button"
@@ -662,10 +883,13 @@ export function WorkspacePage() {
             <div className="min-w-0 flex-1">
               <CanvasStage
                 snapshot={snapshot}
+                selectedNodeIds={selectedNodeIds}
+                onSelectGroup={handleSelectGroupById}
+                onToggleGroupCollapse={handleToggleGroupCollapse}
                 onSnapshotChange={handleSnapshotChange}
                 onSelectionChange={({ nodeIds, edgeIds }) => {
-                  setSelectedNodeIds(nodeIds)
-                  setSelectedEdgeIds(edgeIds)
+                  setSelectedNodeIds((current) => (sameIds(current, nodeIds) ? current : nodeIds))
+                  setSelectedEdgeIds((current) => (sameIds(current, edgeIds) ? current : edgeIds))
                 }}
               />
             </div>
@@ -678,6 +902,9 @@ export function WorkspacePage() {
               selectedEdgeCount={selectedEdgeIds.length}
               batchCategory={batchCategory}
               batchTagsText={batchTagsText}
+              activeGroupLabel={activeGroupLabel}
+              activeGroupCollapsed={activeGroupCollapsed}
+              canUngroupSelection={canUngroupSelection}
               onChange={handleNodeChange}
               onDelete={handleDeleteNode}
               onDeleteMany={handleDeleteMany}
@@ -689,6 +916,10 @@ export function WorkspacePage() {
               onBatchTagsChange={setBatchTagsText}
               onApplyBatchMeta={applyBatchMeta}
               onApplyLayout={handleApplyLayout}
+              onCreateGroup={handleCreateGroup}
+              onUngroup={handleUngroup}
+              onSelectGroup={handleSelectGroup}
+              onToggleGroupCollapse={() => activeGroupId && handleToggleGroupCollapse(activeGroupId)}
               onClearSelection={clearSelection}
             />
           </div>

@@ -8,6 +8,8 @@ export function NoteNodeCard({ data, selected }: NodeProps<NoteNode>) {
       typeLabel="Note"
       accentClassName="bg-[rgba(182,163,122,0.16)] text-[var(--text-secondary)]"
       selected={selected}
+      groupLabel={data.groupCollapsed ? data.groupLabel : undefined}
+      collapsedGroupSummary={data.groupCollapsed ? data.collapsedGroupSummary : undefined}
     >
       <div className="space-y-2">
         <div className="text-sm font-semibold text-[var(--text-primary)]">{data.title}</div>

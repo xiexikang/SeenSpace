@@ -8,6 +8,8 @@ export function WebClipNodeCard({ data, selected }: NodeProps<WebNode>) {
       typeLabel="Web Clip"
       accentClassName="bg-[rgba(116,146,185,0.16)] text-[var(--text-secondary)]"
       selected={selected}
+      groupLabel={data.groupCollapsed ? data.groupLabel : undefined}
+      collapsedGroupSummary={data.groupCollapsed ? data.collapsedGroupSummary : undefined}
     >
       <div className="space-y-2">
         <div className="text-sm font-semibold text-[var(--text-primary)]">{data.title}</div>
