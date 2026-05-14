@@ -19,6 +19,7 @@ import {
   pushHistoryEntry,
   snapshotsEqual,
 } from '../../features/workspace/services/workspace-history'
+import { emptySnapshot, sanitizeSnapshot } from '../../features/workspace/services/workspace-snapshot'
 import { resolveWorkspaceKeyboardAction } from '../../features/workspace/services/workspace-keyboard'
 import { relationshipPresets } from '../../features/workspace/services/workspace-edges'
 import { randomId } from '../../shared/utils/random-id'
@@ -39,29 +40,7 @@ import {
 } from '../../features/workspace/services/workspace-transforms'
 import type { WorkspaceEdge, WorkspaceNode, WorkspaceSnapshot } from '../../types/workspace'
 
-const emptySnapshot: WorkspaceSnapshot = {
-  nodes: [],
-  edges: [],
-  viewport: { x: 0, y: 0, zoom: 1 },
-}
-
 const historyLimit = 80
-function sanitizeSnapshot(snapshot: WorkspaceSnapshot): WorkspaceSnapshot {
-  return {
-    ...snapshot,
-    nodes: snapshot.nodes.map((node) => ({
-      ...node,
-      selected: false,
-      hidden: false,
-      data: {
-        ...node.data,
-        edgeFocusRole: undefined,
-        collapsedGroupSummary: undefined,
-      },
-    })),
-    edges: snapshot.edges.map((edge) => ({ ...edge, selected: false })),
-  }
-}
 
 function sameIds(left: string[], right: string[]) {
   if (left.length !== right.length) return false

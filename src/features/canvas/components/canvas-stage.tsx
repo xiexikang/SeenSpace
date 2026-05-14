@@ -9,7 +9,6 @@ import {
   SelectionMode,
   type Connection,
   type EdgeChange,
-  type Node,
   type NodeChange,
   type ReactFlowInstance,
   ReactFlow,
@@ -25,12 +24,20 @@ import type {
 } from '../../../types/workspace'
 import { nodeTypes } from '../../nodes/components/node-renderer'
 import { createWorkspaceNode } from '../../nodes/services/node-factory'
+import {
+  buildCanvasGroupOverlays,
+  getCanvasGroupOverlayStyle,
+} from '../services/canvas-group-overlays'
+import { applyGroupDragMove, getDragGuides, type GuideLine } from '../services/canvas-drag'
+import {
+  buildCanvasStageState,
+  shouldPersistEdgeChanges,
+  shouldPersistNodeChanges,
+} from '../services/canvas-stage-state'
 import { createConnectionEdge } from '../../workspace/services/workspace-edges'
 import {
-  buildRenderableNodes,
   expandSelectedNodeIdsByGroup,
 } from '../../workspace/services/group-operations'
-import { moveNodesByDelta } from '../../workspace/services/workspace-transforms'
 import { CanvasEmptyState } from './canvas-empty-state'
 import { ZoomControls } from './zoom-controls'
 
@@ -52,9 +59,6 @@ const addableNodeTypes: Array<{ type: WorkspaceNodeType; label: string }> = [
   { type: 'tag_meta', label: 'Add Tag / Meta' },
 ]
 
-const fallbackNodeSize = { width: 260, height: 180 }
-const snapThreshold = 10
-const gridSize = 18
 const defaultEdgeOptions = {
   type: 'smoothstep',
   style: { stroke: 'var(--text-muted)', strokeWidth: 1.5 },
@@ -65,68 +69,6 @@ const defaultEdgeOptions = {
     color: 'var(--text-muted)',
   },
 } as const
-
-type GuideLine =
-  | { kind: 'alignment-vertical'; x: number; y: number; length: number }
-  | { kind: 'alignment-horizontal'; y: number; x: number; length: number }
-  | {
-      kind: 'spacing-horizontal'
-      y: number
-      segments: Array<{ x: number; length: number }>
-    }
-  | {
-      kind: 'spacing-vertical'
-      x: number
-      segments: Array<{ y: number; length: number }>
-    }
-
-function getNodeRect(node: WorkspaceNode | Node) {
-  const width = node.measured?.width ?? node.width ?? fallbackNodeSize.width
-  const height = node.measured?.height ?? node.height ?? fallbackNodeSize.height
-
-  return {
-    left: node.position.x,
-    right: node.position.x + width,
-    top: node.position.y,
-    bottom: node.position.y + height,
-    centerX: node.position.x + width / 2,
-    centerY: node.position.y + height / 2,
-    width,
-    height,
-  }
-}
-
-function shouldPersistNodeChanges(changes: NodeChange<WorkspaceNode>[]) {
-  return changes.some((change) => change.type === 'remove' || change.type === 'add' || change.type === 'replace')
-}
-
-function shouldPersistEdgeChanges(changes: EdgeChange<WorkspaceEdge>[]) {
-  return changes.some((change) => change.type === 'remove' || change.type === 'add' || change.type === 'replace')
-}
-
-function getBoundsFromRects(rects: ReturnType<typeof getNodeRect>[]) {
-  const left = Math.min(...rects.map((rect) => rect.left))
-  const right = Math.max(...rects.map((rect) => rect.right))
-  const top = Math.min(...rects.map((rect) => rect.top))
-  const bottom = Math.max(...rects.map((rect) => rect.bottom))
-
-  return {
-    left,
-    right,
-    top,
-    bottom,
-    centerX: (left + right) / 2,
-    centerY: (top + bottom) / 2,
-    width: right - left,
-    height: bottom - top,
-  }
-}
-
-function getEdgeFocusRole(nodeId: string, focusedEdge?: WorkspaceEdge): 'source' | 'target' | undefined {
-  if (focusedEdge?.source === nodeId) return 'source'
-  if (focusedEdge?.target === nodeId) return 'target'
-  return undefined
-}
 
 function nodeShapeSignature(node: WorkspaceNode) {
   return JSON.stringify({
@@ -166,197 +108,6 @@ function edgeListsEqual(left: WorkspaceEdge[], right: WorkspaceEdge[]) {
   return left.every((edge, index) => edgeShapeSignature(edge) === edgeShapeSignature(right[index]))
 }
 
-function getDragGuides(
-  currentNodes: WorkspaceNode[],
-  draggedNodeIds: Set<string>,
-  isGridSnapEnabled: boolean,
-) {
-  const draggedGroupNodes = currentNodes.filter((node) => draggedNodeIds.has(node.id))
-  if (draggedGroupNodes.length === 0) {
-    return { delta: { x: 0, y: 0 }, guides: [] as GuideLine[] }
-  }
-
-  const draggedGroupRects = draggedGroupNodes.map((node) => getNodeRect(node))
-  const draggedRect = getBoundsFromRects(draggedGroupRects)
-  const otherNodes = currentNodes.filter((node) => !draggedNodeIds.has(node.id) && !node.hidden)
-  let bestX:
-    | {
-        delta: number
-        guide: GuideLine
-      }
-    | undefined
-  let bestY:
-    | {
-        delta: number
-        guide: GuideLine
-      }
-    | undefined
-  let spacingX:
-    | {
-        delta: number
-        guide: GuideLine
-      }
-    | undefined
-  let spacingY:
-    | {
-        delta: number
-        guide: GuideLine
-      }
-    | undefined
-
-  otherNodes.forEach((node) => {
-    const otherRect = getNodeRect(node)
-    const xPairs = [
-      { source: draggedRect.left, target: otherRect.left },
-      { source: draggedRect.centerX, target: otherRect.centerX },
-      { source: draggedRect.right, target: otherRect.right },
-    ]
-    const yPairs = [
-      { source: draggedRect.top, target: otherRect.top },
-      { source: draggedRect.centerY, target: otherRect.centerY },
-      { source: draggedRect.bottom, target: otherRect.bottom },
-    ]
-
-    xPairs.forEach(({ source, target }) => {
-      const delta = target - source
-      if (Math.abs(delta) > snapThreshold) return
-      if (!bestX || Math.abs(delta) < Math.abs(bestX.delta)) {
-        bestX = {
-          delta,
-          guide: {
-            kind: 'alignment-vertical',
-            x: target,
-            y: Math.min(draggedRect.top, otherRect.top),
-            length: Math.max(draggedRect.bottom, otherRect.bottom) - Math.min(draggedRect.top, otherRect.top),
-          },
-        }
-      }
-    })
-
-    yPairs.forEach(({ source, target }) => {
-      const delta = target - source
-      if (Math.abs(delta) > snapThreshold) return
-      if (!bestY || Math.abs(delta) < Math.abs(bestY.delta)) {
-        bestY = {
-          delta,
-          guide: {
-            kind: 'alignment-horizontal',
-            y: target,
-            x: Math.min(draggedRect.left, otherRect.left),
-            length: Math.max(draggedRect.right, otherRect.right) - Math.min(draggedRect.left, otherRect.left),
-          },
-        }
-      }
-    })
-  })
-
-  otherNodes.forEach((leftNode) => {
-    const leftRect = getNodeRect(leftNode)
-    if (leftRect.right > draggedRect.left) return
-    const sharedY = Math.max(leftRect.top, draggedRect.top) <= Math.min(leftRect.bottom, draggedRect.bottom)
-
-    otherNodes.forEach((rightNode) => {
-      if (rightNode.id === leftNode.id) return
-      const rightRect = getNodeRect(rightNode)
-      if (rightRect.left < draggedRect.right) return
-      const overlapsDragged = Math.max(rightRect.top, draggedRect.top) <= Math.min(rightRect.bottom, draggedRect.bottom)
-      const overlapsPair = Math.max(leftRect.top, rightRect.top) <= Math.min(leftRect.bottom, rightRect.bottom)
-      if (!sharedY || !overlapsDragged || !overlapsPair) return
-
-      const targetLeft = (leftRect.right + rightRect.left - draggedRect.width) / 2
-      const delta = targetLeft - draggedRect.left
-      if (Math.abs(delta) > snapThreshold) return
-
-      if (!spacingX || Math.abs(delta) < Math.abs(spacingX.delta)) {
-        const guideY =
-          (Math.max(leftRect.top, draggedRect.top, rightRect.top) +
-            Math.min(leftRect.bottom, draggedRect.bottom, rightRect.bottom)) /
-          2
-        spacingX = {
-          delta,
-          guide: {
-            kind: 'spacing-horizontal',
-            y: guideY,
-            segments: [
-              { x: leftRect.right, length: Math.max(targetLeft - leftRect.right, 0) },
-              {
-                x: targetLeft + draggedRect.width,
-                length: Math.max(rightRect.left - (targetLeft + draggedRect.width), 0),
-              },
-            ],
-          },
-        }
-      }
-    })
-  })
-
-  otherNodes.forEach((topNode) => {
-    const topRect = getNodeRect(topNode)
-    if (topRect.bottom > draggedRect.top) return
-    const sharedX = Math.max(topRect.left, draggedRect.left) <= Math.min(topRect.right, draggedRect.right)
-
-    otherNodes.forEach((bottomNode) => {
-      if (bottomNode.id === topNode.id) return
-      const bottomRect = getNodeRect(bottomNode)
-      if (bottomRect.top < draggedRect.bottom) return
-      const overlapsDragged =
-        Math.max(bottomRect.left, draggedRect.left) <= Math.min(bottomRect.right, draggedRect.right)
-      const overlapsPair = Math.max(topRect.left, bottomRect.left) <= Math.min(topRect.right, bottomRect.right)
-      if (!sharedX || !overlapsDragged || !overlapsPair) return
-
-      const targetTop = (topRect.bottom + bottomRect.top - draggedRect.height) / 2
-      const delta = targetTop - draggedRect.top
-      if (Math.abs(delta) > snapThreshold) return
-
-      if (!spacingY || Math.abs(delta) < Math.abs(spacingY.delta)) {
-        const guideX =
-          (Math.max(topRect.left, draggedRect.left, bottomRect.left) +
-            Math.min(topRect.right, draggedRect.right, bottomRect.right)) /
-          2
-        spacingY = {
-          delta,
-          guide: {
-            kind: 'spacing-vertical',
-            x: guideX,
-            segments: [
-              { y: topRect.bottom, length: Math.max(targetTop - topRect.bottom, 0) },
-              {
-                y: targetTop + draggedRect.height,
-                length: Math.max(bottomRect.top - (targetTop + draggedRect.height), 0),
-              },
-            ],
-          },
-        }
-      }
-    })
-  })
-
-  if (!bestX && !bestY && !isGridSnapEnabled && !spacingX && !spacingY) {
-    return { delta: { x: 0, y: 0 }, guides: [] as GuideLine[] }
-  }
-
-  const xDelta = bestX?.delta ?? spacingX?.delta ?? 0
-  const yDelta = bestY?.delta ?? spacingY?.delta ?? 0
-  const nextPosition = {
-    x:
-      bestX || spacingX || !isGridSnapEnabled
-        ? draggedRect.left + xDelta
-        : Math.round((draggedRect.left + xDelta) / gridSize) * gridSize,
-    y:
-      bestY || spacingY || !isGridSnapEnabled
-        ? draggedRect.top + yDelta
-        : Math.round((draggedRect.top + yDelta) / gridSize) * gridSize,
-  }
-
-  return {
-    delta: {
-      x: nextPosition.x - draggedRect.left,
-      y: nextPosition.y - draggedRect.top,
-    },
-    guides: [bestX?.guide, bestY?.guide, spacingX?.guide, spacingY?.guide].filter(Boolean) as GuideLine[],
-  }
-}
-
 export function CanvasStage({
   snapshot,
   selectedNodeIds = [],
@@ -367,9 +118,9 @@ export function CanvasStage({
   onSnapshotChange,
   onSelectionChange,
 }: CanvasStageProps) {
-  const initialRenderState = buildRenderableNodes(snapshot.nodes, [])
-  const [nodes, setNodes, onNodesChangeBase] = useNodesState<WorkspaceNode>(initialRenderState.nodes)
-  const [edges, setEdges, onEdgesChangeBase] = useEdgesState<WorkspaceEdge>(snapshot.edges)
+  const initialStageState = buildCanvasStageState(snapshot, focusedEdgeIds.length === 1 ? snapshot.edges.find((edge) => edge.id === focusedEdgeIds[0]) : undefined)
+  const [nodes, setNodes, onNodesChangeBase] = useNodesState<WorkspaceNode>(initialStageState.nodes)
+  const [edges, setEdges, onEdgesChangeBase] = useEdgesState<WorkspaceEdge>(initialStageState.edges)
   const [zoomLabel, setZoomLabel] = useState(`${Math.round(snapshot.viewport.zoom * 100)}%`)
   const [viewport, setViewport] = useState(snapshot.viewport)
   const [guideLines, setGuideLines] = useState<GuideLine[]>([])
@@ -383,18 +134,7 @@ export function CanvasStage({
   const focusedEdge = focusedEdgeIds.length === 1 ? snapshot.edges.find((edge) => edge.id === focusedEdgeIds[0]) : undefined
 
   useEffect(() => {
-    const renderState = buildRenderableNodes(snapshot.nodes, [])
-    const nextNodes: WorkspaceNode[] = renderState.nodes.map((node) => ({
-      ...node,
-      data: {
-        ...node.data,
-        edgeFocusRole: getEdgeFocusRole(node.id, focusedEdge),
-      },
-    }))
-    const nextEdges: WorkspaceEdge[] = snapshot.edges.map((edge) => ({
-      ...edge,
-      hidden: renderState.hiddenNodeIds.has(edge.source) || renderState.hiddenNodeIds.has(edge.target),
-    }))
+    const { nodes: nextNodes, edges: nextEdges } = buildCanvasStageState(snapshot, focusedEdge)
 
     setNodes((currentNodes) => (nodeListsEqual(currentNodes, nextNodes) ? currentNodes : nextNodes))
     setEdges((currentEdges) => (edgeListsEqual(currentEdges, nextEdges) ? currentEdges : nextEdges))
@@ -403,47 +143,7 @@ export function CanvasStage({
     viewportRef.current = snapshot.viewport
   }, [focusedEdge, setEdges, setNodes, snapshot])
 
-  const groupOverlays = useMemo(() => {
-    const groups = new Map<
-      string,
-      {
-        label: string
-        collapsed: boolean
-        leadId: string
-        nodes: WorkspaceNode[]
-      }
-    >()
-
-    nodes.forEach((node) => {
-      if (!node.data.groupId || !node.data.groupLabel) return
-      const existing = groups.get(node.data.groupId)
-      if (existing) {
-        existing.nodes.push(node)
-        return
-      }
-      groups.set(node.data.groupId, {
-        label: node.data.groupLabel,
-        collapsed: Boolean(node.data.groupCollapsed),
-        leadId: node.data.groupLeadId ?? node.id,
-        nodes: [node],
-      })
-    })
-
-    return Array.from(groups.entries()).map(([groupId, group]) => {
-      const leadNode = group.nodes.find((node) => node.id === group.leadId) ?? group.nodes[0]
-      const rects = (group.collapsed ? [leadNode] : group.nodes).map((node) => getNodeRect(node))
-      const bounds = getBoundsFromRects(rects)
-      const selected = group.nodes.some((node) => selectedNodeIds.includes(node.id))
-      return {
-        groupId,
-        label: group.label,
-        collapsed: group.collapsed,
-        selected,
-        memberCount: group.nodes.length,
-        bounds,
-      }
-    })
-  }, [nodes, selectedNodeIds])
+  const groupOverlays = useMemo(() => buildCanvasGroupOverlays(nodes, selectedNodeIds), [nodes, selectedNodeIds])
 
   const emitSnapshot = useCallback(() => {
     if (!flowRef.current) return
@@ -536,16 +236,20 @@ export function CanvasStage({
       if (!dragState || dragState.pointerId !== event.pointerId) return
 
       const zoom = viewportRef.current.zoom || 1
-      const xDelta = event.movementX / zoom
-      const yDelta = event.movementY / zoom
-      if (xDelta === 0 && yDelta === 0) return
+      if (event.movementX === 0 && event.movementY === 0) return
 
       let nextGuides: GuideLine[] = []
       setNodes((current) => {
-        const tentativeNodes = moveNodesByDelta(current, dragState.nodeIds, xDelta, yDelta)
-        const dragGuides = getDragGuides(tentativeNodes, new Set(dragState.nodeIds), isGridSnapEnabled)
-        nextGuides = dragGuides.guides
-        return moveNodesByDelta(tentativeNodes, dragState.nodeIds, dragGuides.delta.x, dragGuides.delta.y)
+        const result = applyGroupDragMove(
+          current,
+          dragState.nodeIds,
+          event.movementX,
+          event.movementY,
+          zoom,
+          isGridSnapEnabled,
+        )
+        nextGuides = result.guides
+        return result.nodes
       })
       setGuideLines(nextGuides)
     }
@@ -675,12 +379,7 @@ export function CanvasStage({
         <div
           key={group.groupId}
           className="pointer-events-none absolute z-[15]"
-          style={{
-            left: group.bounds.left * viewport.zoom + viewport.x - 12,
-            top: group.bounds.top * viewport.zoom + viewport.y - 32,
-            width: group.bounds.width * viewport.zoom + 24,
-            height: group.bounds.height * viewport.zoom + 44,
-          }}
+          style={getCanvasGroupOverlayStyle(group.bounds, viewport)}
         >
           <div
             className={`absolute inset-x-0 bottom-0 rounded-[24px] border border-dashed ${
