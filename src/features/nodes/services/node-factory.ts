@@ -6,9 +6,10 @@ import type {
   WorkspaceNode,
   WorkspaceNodeType,
 } from '../../../types/workspace'
+import { randomId } from '../../../shared/utils/random-id'
 
 function id() {
-  return crypto.randomUUID()
+  return randomId()
 }
 
 function positionFor(index: number) {

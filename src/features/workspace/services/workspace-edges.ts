@@ -1,4 +1,5 @@
 import type { WorkspaceEdge, WorkspaceNode } from '../../../types/workspace'
+import { randomId } from '../../../shared/utils/random-id'
 
 export const relationshipPresets = [
   'supports',
@@ -41,7 +42,7 @@ export function createConnectionEdge(
   const targetNode = nodes.find((node) => node.id === connection.target)
 
   return {
-    id: crypto.randomUUID(),
+    id: randomId(),
     source: connection.source,
     target: connection.target,
     sourceHandle: connection.sourceHandle,

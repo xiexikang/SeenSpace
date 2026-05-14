@@ -1,4 +1,5 @@
 import { db } from '../../../db/client'
+import { randomId } from '../../../shared/utils/random-id'
 import type { ProjectRecord } from '../../../types/project'
 import type { WorkspaceSnapshot } from '../../../types/workspace'
 
@@ -96,7 +97,7 @@ export async function getProjectById(id: string) {
 }
 
 export async function createProject() {
-  const id = crypto.randomUUID()
+  const id = randomId()
   const timestamp = nowIso()
   const project: ProjectRecord = {
     id,

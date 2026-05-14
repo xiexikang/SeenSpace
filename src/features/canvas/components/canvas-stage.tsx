@@ -16,7 +16,7 @@ import {
   useEdgesState,
   useNodesState,
 } from '@xyflow/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   WorkspaceEdge,
   WorkspaceNode,
@@ -29,7 +29,6 @@ import { createConnectionEdge } from '../../workspace/services/workspace-edges'
 import {
   buildRenderableNodes,
   expandSelectedNodeIdsByGroup,
-  getVisibleSelectedNodeIds,
 } from '../../workspace/services/group-operations'
 import { moveNodesByDelta } from '../../workspace/services/workspace-transforms'
 import { CanvasEmptyState } from './canvas-empty-state'
@@ -56,6 +55,16 @@ const addableNodeTypes: Array<{ type: WorkspaceNodeType; label: string }> = [
 const fallbackNodeSize = { width: 260, height: 180 }
 const snapThreshold = 10
 const gridSize = 18
+const defaultEdgeOptions = {
+  type: 'smoothstep',
+  style: { stroke: 'var(--text-muted)', strokeWidth: 1.5 },
+  markerEnd: {
+    type: MarkerType.ArrowClosed,
+    width: 18,
+    height: 18,
+    color: 'var(--text-muted)',
+  },
+} as const
 
 type GuideLine =
   | { kind: 'alignment-vertical'; x: number; y: number; length: number }
@@ -87,6 +96,14 @@ function getNodeRect(node: WorkspaceNode | Node) {
   }
 }
 
+function shouldPersistNodeChanges(changes: NodeChange<WorkspaceNode>[]) {
+  return changes.some((change) => change.type === 'remove' || change.type === 'add' || change.type === 'replace')
+}
+
+function shouldPersistEdgeChanges(changes: EdgeChange<WorkspaceEdge>[]) {
+  return changes.some((change) => change.type === 'remove' || change.type === 'add' || change.type === 'replace')
+}
+
 function getBoundsFromRects(rects: ReturnType<typeof getNodeRect>[]) {
   const left = Math.min(...rects.map((rect) => rect.left))
   const right = Math.max(...rects.map((rect) => rect.right))
@@ -105,9 +122,48 @@ function getBoundsFromRects(rects: ReturnType<typeof getNodeRect>[]) {
   }
 }
 
-function arraysEqual(left: string[], right: string[]) {
+function getEdgeFocusRole(nodeId: string, focusedEdge?: WorkspaceEdge): 'source' | 'target' | undefined {
+  if (focusedEdge?.source === nodeId) return 'source'
+  if (focusedEdge?.target === nodeId) return 'target'
+  return undefined
+}
+
+function nodeShapeSignature(node: WorkspaceNode) {
+  return JSON.stringify({
+    id: node.id,
+    type: node.type,
+    position: node.position,
+    data: node.data,
+    hidden: node.hidden,
+    selected: node.selected,
+    width: node.width,
+    height: node.height,
+    measured: node.measured,
+  })
+}
+
+function edgeShapeSignature(edge: WorkspaceEdge) {
+  return JSON.stringify({
+    id: edge.id,
+    source: edge.source,
+    target: edge.target,
+    sourceHandle: edge.sourceHandle,
+    targetHandle: edge.targetHandle,
+    label: edge.label,
+    hidden: edge.hidden,
+    selected: edge.selected,
+    animated: edge.animated,
+  })
+}
+
+function nodeListsEqual(left: WorkspaceNode[], right: WorkspaceNode[]) {
   if (left.length !== right.length) return false
-  return left.every((value, index) => value === right[index])
+  return left.every((node, index) => nodeShapeSignature(node) === nodeShapeSignature(right[index]))
+}
+
+function edgeListsEqual(left: WorkspaceEdge[], right: WorkspaceEdge[]) {
+  if (left.length !== right.length) return false
+  return left.every((edge, index) => edgeShapeSignature(edge) === edgeShapeSignature(right[index]))
 }
 
 function getDragGuides(
@@ -311,7 +367,7 @@ export function CanvasStage({
   onSnapshotChange,
   onSelectionChange,
 }: CanvasStageProps) {
-  const initialRenderState = buildRenderableNodes(snapshot.nodes, selectedNodeIds)
+  const initialRenderState = buildRenderableNodes(snapshot.nodes, [])
   const [nodes, setNodes, onNodesChangeBase] = useNodesState<WorkspaceNode>(initialRenderState.nodes)
   const [edges, setEdges, onEdgesChangeBase] = useEdgesState<WorkspaceEdge>(snapshot.edges)
   const [zoomLabel, setZoomLabel] = useState(`${Math.round(snapshot.viewport.zoom * 100)}%`)
@@ -327,53 +383,25 @@ export function CanvasStage({
   const focusedEdge = focusedEdgeIds.length === 1 ? snapshot.edges.find((edge) => edge.id === focusedEdgeIds[0]) : undefined
 
   useEffect(() => {
-    const renderState = buildRenderableNodes(snapshot.nodes, selectedNodeIds)
-    setNodes(
-      renderState.nodes.map((node) => ({
-        ...node,
-        data: {
-          ...node.data,
-          edgeFocusRole:
-            focusedEdge?.source === node.id ? 'source' : focusedEdge?.target === node.id ? 'target' : undefined,
-        },
-      })),
-    )
-    setEdges(
-      snapshot.edges.map((edge) => ({
-        ...edge,
-        hidden: renderState.hiddenNodeIds.has(edge.source) || renderState.hiddenNodeIds.has(edge.target),
-      })),
-    )
+    const renderState = buildRenderableNodes(snapshot.nodes, [])
+    const nextNodes: WorkspaceNode[] = renderState.nodes.map((node) => ({
+      ...node,
+      data: {
+        ...node.data,
+        edgeFocusRole: getEdgeFocusRole(node.id, focusedEdge),
+      },
+    }))
+    const nextEdges: WorkspaceEdge[] = snapshot.edges.map((edge) => ({
+      ...edge,
+      hidden: renderState.hiddenNodeIds.has(edge.source) || renderState.hiddenNodeIds.has(edge.target),
+    }))
+
+    setNodes((currentNodes) => (nodeListsEqual(currentNodes, nextNodes) ? currentNodes : nextNodes))
+    setEdges((currentEdges) => (edgeListsEqual(currentEdges, nextEdges) ? currentEdges : nextEdges))
     setZoomLabel(`${Math.round(snapshot.viewport.zoom * 100)}%`)
     setViewport(snapshot.viewport)
     viewportRef.current = snapshot.viewport
-  }, [focusedEdge, selectedNodeIds, setEdges, setNodes, snapshot])
-
-  useEffect(() => {
-    setNodes((currentNodes) => {
-      const currentSelectedNodeIds = currentNodes.filter((node) => node.selected).map((node) => node.id)
-      const visibleSelectedNodeIds = getVisibleSelectedNodeIds(currentNodes, selectedNodeIds)
-      const hasFocusRoleChanges = currentNodes.some((node) => {
-        const nextRole =
-          focusedEdge?.source === node.id ? 'source' : focusedEdge?.target === node.id ? 'target' : undefined
-        return node.data.edgeFocusRole !== nextRole
-      })
-
-      if (arraysEqual(currentSelectedNodeIds, visibleSelectedNodeIds) && !hasFocusRoleChanges) {
-        return currentNodes
-      }
-
-      return currentNodes.map((node) => ({
-        ...node,
-        selected: visibleSelectedNodeIds.includes(node.id),
-        data: {
-          ...node.data,
-          edgeFocusRole:
-            focusedEdge?.source === node.id ? 'source' : focusedEdge?.target === node.id ? 'target' : undefined,
-        },
-      }))
-    })
-  }, [focusedEdge, selectedNodeIds, setNodes])
+  }, [focusedEdge, setEdges, setNodes, snapshot])
 
   const groupOverlays = useMemo(() => {
     const groups = new Map<
@@ -405,7 +433,7 @@ export function CanvasStage({
       const leadNode = group.nodes.find((node) => node.id === group.leadId) ?? group.nodes[0]
       const rects = (group.collapsed ? [leadNode] : group.nodes).map((node) => getNodeRect(node))
       const bounds = getBoundsFromRects(rects)
-      const selected = group.nodes.some((node) => node.selected)
+      const selected = group.nodes.some((node) => selectedNodeIds.includes(node.id))
       return {
         groupId,
         label: group.label,
@@ -417,19 +445,16 @@ export function CanvasStage({
     })
   }, [nodes, selectedNodeIds])
 
-  const emitSnapshot = useMemo(
-    () => () => {
-      if (!flowRef.current) return
-      onSnapshotChange?.({
-        nodes: flowRef.current.getNodes() as WorkspaceNode[],
-        edges: flowRef.current.getEdges() as WorkspaceEdge[],
-        viewport: flowRef.current.getViewport(),
-      })
-    },
-    [onSnapshotChange],
-  )
+  const emitSnapshot = useCallback(() => {
+    if (!flowRef.current) return
+    onSnapshotChange?.({
+      nodes: flowRef.current.getNodes() as WorkspaceNode[],
+      edges: flowRef.current.getEdges() as WorkspaceEdge[],
+      viewport: flowRef.current.getViewport(),
+    })
+  }, [onSnapshotChange])
 
-  function scheduleSnapshotSave() {
+  const scheduleSnapshotSave = useCallback(() => {
     if (saveTimeoutRef.current) {
       window.clearTimeout(saveTimeoutRef.current)
     }
@@ -437,19 +462,23 @@ export function CanvasStage({
     saveTimeoutRef.current = window.setTimeout(() => {
       emitSnapshot()
     }, 180)
-  }
+  }, [emitSnapshot])
 
-  function onNodesChange(changes: NodeChange<WorkspaceNode>[]) {
+  const onNodesChange = useCallback((changes: NodeChange<WorkspaceNode>[]) => {
     onNodesChangeBase(changes)
-    scheduleSnapshotSave()
-  }
+    if (shouldPersistNodeChanges(changes)) {
+      scheduleSnapshotSave()
+    }
+  }, [onNodesChangeBase, scheduleSnapshotSave])
 
-  function onEdgesChange(changes: EdgeChange<WorkspaceEdge>[]) {
+  const onEdgesChange = useCallback((changes: EdgeChange<WorkspaceEdge>[]) => {
     onEdgesChangeBase(changes)
-    scheduleSnapshotSave()
-  }
+    if (shouldPersistEdgeChanges(changes)) {
+      scheduleSnapshotSave()
+    }
+  }, [onEdgesChangeBase, scheduleSnapshotSave])
 
-  function onConnect(connection: Connection) {
+  const onConnect = useCallback((connection: Connection) => {
     if (!connection.source || !connection.target) return
 
     const nextEdge = createConnectionEdge(
@@ -466,7 +495,7 @@ export function CanvasStage({
     onSelectionChange?.({ nodeIds: [], edgeIds: [nextEdge.id] })
     onEdgeCreate?.(nextEdge)
     scheduleSnapshotSave()
-  }
+  }, [nodes, onEdgeCreate, onSelectionChange, scheduleSnapshotSave, setEdges])
 
   function addNode(type: WorkspaceNodeType) {
     setNodes((current) => [...current, createWorkspaceNode(type, current.length)])
@@ -543,7 +572,7 @@ export function CanvasStage({
     }
   }, [emitSnapshot, isGridSnapEnabled, onSelectionChange, setNodes])
 
-  const onNodeDrag = (_event: React.MouseEvent, draggedNode: WorkspaceNode) => {
+  const onNodeDrag = useCallback((_event: React.MouseEvent, draggedNode: WorkspaceNode) => {
     const currentNodes = flowRef.current?.getNodes() as WorkspaceNode[] | undefined
     if (!currentNodes) return
 
@@ -554,21 +583,28 @@ export function CanvasStage({
     const draggedGroupIds = new Set(draggedGroupNodes.map((node) => node.id))
     const dragGuides = getDragGuides(currentNodes, draggedGroupIds, isGridSnapEnabled)
 
-    setNodes((current) =>
-      current.map((node) =>
-        draggedGroupIds.has(node.id)
-          ? {
-              ...node,
-              position: {
-                x: node.position.x + dragGuides.delta.x,
-                y: node.position.y + dragGuides.delta.y,
-              },
-            }
-          : node,
-      ),
-    )
     setGuideLines(dragGuides.guides)
-  }
+  }, [isGridSnapEnabled])
+
+  const handleMoveEnd = useCallback(() => {
+    updateZoomLabel()
+    if (flowRef.current) {
+      const nextViewport = flowRef.current.getViewport()
+      setViewport(nextViewport)
+      viewportRef.current = nextViewport
+    }
+    scheduleSnapshotSave()
+  }, [scheduleSnapshotSave])
+
+  const handleNodeDragStop = useCallback(() => {
+    setGuideLines([])
+    if (flowRef.current) {
+      const nextViewport = flowRef.current.getViewport()
+      setViewport(nextViewport)
+      viewportRef.current = nextViewport
+    }
+    scheduleSnapshotSave()
+  }, [scheduleSnapshotSave])
 
   return (
     <div className="relative h-full min-h-[680px] overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--canvas)] shadow-[var(--shadow-sm)] [&_.react-flow__edge-path]:transition-all [&_.react-flow__edge-path]:duration-150 [&_.react-flow__edge:hover_.react-flow__edge-path]:stroke-[var(--text-secondary)] [&_.react-flow__edge:hover_.react-flow__edge-path]:stroke-[1.9] [&_.react-flow__edge:hover_.react-flow__arrowhead]:fill-[var(--text-secondary)] [&_.react-flow__edge-textbg]:fill-[var(--panel)] [&_.react-flow__edge-textbg]:opacity-90 [&_.react-flow__edge-text]:fill-[var(--text-secondary)] [&_.react-flow__edge.selected_.react-flow__edge-path]:stroke-[var(--text-primary)] [&_.react-flow__edge.selected_.react-flow__edge-path]:stroke-[2.5] [&_.react-flow__edge.selected_.react-flow__edge-text]:fill-[var(--text-primary)] [&_.react-flow__edge.selected_.react-flow__arrowhead]:fill-[var(--text-primary)]">
@@ -586,7 +622,6 @@ export function CanvasStage({
       </div>
 
       <ReactFlow
-        fitView
         defaultViewport={snapshot.viewport}
         nodes={nodes}
         edges={edges}
@@ -603,59 +638,21 @@ export function CanvasStage({
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeDrag={onNodeDrag}
-        onMoveEnd={() => {
-          updateZoomLabel()
-          if (flowRef.current) {
-            const nextViewport = flowRef.current.getViewport()
-            setViewport(nextViewport)
-            viewportRef.current = nextViewport
-          }
-          scheduleSnapshotSave()
-        }}
-        onNodeDragStop={() => {
-          setGuideLines([])
-          if (flowRef.current) {
-            const nextViewport = flowRef.current.getViewport()
-            setViewport(nextViewport)
-            viewportRef.current = nextViewport
-          }
-          scheduleSnapshotSave()
-        }}
+        onMoveEnd={handleMoveEnd}
+        onNodeDragStop={handleNodeDragStop}
         onSelectionChange={({ nodes: selectedNodes, edges: selectedEdges }) => {
           const currentNodes = ((flowRef.current?.getNodes() as WorkspaceNode[] | undefined) ?? [])
           const expandedNodeIds = expandSelectedNodeIdsByGroup(
             currentNodes,
             selectedNodes.map((node) => node.id),
           )
-          const expandedVisibleNodeIds = getVisibleSelectedNodeIds(currentNodes, expandedNodeIds)
-
-          setNodes((current) => {
-            const currentSelectedNodeIds = current.filter((node) => node.selected).map((node) => node.id)
-            if (arraysEqual(currentSelectedNodeIds, expandedVisibleNodeIds)) {
-              return current
-            }
-
-            return current.map((node) => ({
-              ...node,
-              selected: expandedVisibleNodeIds.includes(node.id),
-            }))
-          })
 
           onSelectionChange?.({
             nodeIds: expandedNodeIds,
             edgeIds: selectedEdges.map((edge) => edge.id),
           })
         }}
-        defaultEdgeOptions={{
-          type: 'smoothstep',
-          style: { stroke: 'var(--text-muted)', strokeWidth: 1.5 },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            width: 18,
-            height: 18,
-            color: 'var(--text-muted)',
-          },
-        }}
+        defaultEdgeOptions={defaultEdgeOptions}
         selectionOnDrag
         selectionMode={SelectionMode.Partial}
         multiSelectionKeyCode={['Meta', 'Control', 'Shift']}

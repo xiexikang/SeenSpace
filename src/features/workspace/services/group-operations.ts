@@ -1,4 +1,5 @@
 import type { WorkspaceNode, WorkspaceNodeType, WorkspaceSnapshot } from '../../../types/workspace'
+import { randomId } from '../../../shared/utils/random-id'
 
 const duplicateOffset = { x: 44, y: 44 }
 
@@ -54,7 +55,7 @@ export function duplicateSelectedNodes(nodes: WorkspaceNode[], selectedNodeIds: 
         nextGroupLabel = existing.label
       } else {
         const created = {
-          id: crypto.randomUUID(),
+          id: randomId(),
           label: `${node.data.groupLabel} Copy`,
           leadSourceId: node.data.groupLeadId,
         }
@@ -64,7 +65,7 @@ export function duplicateSelectedNodes(nodes: WorkspaceNode[], selectedNodeIds: 
       }
     }
 
-    const duplicateId = crypto.randomUUID()
+    const duplicateId = randomId()
     duplicateIdMap.set(node.id, duplicateId)
 
     return {

@@ -21,6 +21,7 @@ import {
 } from '../../features/workspace/services/workspace-history'
 import { resolveWorkspaceKeyboardAction } from '../../features/workspace/services/workspace-keyboard'
 import { relationshipPresets } from '../../features/workspace/services/workspace-edges'
+import { randomId } from '../../shared/utils/random-id'
 import {
   deriveWorkspaceBatchEdgeState,
   deriveWorkspaceBatchMetadataState,
@@ -263,7 +264,7 @@ export function WorkspacePage() {
 
   function handleCreateGroup() {
     if (selectedNodeIds.length < 2) return
-    const groupId = crypto.randomUUID()
+    const groupId = randomId()
     const groupLabel = nextGroupLabel(snapshot.nodes)
     const leadId = selectedNodeIds[0]
     const idSet = new Set(selectedNodeIds)
