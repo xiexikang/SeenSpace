@@ -20,13 +20,17 @@ import {
   snapshotsEqual,
 } from '../../features/workspace/services/workspace-history'
 import { resolveWorkspaceKeyboardAction } from '../../features/workspace/services/workspace-keyboard'
+import { relationshipPresets } from '../../features/workspace/services/workspace-edges'
 import {
+  deriveWorkspaceBatchEdgeState,
   deriveWorkspaceBatchMetadataState,
   deriveWorkspaceSelectionState,
 } from '../../features/workspace/services/workspace-selection'
 import {
   applyBatchCategory,
   applyBatchTags,
+  applyEdgeLabel,
+  clearEdgeLabels,
   clearBatchMetadata,
   type LayoutActionId,
   moveNodesByDelta,
@@ -50,6 +54,7 @@ function sanitizeSnapshot(snapshot: WorkspaceSnapshot): WorkspaceSnapshot {
       hidden: false,
       data: {
         ...node.data,
+        edgeFocusRole: undefined,
         collapsedGroupSummary: undefined,
       },
     })),
@@ -88,6 +93,7 @@ export function WorkspacePage() {
   const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([])
   const [batchCategory, setBatchCategory] = useState('')
   const [batchTagsText, setBatchTagsText] = useState('')
+  const [batchEdgeLabel, setBatchEdgeLabel] = useState('')
   const [historyIndex, setHistoryIndex] = useState(0)
   const [canvasStageVersion, setCanvasStageVersion] = useState(0)
   const historyRef = useRef<WorkspaceSnapshot[]>([emptySnapshot])
@@ -125,6 +131,9 @@ export function WorkspacePage() {
   const canUndo = historyIndex > 0
   const canRedo = historyIndex < historyRef.current.length - 1
   const batchMetadataState = deriveWorkspaceBatchMetadataState(selectedNodes)
+  const batchEdgeState = deriveWorkspaceBatchEdgeState(
+    snapshot.edges.filter((edge) => selectedEdgeIds.includes(edge.id)),
+  )
 
   useEffect(() => {
     if (selectedNodeIds.length > 1) {
@@ -132,6 +141,12 @@ export function WorkspacePage() {
       setBatchTagsText('')
     }
   }, [batchMetadataState.sharedCategory, selectedNodeIds.length])
+
+  useEffect(() => {
+    if (selectedEdgeIds.length > 1) {
+      setBatchEdgeLabel(batchEdgeState.sharedLabel ?? '')
+    }
+  }, [batchEdgeState.sharedLabel, selectedEdgeIds.length])
 
   async function persistSnapshot(nextSnapshot: WorkspaceSnapshot, options?: { recordHistory?: boolean }) {
     const cleanSnapshot = sanitizeSnapshot(nextSnapshot)
@@ -376,6 +391,28 @@ export function WorkspacePage() {
         return
       }
 
+      if (action.type === 'apply-edge-preset') {
+        const preset = relationshipPresets[action.index]
+        if (!preset) return
+
+        if (selectedEdgeIds.length === 1 && selectedEdge) {
+          handleEdgeLabelChange(preset)
+          showActionMessage(`Relationship set to ${preset}`)
+          return
+        }
+
+        if (selectedEdgeIds.length > 1) {
+          const nextSnapshot: WorkspaceSnapshot = {
+            ...snapshot,
+            edges: applyEdgeLabel(snapshot.edges, selectedEdgeIds, preset),
+          }
+
+          void persistSnapshot(nextSnapshot)
+          showActionMessage(`Applied ${formatRelationshipName(preset)} to ${selectedEdgeIds.length} connections`)
+        }
+        return
+      }
+
       if (action.type === 'nudge-selected-nodes') {
         const nextSnapshot: WorkspaceSnapshot = {
           ...snapshot,
@@ -387,10 +424,16 @@ export function WorkspacePage() {
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [canRedo, canUndo, canUngroupSelection, historyIndex, selectedNodeIds, selectedEdgeIds, snapshot, selectedNode, selectedNodes])
+  }, [canRedo, canUndo, canUngroupSelection, historyIndex, selectedEdge, selectedEdgeIds, selectedNodeIds, snapshot, selectedNode, selectedNodes])
 
   function handleSnapshotChange(nextSnapshot: WorkspaceSnapshot) {
     void persistSnapshot(nextSnapshot)
+  }
+
+  function handleEdgeCreate(edge: WorkspaceEdge) {
+    setSelectedNodeIds([])
+    setSelectedEdgeIds([edge.id])
+    showActionMessage(`Connection created: ${typeof edge.label === 'string' && edge.label.trim() ? edge.label : 'untitled'}`)
   }
 
   function handleNodeChange(updates: Partial<WorkspaceNode['data']>) {
@@ -419,17 +462,64 @@ export function WorkspacePage() {
 
     const nextSnapshot: WorkspaceSnapshot = {
       ...snapshot,
-      edges: snapshot.edges.map((edge) =>
-        edge.id === selectedEdge.id
-          ? {
-              ...edge,
-              label: value,
-            }
-          : edge,
-      ),
+      edges: applyEdgeLabel(snapshot.edges, [selectedEdge.id], value),
     }
 
     void persistSnapshot(nextSnapshot)
+  }
+
+  function formatRelationshipName(value: string) {
+    return value.trim() || 'empty'
+  }
+
+  function handleApplyBatchEdgeLabel() {
+    if (selectedEdgeIds.length < 2 || !batchEdgeLabel.trim()) return
+
+    const nextSnapshot: WorkspaceSnapshot = {
+      ...snapshot,
+      edges: applyEdgeLabel(snapshot.edges, selectedEdgeIds, batchEdgeLabel),
+    }
+
+    void persistSnapshot(nextSnapshot)
+    showActionMessage(`Applied ${formatRelationshipName(batchEdgeLabel)} to ${selectedEdgeIds.length} connections`)
+  }
+
+  function handleApplyBatchEdgeLabelValue(value: string) {
+    if (selectedEdgeIds.length < 2) return
+
+    const nextSnapshot: WorkspaceSnapshot = {
+      ...snapshot,
+      edges: applyEdgeLabel(snapshot.edges, selectedEdgeIds, value),
+    }
+
+    setBatchEdgeLabel(value)
+    void persistSnapshot(nextSnapshot)
+    showActionMessage(`Applied ${formatRelationshipName(value)} to ${selectedEdgeIds.length} connections`)
+  }
+
+  function handleClearEdgeLabel() {
+    if (!selectedEdge) return
+
+    const nextSnapshot: WorkspaceSnapshot = {
+      ...snapshot,
+      edges: clearEdgeLabels(snapshot.edges, [selectedEdge.id]),
+    }
+
+    void persistSnapshot(nextSnapshot)
+    showActionMessage('Relationship cleared')
+  }
+
+  function handleClearBatchEdgeLabels() {
+    if (selectedEdgeIds.length < 2) return
+
+    const nextSnapshot: WorkspaceSnapshot = {
+      ...snapshot,
+      edges: clearEdgeLabels(snapshot.edges, selectedEdgeIds),
+    }
+
+    setBatchEdgeLabel('')
+    void persistSnapshot(nextSnapshot)
+    showActionMessage('Connection labels cleared')
   }
 
   function handleApplyLayout(action: LayoutActionId) {
@@ -699,6 +789,8 @@ export function WorkspacePage() {
                 key={`${projectId ?? 'workspace'}-${canvasStageVersion}`}
                 snapshot={snapshot}
                 selectedNodeIds={selectedNodeIds}
+                focusedEdgeIds={selectedEdgeIds}
+                onEdgeCreate={handleEdgeCreate}
                 onSelectGroup={handleSelectGroupById}
                 onToggleGroupCollapse={handleToggleGroupCollapse}
                 onSnapshotChange={handleSnapshotChange}
@@ -717,6 +809,11 @@ export function WorkspacePage() {
               selectedEdgeCount={selectedEdgeIds.length}
               batchCategory={batchCategory}
               batchTagsText={batchTagsText}
+              batchEdgeLabel={batchEdgeLabel}
+              batchEdgeSharedLabel={batchEdgeState.sharedLabel}
+              batchEdgeHasMixedLabels={batchEdgeState.hasMixedLabels}
+              batchEdgeLabeledCount={batchEdgeState.labeledCount}
+              batchEdgeLabelBreakdown={batchEdgeState.labelBreakdown}
               batchTypeCounts={batchMetadataState.typeCounts}
               batchSharedCategory={batchMetadataState.sharedCategory}
               batchHasMixedCategories={batchMetadataState.hasMixedCategories}
@@ -731,6 +828,11 @@ export function WorkspacePage() {
               onDeleteEdge={handleDeleteEdge}
               onDeleteManyEdges={handleDeleteManyEdges}
               onEdgeLabelChange={handleEdgeLabelChange}
+              onClearEdgeLabel={handleClearEdgeLabel}
+              onBatchEdgeLabelChange={setBatchEdgeLabel}
+              onApplyBatchEdgeLabel={handleApplyBatchEdgeLabel}
+              onApplyBatchEdgeLabelValue={handleApplyBatchEdgeLabelValue}
+              onClearBatchEdgeLabels={handleClearBatchEdgeLabels}
               onBatchCategoryChange={setBatchCategory}
               onBatchTagsChange={setBatchTagsText}
               onApplyBatchCategory={handleApplyBatchCategory}

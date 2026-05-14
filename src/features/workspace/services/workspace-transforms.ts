@@ -1,4 +1,4 @@
-import type { TagMetaNodeData, WorkspaceNode } from '../../../types/workspace'
+import type { TagMetaNodeData, WorkspaceEdge, WorkspaceNode } from '../../../types/workspace'
 
 const fallbackNodeSize = { width: 260, height: 180 }
 
@@ -235,4 +235,38 @@ export function clearBatchMetadata(
       data: nextData,
     }
   })
+}
+
+export function applyEdgeLabel(edges: WorkspaceEdge[], selectedEdgeIds: string[], label: string) {
+  if (selectedEdgeIds.length === 0) {
+    return edges
+  }
+
+  const idSet = new Set(selectedEdgeIds)
+  const normalizedLabel = label.trim()
+
+  return edges.map((edge) =>
+    idSet.has(edge.id)
+      ? {
+          ...edge,
+          label: normalizedLabel,
+        }
+      : edge,
+  )
+}
+
+export function clearEdgeLabels(edges: WorkspaceEdge[], selectedEdgeIds: string[]) {
+  if (selectedEdgeIds.length === 0) {
+    return edges
+  }
+
+  const idSet = new Set(selectedEdgeIds)
+  return edges.map((edge) =>
+    idSet.has(edge.id)
+      ? {
+          ...edge,
+          label: '',
+        }
+      : edge,
+  )
 }

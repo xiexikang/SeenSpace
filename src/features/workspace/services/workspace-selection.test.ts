@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { deriveWorkspaceBatchMetadataState, deriveWorkspaceSelectionState } from './workspace-selection'
+import {
+  deriveWorkspaceBatchEdgeState,
+  deriveWorkspaceBatchMetadataState,
+  deriveWorkspaceSelectionState,
+} from './workspace-selection'
 import { createEdge, createNode, createSnapshot } from './workspace-test-utils'
 
 describe('workspace selection', () => {
@@ -99,5 +103,40 @@ describe('workspace selection', () => {
 
     expect(state.sharedCategory).toBeUndefined()
     expect(state.hasMixedCategories).toBe(true)
+  })
+
+  it('derives shared edge label state for batch edge editing', () => {
+    const selectedEdges = [
+      createEdge({ id: 'a', source: '1', target: '2', label: 'supports' }),
+      createEdge({ id: 'b', source: '2', target: '3', label: 'supports' }),
+      createEdge({ id: 'c', source: '3', target: '4' }),
+    ]
+
+    const state = deriveWorkspaceBatchEdgeState(selectedEdges)
+
+    expect(state.sharedLabel).toBe('supports')
+    expect(state.hasMixedLabels).toBe(false)
+    expect(state.labeledCount).toBe(2)
+    expect(state.labelBreakdown).toEqual([
+      { label: 'supports', count: 2, isEmpty: false },
+      { label: '', count: 1, isEmpty: true },
+    ])
+  })
+
+  it('detects mixed edge labels for batch edge editing', () => {
+    const selectedEdges = [
+      createEdge({ id: 'a', source: '1', target: '2', label: 'supports' }),
+      createEdge({ id: 'b', source: '2', target: '3', label: 'depends on' }),
+    ]
+
+    const state = deriveWorkspaceBatchEdgeState(selectedEdges)
+
+    expect(state.sharedLabel).toBeUndefined()
+    expect(state.hasMixedLabels).toBe(true)
+    expect(state.labeledCount).toBe(2)
+    expect(state.labelBreakdown).toEqual([
+      { label: 'depends on', count: 1, isEmpty: false },
+      { label: 'supports', count: 1, isEmpty: false },
+    ])
   })
 })

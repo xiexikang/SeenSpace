@@ -7,6 +7,7 @@ type KeyboardShortcutAction =
   | { type: 'clear-selection' }
   | { type: 'delete-selected-nodes' }
   | { type: 'delete-selected-edges' }
+  | { type: 'apply-edge-preset'; index: number }
   | { type: 'nudge-selected-nodes'; delta: { x: number; y: number } }
 
 type KeyboardShortcutContext = {
@@ -62,6 +63,13 @@ export function resolveWorkspaceKeyboardAction(
     }
     if (context.selectedEdgeCount > 0) {
       return { type: 'delete-selected-edges' }
+    }
+  }
+
+  if (context.selectedEdgeCount > 0 && context.selectedNodeCount === 0) {
+    const presetIndex = Number(context.key) - 1
+    if (Number.isInteger(presetIndex) && presetIndex >= 0 && presetIndex <= 5) {
+      return { type: 'apply-edge-preset', index: presetIndex }
     }
   }
 

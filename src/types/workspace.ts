@@ -18,6 +18,7 @@ type WorkspaceNodeDataBase = {
   title: string
   description?: string
   meta?: string
+  edgeFocusRole?: 'source' | 'target'
   groupId?: string
   groupLabel?: string
   groupLeadId?: string

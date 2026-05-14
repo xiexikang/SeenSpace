@@ -5,6 +5,7 @@ import {
   AlignEndVertical,
   AlignStartHorizontal,
   AlignStartVertical,
+  ArrowRight,
   BetweenHorizonalStart,
   BetweenVerticalStart,
   Copy,
@@ -17,16 +18,9 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
+import { useEffect, useRef } from 'react'
 import type { WorkspaceEdge, WorkspaceNode } from '../../types/workspace'
-
-const relationshipPresets = [
-  'supports',
-  'references',
-  'contrasts with',
-  'derived from',
-  'depends on',
-  'clusters with',
-]
+import { relationshipPresets } from '../../features/workspace/services/workspace-edges'
 
 const layoutActions = [
   { id: 'align-left', label: 'Align Left', icon: AlignStartVertical },
@@ -50,6 +44,11 @@ type WorkspaceInspectorProps = {
   selectedEdgeCount: number
   batchCategory: string
   batchTagsText: string
+  batchEdgeLabel: string
+  batchEdgeSharedLabel?: string
+  batchEdgeHasMixedLabels: boolean
+  batchEdgeLabeledCount: number
+  batchEdgeLabelBreakdown: Array<{ label: string; count: number; isEmpty: boolean }>
   batchTypeCounts: Array<{ type: WorkspaceNode['type']; count: number }>
   batchSharedCategory?: string
   batchHasMixedCategories: boolean
@@ -64,6 +63,11 @@ type WorkspaceInspectorProps = {
   onDeleteEdge: () => void
   onDeleteManyEdges: () => void
   onEdgeLabelChange: (value: string) => void
+  onClearEdgeLabel: () => void
+  onBatchEdgeLabelChange: (value: string) => void
+  onApplyBatchEdgeLabel: () => void
+  onApplyBatchEdgeLabelValue: (value: string) => void
+  onClearBatchEdgeLabels: () => void
   onBatchCategoryChange: (value: string) => void
   onBatchTagsChange: (value: string) => void
   onApplyBatchCategory: () => void
@@ -182,6 +186,11 @@ export function WorkspaceInspector({
   selectedEdgeCount,
   batchCategory,
   batchTagsText,
+  batchEdgeLabel,
+  batchEdgeSharedLabel,
+  batchEdgeHasMixedLabels,
+  batchEdgeLabeledCount,
+  batchEdgeLabelBreakdown,
   batchTypeCounts,
   batchSharedCategory,
   batchHasMixedCategories,
@@ -196,6 +205,11 @@ export function WorkspaceInspector({
   onDeleteEdge,
   onDeleteManyEdges,
   onEdgeLabelChange,
+  onClearEdgeLabel,
+  onBatchEdgeLabelChange,
+  onApplyBatchEdgeLabel,
+  onApplyBatchEdgeLabelValue,
+  onClearBatchEdgeLabels,
   onBatchCategoryChange,
   onBatchTagsChange,
   onApplyBatchCategory,
@@ -213,6 +227,22 @@ export function WorkspaceInspector({
   const isNodeMultiSelect = selectedNodeCount > 1
   const isEdgeMultiSelect = selectedEdgeCount > 1 && selectedNodeCount === 0
   const isEdgeSingleSelect = selectedEdgeCount === 1 && selectedNodeCount === 0
+  const edgeLabelInputRef = useRef<HTMLInputElement | null>(null)
+  const batchEdgeLabelInputRef = useRef<HTMLInputElement | null>(null)
+  const previousEdgeIdRef = useRef<string | undefined>(undefined)
+
+  useEffect(() => {
+    const nextEdgeId = isEdgeSingleSelect ? edge?.id : undefined
+    const hasChanged = previousEdgeIdRef.current !== nextEdgeId
+    previousEdgeIdRef.current = nextEdgeId
+
+    if (!nextEdgeId || !hasChanged) return
+
+    window.requestAnimationFrame(() => {
+      edgeLabelInputRef.current?.focus()
+      edgeLabelInputRef.current?.select()
+    })
+  }, [edge?.id, isEdgeSingleSelect])
 
   return (
     <aside className="flex w-[320px] shrink-0 flex-col rounded-[28px] border border-[var(--border)] bg-[var(--panel)] p-4 shadow-[var(--shadow-sm)]">
@@ -431,6 +461,107 @@ export function WorkspaceInspector({
             </p>
           </div>
 
+          <div className="mb-4 grid grid-cols-2 gap-2">
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-3">
+              <div className="mb-1 text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">Labels</div>
+              <div className="text-sm font-medium text-[var(--text-primary)]">
+                {batchEdgeHasMixedLabels ? 'Mixed' : batchEdgeSharedLabel || 'Empty'}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-3">
+              <div className="mb-1 text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">Named</div>
+              <div className="text-sm font-medium text-[var(--text-primary)]">
+                {batchEdgeLabeledCount} / {selectedEdgeCount}
+              </div>
+            </div>
+          </div>
+
+          <div className="mb-4 rounded-[24px] border border-[var(--border)] bg-[var(--background)] p-4">
+            <div className="mb-3 text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">Relationship Mix</div>
+            <div className="flex flex-wrap gap-2">
+              {batchEdgeLabelBreakdown.map((entry) => (
+                <button
+                  key={entry.isEmpty ? 'empty' : entry.label}
+                  type="button"
+                  onClick={() => {
+                    onBatchEdgeLabelChange(entry.label)
+                    window.requestAnimationFrame(() => {
+                      batchEdgeLabelInputRef.current?.focus()
+                      batchEdgeLabelInputRef.current?.select()
+                    })
+                  }}
+                  onDoubleClick={() => onApplyBatchEdgeLabelValue(entry.label)}
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    batchEdgeLabel === entry.label
+                      ? 'border-[var(--text-primary)] bg-[var(--panel-elevated)] text-[var(--text-primary)]'
+                      : 'border-[var(--border)] bg-[var(--panel)] text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]'
+                  }`}
+                >
+                  <span>{entry.isEmpty ? 'Empty' : entry.label}</span>
+                  <span className="rounded-full bg-[var(--panel-elevated)] px-2 py-0.5 text-[11px] text-[var(--text-primary)]">
+                    {entry.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <label className="mb-4 block">
+            <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Batch Relationship</div>
+            <input
+              ref={batchEdgeLabelInputRef}
+              value={batchEdgeLabel}
+              onChange={(event) => onBatchEdgeLabelChange(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter') return
+                event.preventDefault()
+                onApplyBatchEdgeLabel()
+              }}
+              placeholder={batchEdgeHasMixedLabels ? 'Set a shared relationship...' : 'supports, depends on...'}
+              className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+            />
+          </label>
+
+          <div className="mb-4 flex flex-wrap gap-2">
+            {relationshipPresets.map((preset, index) => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => {
+                  onBatchEdgeLabelChange(preset)
+                  window.requestAnimationFrame(() => {
+                    batchEdgeLabelInputRef.current?.focus()
+                    batchEdgeLabelInputRef.current?.select()
+                  })
+                }}
+                onDoubleClick={() => onApplyBatchEdgeLabelValue(preset)}
+                className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  batchEdgeLabel === preset
+                    ? 'border-[var(--text-primary)] bg-[var(--panel-elevated)] text-[var(--text-primary)]'
+                    : 'border-[var(--border)] bg-[var(--panel)] text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]'
+                }`}
+              >
+                {index + 1}. {preset}
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={onApplyBatchEdgeLabel}
+            className="mb-3 inline-flex h-10 items-center justify-center rounded-2xl bg-[var(--text-primary)] px-4 text-sm font-medium text-[var(--background)]"
+          >
+            Apply Relationship
+          </button>
+
+          <button
+            type="button"
+            onClick={onClearBatchEdgeLabels}
+            className="mb-3 inline-flex h-10 items-center justify-center rounded-2xl border border-[var(--border)] px-4 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
+          >
+            Clear Labels
+          </button>
+
           <button
             type="button"
             onClick={onDeleteManyEdges}
@@ -449,6 +580,7 @@ export function WorkspaceInspector({
           <label className="mb-4 block">
             <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Relationship Label</div>
             <input
+              ref={edgeLabelInputRef}
               value={typeof edge.label === 'string' ? edge.label : ''}
               onChange={(event) => onEdgeLabelChange(event.target.value)}
               placeholder="supports, contradicts, derives from..."
@@ -456,10 +588,20 @@ export function WorkspaceInspector({
             />
           </label>
 
+          <div className="mb-4 flex gap-2">
+            <button
+              type="button"
+              onClick={onClearEdgeLabel}
+              className="inline-flex h-10 items-center justify-center rounded-2xl border border-[var(--border)] px-4 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
+            >
+              Clear Label
+            </button>
+          </div>
+
           <div className="mb-4">
             <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Quick Relationships</div>
             <div className="flex flex-wrap gap-2">
-              {relationshipPresets.map((preset) => {
+              {relationshipPresets.map((preset, index) => {
                 const isActive = edge.label === preset
 
                 return (
@@ -473,23 +615,25 @@ export function WorkspaceInspector({
                         : 'border-[var(--border)] bg-[var(--panel)] text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]'
                     }`}
                   >
-                    {preset}
+                    {index + 1}. {preset}
                   </button>
                 )
               })}
             </div>
           </div>
 
-          <div className="mb-4 rounded-[24px] border border-[var(--border)] bg-[var(--background)] p-4">
-            <div className="mb-2 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
-              Source
+          <div className="mb-3 rounded-[24px] border border-[var(--border)] bg-[var(--background)] p-4">
+            <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
+              <span>Source</span>
+              <ArrowRight className="h-3.5 w-3.5" />
             </div>
             <div className="text-sm text-[var(--text-primary)]">{edgeSourceTitle ?? edge.source}</div>
           </div>
 
-          <div className="mb-6 rounded-[24px] border border-[var(--border)] bg-[var(--background)] p-4">
-            <div className="mb-2 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
-              Target
+          <div className="mb-6 rounded-[24px] border border-[var(--border)] bg-[var(--panel-elevated)] p-4">
+            <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
+              <span>Target</span>
+              <ArrowRight className="h-3.5 w-3.5" />
             </div>
             <div className="text-sm text-[var(--text-primary)]">{edgeTargetTitle ?? edge.target}</div>
           </div>

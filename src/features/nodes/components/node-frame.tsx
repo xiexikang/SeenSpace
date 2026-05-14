@@ -7,6 +7,7 @@ type NodeFrameProps = {
   typeLabel: string
   accentClassName: string
   selected?: boolean
+  edgeFocusRole?: 'source' | 'target'
   groupLabel?: string
   collapsedGroupSummary?: CollapsedGroupSummary
   children: ReactNode
@@ -16,6 +17,7 @@ export function NodeFrame({
   typeLabel,
   accentClassName,
   selected,
+  edgeFocusRole,
   groupLabel,
   collapsedGroupSummary,
   children,
@@ -27,6 +29,12 @@ export function NodeFrame({
     tag_meta: Tags,
   } as const
   const isCollapsedGroupCard = Boolean(collapsedGroupSummary)
+  const edgeFocusAccent =
+    edgeFocusRole === 'source'
+      ? 'border-[rgba(116,146,185,0.45)] shadow-[0_0_0_3px_rgba(116,146,185,0.14),0_18px_42px_rgba(24,24,27,0.14)]'
+      : edgeFocusRole === 'target'
+        ? 'border-[rgba(125,170,151,0.48)] shadow-[0_0_0_3px_rgba(125,170,151,0.16),0_18px_42px_rgba(24,24,27,0.14)]'
+        : ''
   const frameRef = useRef<HTMLDivElement | null>(null)
   const [peekSide, setPeekSide] = useState<'left' | 'right'>('right')
 
@@ -61,6 +69,8 @@ export function NodeFrame({
         className={`relative min-w-[220px] max-w-[300px] rounded-[20px] border bg-[var(--panel)] p-3 transition-all ${
           selected
             ? 'border-[var(--text-primary)] shadow-[0_0_0_2px_rgba(24,24,27,0.08),0_18px_42px_rgba(24,24,27,0.14)]'
+            : edgeFocusAccent
+              ? edgeFocusAccent
             : isCollapsedGroupCard
               ? 'border-[rgba(24,24,27,0.12)] shadow-[0_18px_38px_rgba(24,24,27,0.12)]'
               : 'border-[var(--border)] shadow-[var(--shadow-sm)]'
@@ -78,6 +88,17 @@ export function NodeFrame({
         >
           {typeLabel}
         </span>
+        {edgeFocusRole ? (
+          <span
+            className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.08em] ${
+              edgeFocusRole === 'source'
+                ? 'bg-[rgba(116,146,185,0.16)] text-[var(--text-secondary)]'
+                : 'bg-[rgba(125,170,151,0.16)] text-[var(--text-secondary)]'
+            }`}
+          >
+            {edgeFocusRole}
+          </span>
+        ) : null}
         {groupLabel ? (
           <span className="inline-flex rounded-full border border-[var(--border)] bg-[var(--panel-elevated)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)]">
             {groupLabel}

@@ -15,11 +15,47 @@ type WorkspaceSelectionState = {
   selectionSummary: string
 }
 
+export type WorkspaceBatchEdgeState = {
+  sharedLabel?: string
+  hasMixedLabels: boolean
+  labeledCount: number
+  labelBreakdown: Array<{ label: string; count: number; isEmpty: boolean }>
+}
+
 export type WorkspaceBatchMetadataState = {
   typeCounts: Array<{ type: WorkspaceNode['type']; count: number }>
   sharedCategory?: string
   hasMixedCategories: boolean
   uniqueTags: string[]
+}
+
+export function deriveWorkspaceBatchEdgeState(selectedEdges: WorkspaceEdge[]): WorkspaceBatchEdgeState {
+  const labelCountMap = new Map<string, number>()
+  const normalizedLabels = selectedEdges
+    .map((edge) => (typeof edge.label === 'string' ? edge.label.trim() : ''))
+    .map((label) => {
+      labelCountMap.set(label, (labelCountMap.get(label) ?? 0) + 1)
+      return label
+    })
+    .filter(Boolean)
+  const uniqueLabels = Array.from(new Set(normalizedLabels))
+
+  return {
+    sharedLabel: uniqueLabels.length === 1 ? uniqueLabels[0] : undefined,
+    hasMixedLabels: uniqueLabels.length > 1,
+    labeledCount: normalizedLabels.length,
+    labelBreakdown: Array.from(labelCountMap.entries())
+      .map(([label, count]) => ({
+        label,
+        count,
+        isEmpty: label.length === 0,
+      }))
+      .sort((left, right) => {
+        if (right.count !== left.count) return right.count - left.count
+        if (left.isEmpty !== right.isEmpty) return left.isEmpty ? 1 : -1
+        return left.label.localeCompare(right.label)
+      }),
+  }
 }
 
 export function deriveWorkspaceBatchMetadataState(selectedNodes: WorkspaceNode[]): WorkspaceBatchMetadataState {

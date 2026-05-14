@@ -25,6 +25,7 @@ import type {
 } from '../../../types/workspace'
 import { nodeTypes } from '../../nodes/components/node-renderer'
 import { createWorkspaceNode } from '../../nodes/services/node-factory'
+import { createConnectionEdge } from '../../workspace/services/workspace-edges'
 import {
   buildRenderableNodes,
   expandSelectedNodeIdsByGroup,
@@ -37,6 +38,8 @@ import { ZoomControls } from './zoom-controls'
 type CanvasStageProps = {
   snapshot: WorkspaceSnapshot
   selectedNodeIds?: string[]
+  focusedEdgeIds?: string[]
+  onEdgeCreate?: (edge: WorkspaceEdge) => void
   onSelectGroup?: (groupId: string) => void
   onToggleGroupCollapse?: (groupId: string) => void
   onSnapshotChange?: (snapshot: WorkspaceSnapshot) => void
@@ -301,6 +304,8 @@ function getDragGuides(
 export function CanvasStage({
   snapshot,
   selectedNodeIds = [],
+  focusedEdgeIds = [],
+  onEdgeCreate,
   onSelectGroup,
   onToggleGroupCollapse,
   onSnapshotChange,
@@ -319,10 +324,20 @@ export function CanvasStage({
   const saveTimeoutRef = useRef<number | null>(null)
   const viewportRef = useRef(snapshot.viewport)
   const groupDragStateRef = useRef<{ groupId: string; nodeIds: string[]; pointerId: number } | null>(null)
+  const focusedEdge = focusedEdgeIds.length === 1 ? snapshot.edges.find((edge) => edge.id === focusedEdgeIds[0]) : undefined
 
   useEffect(() => {
     const renderState = buildRenderableNodes(snapshot.nodes, selectedNodeIds)
-    setNodes(renderState.nodes)
+    setNodes(
+      renderState.nodes.map((node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          edgeFocusRole:
+            focusedEdge?.source === node.id ? 'source' : focusedEdge?.target === node.id ? 'target' : undefined,
+        },
+      })),
+    )
     setEdges(
       snapshot.edges.map((edge) => ({
         ...edge,
@@ -332,23 +347,33 @@ export function CanvasStage({
     setZoomLabel(`${Math.round(snapshot.viewport.zoom * 100)}%`)
     setViewport(snapshot.viewport)
     viewportRef.current = snapshot.viewport
-  }, [setEdges, setNodes, snapshot])
+  }, [focusedEdge, selectedNodeIds, setEdges, setNodes, snapshot])
 
   useEffect(() => {
     setNodes((currentNodes) => {
       const currentSelectedNodeIds = currentNodes.filter((node) => node.selected).map((node) => node.id)
       const visibleSelectedNodeIds = getVisibleSelectedNodeIds(currentNodes, selectedNodeIds)
+      const hasFocusRoleChanges = currentNodes.some((node) => {
+        const nextRole =
+          focusedEdge?.source === node.id ? 'source' : focusedEdge?.target === node.id ? 'target' : undefined
+        return node.data.edgeFocusRole !== nextRole
+      })
 
-      if (arraysEqual(currentSelectedNodeIds, visibleSelectedNodeIds)) {
+      if (arraysEqual(currentSelectedNodeIds, visibleSelectedNodeIds) && !hasFocusRoleChanges) {
         return currentNodes
       }
 
       return currentNodes.map((node) => ({
         ...node,
         selected: visibleSelectedNodeIds.includes(node.id),
+        data: {
+          ...node.data,
+          edgeFocusRole:
+            focusedEdge?.source === node.id ? 'source' : focusedEdge?.target === node.id ? 'target' : undefined,
+        },
       }))
     })
-  }, [selectedNodeIds, setNodes])
+  }, [focusedEdge, selectedNodeIds, setNodes])
 
   const groupOverlays = useMemo(() => {
     const groups = new Map<
@@ -425,7 +450,21 @@ export function CanvasStage({
   }
 
   function onConnect(connection: Connection) {
-    setEdges((current) => addEdge({ ...connection, animated: false }, current))
+    if (!connection.source || !connection.target) return
+
+    const nextEdge = createConnectionEdge(
+      {
+        source: connection.source,
+        target: connection.target,
+        sourceHandle: connection.sourceHandle,
+        targetHandle: connection.targetHandle,
+      },
+      nodes,
+    )
+
+    setEdges((current) => addEdge(nextEdge, current))
+    onSelectionChange?.({ nodeIds: [], edgeIds: [nextEdge.id] })
+    onEdgeCreate?.(nextEdge)
     scheduleSnapshotSave()
   }
 
@@ -532,7 +571,7 @@ export function CanvasStage({
   }
 
   return (
-    <div className="relative h-full min-h-[680px] overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--canvas)] shadow-[var(--shadow-sm)] [&_.react-flow__edge-path]:transition-all [&_.react-flow__edge-textbg]:fill-[var(--panel)] [&_.react-flow__edge-text]:fill-[var(--text-secondary)] [&_.react-flow__edge.selected_.react-flow__edge-path]:stroke-[var(--text-primary)] [&_.react-flow__edge.selected_.react-flow__edge-path]:stroke-[2.25] [&_.react-flow__edge.selected_.react-flow__arrowhead]:fill-[var(--text-primary)]">
+    <div className="relative h-full min-h-[680px] overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--canvas)] shadow-[var(--shadow-sm)] [&_.react-flow__edge-path]:transition-all [&_.react-flow__edge-path]:duration-150 [&_.react-flow__edge:hover_.react-flow__edge-path]:stroke-[var(--text-secondary)] [&_.react-flow__edge:hover_.react-flow__edge-path]:stroke-[1.9] [&_.react-flow__edge:hover_.react-flow__arrowhead]:fill-[var(--text-secondary)] [&_.react-flow__edge-textbg]:fill-[var(--panel)] [&_.react-flow__edge-textbg]:opacity-90 [&_.react-flow__edge-text]:fill-[var(--text-secondary)] [&_.react-flow__edge.selected_.react-flow__edge-path]:stroke-[var(--text-primary)] [&_.react-flow__edge.selected_.react-flow__edge-path]:stroke-[2.5] [&_.react-flow__edge.selected_.react-flow__edge-text]:fill-[var(--text-primary)] [&_.react-flow__edge.selected_.react-flow__arrowhead]:fill-[var(--text-primary)]">
       <div className="absolute left-5 top-5 z-10 flex flex-wrap items-center gap-2">
         {addableNodeTypes.map(({ type, label }) => (
           <button

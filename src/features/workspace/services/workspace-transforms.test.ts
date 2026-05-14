@@ -3,12 +3,14 @@ import {
   applyBatchCategory,
   applyBatchMetadata,
   applyBatchTags,
+  applyEdgeLabel,
+  clearEdgeLabels,
   clearBatchMetadata,
   moveNodesByDelta,
   parseTags,
   updateSelectedNodesLayout,
 } from './workspace-transforms'
-import { createNode } from './workspace-test-utils'
+import { createEdge, createNode } from './workspace-test-utils'
 
 describe('workspace transforms', () => {
   it('parses comma-separated tags and trims blanks', () => {
@@ -151,5 +153,29 @@ describe('workspace transforms', () => {
       title: 'B',
       meta: 'Keep',
     })
+  })
+
+  it('applies a label to selected edges only', () => {
+    const edges = [
+      createEdge({ id: 'ab', source: 'a', target: 'b', label: 'supports' }),
+      createEdge({ id: 'bc', source: 'b', target: 'c' }),
+    ]
+
+    const nextEdges = applyEdgeLabel(edges, ['bc'], 'depends on')
+
+    expect(nextEdges.find((edge) => edge.id === 'ab')?.label).toBe('supports')
+    expect(nextEdges.find((edge) => edge.id === 'bc')?.label).toBe('depends on')
+  })
+
+  it('clears labels for selected edges only', () => {
+    const edges = [
+      createEdge({ id: 'ab', source: 'a', target: 'b', label: 'supports' }),
+      createEdge({ id: 'bc', source: 'b', target: 'c', label: 'depends on' }),
+    ]
+
+    const nextEdges = clearEdgeLabels(edges, ['ab'])
+
+    expect(nextEdges.find((edge) => edge.id === 'ab')?.label).toBe('')
+    expect(nextEdges.find((edge) => edge.id === 'bc')?.label).toBe('depends on')
   })
 })

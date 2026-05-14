@@ -114,4 +114,47 @@ describe('workspace keyboard shortcuts', () => {
       }),
     ).toEqual({ type: 'nudge-selected-nodes', delta: { x: 0, y: 24 } })
   })
+
+  it('maps number keys to edge relationship presets for edge-only selection', () => {
+    expect(
+      resolveWorkspaceKeyboardAction({
+        ...baseContext,
+        key: '1',
+        selectedEdgeCount: 1,
+      }),
+    ).toEqual({ type: 'apply-edge-preset', index: 0 })
+
+    expect(
+      resolveWorkspaceKeyboardAction({
+        ...baseContext,
+        key: '6',
+        selectedEdgeCount: 1,
+      }),
+    ).toEqual({ type: 'apply-edge-preset', index: 5 })
+
+    expect(
+      resolveWorkspaceKeyboardAction({
+        ...baseContext,
+        key: '3',
+        selectedEdgeCount: 2,
+      }),
+    ).toEqual({ type: 'apply-edge-preset', index: 2 })
+
+    expect(
+      resolveWorkspaceKeyboardAction({
+        ...baseContext,
+        key: '2',
+        selectedNodeCount: 1,
+        selectedEdgeCount: 1,
+      }),
+    ).toBeUndefined()
+
+    expect(
+      resolveWorkspaceKeyboardAction({
+        ...baseContext,
+        key: '7',
+        selectedEdgeCount: 1,
+      }),
+    ).toBeUndefined()
+  })
 })
