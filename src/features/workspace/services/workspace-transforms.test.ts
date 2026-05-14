@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { applyBatchMetadata, parseTags, updateSelectedNodesLayout } from './workspace-transforms'
+import {
+  applyBatchCategory,
+  applyBatchMetadata,
+  applyBatchTags,
+  clearBatchMetadata,
+  moveNodesByDelta,
+  parseTags,
+  updateSelectedNodesLayout,
+} from './workspace-transforms'
 import { createNode } from './workspace-test-utils'
 
 describe('workspace transforms', () => {
@@ -68,5 +76,80 @@ describe('workspace transforms', () => {
       'beta',
       'gamma',
     ])
+  })
+
+  it('applies only batch category without touching tags', () => {
+    const nodes = [
+      createNode({
+        id: 'a',
+        type: 'tag_meta',
+        data: { title: 'A', meta: 'Old', category: 'Old', tags: ['alpha'] },
+      }),
+    ]
+
+    const nextNodes = applyBatchCategory(nodes, ['a', 'b'], 'Research')
+
+    expect(nextNodes[0]?.data).toMatchObject({
+      meta: 'Research',
+      category: 'Research',
+      tags: ['alpha'],
+    })
+  })
+
+  it('applies only batch tags without touching category', () => {
+    const nodes = [
+      createNode({
+        id: 'a',
+        type: 'tag_meta',
+        data: { title: 'A', meta: 'Research', category: 'Research', tags: ['alpha'] },
+      }),
+    ]
+
+    const nextNodes = applyBatchTags(nodes, ['a', 'b'], 'beta, gamma')
+
+    expect(nextNodes[0]?.data).toMatchObject({
+      meta: 'Research',
+      category: 'Research',
+      tags: ['alpha', 'beta', 'gamma'],
+    })
+  })
+
+  it('moves only the selected nodes by delta', () => {
+    const nodes = [
+      createNode({ id: 'a', position: { x: 10, y: 20 } }),
+      createNode({ id: 'b', position: { x: 50, y: 80 } }),
+    ]
+
+    const nextNodes = moveNodesByDelta(nodes, ['b'], 12, -8)
+
+    expect(nextNodes.find((node) => node.id === 'a')?.position).toEqual({ x: 10, y: 20 })
+    expect(nextNodes.find((node) => node.id === 'b')?.position).toEqual({ x: 62, y: 72 })
+  })
+
+  it('clears category and tags for selected nodes only', () => {
+    const nodes = [
+      createNode({
+        id: 'a',
+        type: 'tag_meta',
+        data: { title: 'A', meta: 'Research', category: 'Research', tags: ['alpha'] },
+      }),
+      createNode({
+        id: 'b',
+        data: { title: 'B', meta: 'Keep' } as never,
+      }),
+    ]
+
+    const nextNodes = clearBatchMetadata(nodes, ['a'], ['category', 'tags'])
+
+    expect(nextNodes.find((node) => node.id === 'a')?.data).toMatchObject({
+      title: 'A',
+      meta: undefined,
+      category: undefined,
+      tags: undefined,
+    })
+    expect(nextNodes.find((node) => node.id === 'b')?.data).toMatchObject({
+      title: 'B',
+      meta: 'Keep',
+    })
   })
 })

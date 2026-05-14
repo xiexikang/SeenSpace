@@ -50,6 +50,10 @@ type WorkspaceInspectorProps = {
   selectedEdgeCount: number
   batchCategory: string
   batchTagsText: string
+  batchTypeCounts: Array<{ type: WorkspaceNode['type']; count: number }>
+  batchSharedCategory?: string
+  batchHasMixedCategories: boolean
+  batchUniqueTags: string[]
   activeGroupLabel?: string
   activeGroupCollapsed?: boolean
   canUngroupSelection: boolean
@@ -62,9 +66,13 @@ type WorkspaceInspectorProps = {
   onEdgeLabelChange: (value: string) => void
   onBatchCategoryChange: (value: string) => void
   onBatchTagsChange: (value: string) => void
-  onApplyBatchMeta: () => void
+  onApplyBatchCategory: () => void
+  onApplyBatchTags: () => void
+  onClearBatchCategory: () => void
+  onClearBatchTags: () => void
   onApplyLayout: (action: LayoutActionId) => void
   onCreateGroup: () => void
+  onGroupLabelChange: (value: string) => void
   onUngroup: () => void
   onSelectGroup: () => void
   onToggleGroupCollapse: () => void
@@ -174,6 +182,10 @@ export function WorkspaceInspector({
   selectedEdgeCount,
   batchCategory,
   batchTagsText,
+  batchTypeCounts,
+  batchSharedCategory,
+  batchHasMixedCategories,
+  batchUniqueTags,
   activeGroupLabel,
   activeGroupCollapsed = false,
   canUngroupSelection,
@@ -186,9 +198,13 @@ export function WorkspaceInspector({
   onEdgeLabelChange,
   onBatchCategoryChange,
   onBatchTagsChange,
-  onApplyBatchMeta,
+  onApplyBatchCategory,
+  onApplyBatchTags,
+  onClearBatchCategory,
+  onClearBatchTags,
   onApplyLayout,
   onCreateGroup,
+  onGroupLabelChange,
   onUngroup,
   onSelectGroup,
   onToggleGroupCollapse,
@@ -238,10 +254,40 @@ export function WorkspaceInspector({
             {activeGroupLabel ? `${activeGroupLabel} selected` : `${selectedNodeCount} nodes selected`}
           </div>
 
+          {activeGroupLabel ? (
+            <label className="mb-4 block">
+              <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Group Name</div>
+              <input
+                value={activeGroupLabel}
+                onChange={(event) => onGroupLabelChange(event.target.value)}
+                className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none"
+              />
+            </label>
+          ) : null}
+
           <div className="mb-4 rounded-[24px] border border-dashed border-[var(--border)] bg-[var(--background)] p-4">
             <p className="text-sm leading-6 text-[var(--text-secondary)]">
               Batch metadata helps group notes, images, and links into the same lane without opening each card.
             </p>
+          </div>
+
+          <div className="mb-4 grid grid-cols-3 gap-2">
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-3">
+              <div className="mb-1 text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">Types</div>
+              <div className="text-sm font-medium text-[var(--text-primary)]">
+                {batchTypeCounts.map(({ type, count }) => `${count} ${type}`).join(' · ')}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-3">
+              <div className="mb-1 text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">Category</div>
+              <div className="text-sm font-medium text-[var(--text-primary)]">
+                {batchHasMixedCategories ? 'Mixed' : batchSharedCategory || 'Empty'}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-3">
+              <div className="mb-1 text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">Tags</div>
+              <div className="text-sm font-medium text-[var(--text-primary)]">{batchUniqueTags.length}</div>
+            </div>
           </div>
 
           <div className="mb-4 grid grid-cols-2 gap-2">
@@ -304,17 +350,36 @@ export function WorkspaceInspector({
             <input
               value={batchCategory}
               onChange={(event) => onBatchCategoryChange(event.target.value)}
-              placeholder="Moodboard, Research, Launch..."
+              placeholder={batchHasMixedCategories ? 'Set a shared category...' : 'Moodboard, Research, Launch...'}
               className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
             />
           </label>
+
+          <div className="mb-4 flex gap-2">
+            <button
+              type="button"
+              onClick={onApplyBatchCategory}
+              className="inline-flex h-10 flex-1 items-center justify-center rounded-2xl bg-[var(--text-primary)] px-4 text-sm font-medium text-[var(--background)]"
+            >
+              Apply Category
+            </button>
+            <button
+              type="button"
+              onClick={onClearBatchCategory}
+              className="inline-flex h-10 items-center justify-center rounded-2xl border border-[var(--border)] px-3 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
+            >
+              Clear Category
+            </button>
+          </div>
 
           <label className="mb-4 block">
             <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Batch Tags</div>
             <textarea
               value={batchTagsText}
               onChange={(event) => onBatchTagsChange(event.target.value)}
-              placeholder="editorial, restraint, warm gray"
+              placeholder={
+                batchUniqueTags.length > 0 ? `${batchUniqueTags.slice(0, 3).join(', ')}...` : 'editorial, restraint, warm gray'
+              }
               rows={4}
               className="w-full resize-none rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm leading-6 text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
             />
@@ -322,10 +387,18 @@ export function WorkspaceInspector({
 
           <button
             type="button"
-            onClick={onApplyBatchMeta}
+            onClick={onApplyBatchTags}
             className="mb-3 inline-flex h-10 items-center justify-center rounded-2xl bg-[var(--text-primary)] px-4 text-sm font-medium text-[var(--background)]"
           >
-            Apply Metadata
+            Merge Tags
+          </button>
+
+          <button
+            type="button"
+            onClick={onClearBatchTags}
+            className="mb-3 inline-flex h-10 items-center justify-center rounded-2xl border border-[var(--border)] px-4 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
+          >
+            Clear Tags
           </button>
 
           <button

@@ -9,6 +9,7 @@ import { getProjectById, updateProjectCanvas } from '../../features/project/serv
 import {
   deleteNodesFromSnapshot,
   duplicateSelectedNodes,
+  renameGroup,
   toggleGroupCollapse,
   ungroupSelectedNodes,
 } from '../../features/workspace/services/group-operations'
@@ -19,10 +20,16 @@ import {
   snapshotsEqual,
 } from '../../features/workspace/services/workspace-history'
 import { resolveWorkspaceKeyboardAction } from '../../features/workspace/services/workspace-keyboard'
-import { deriveWorkspaceSelectionState } from '../../features/workspace/services/workspace-selection'
 import {
-  applyBatchMetadata,
+  deriveWorkspaceBatchMetadataState,
+  deriveWorkspaceSelectionState,
+} from '../../features/workspace/services/workspace-selection'
+import {
+  applyBatchCategory,
+  applyBatchTags,
+  clearBatchMetadata,
   type LayoutActionId,
+  moveNodesByDelta,
   updateSelectedNodesLayout,
 } from '../../features/workspace/services/workspace-transforms'
 import type { WorkspaceEdge, WorkspaceNode, WorkspaceSnapshot } from '../../types/workspace'
@@ -71,30 +78,12 @@ function getGroupNodeIds(nodes: WorkspaceNode[], groupId: string) {
   return nodes.filter((node) => node.data.groupId === groupId).map((node) => node.id)
 }
 
-function nudgeSelectedNodes(nodes: WorkspaceNode[], selectedNodeIds: string[], xDelta: number, yDelta: number) {
-  if (selectedNodeIds.length === 0) {
-    return nodes
-  }
-
-  const selectedSet = new Set(selectedNodeIds)
-  return nodes.map((node) =>
-    selectedSet.has(node.id)
-      ? {
-          ...node,
-          position: {
-            x: node.position.x + xDelta,
-            y: node.position.y + yDelta,
-          },
-        }
-      : node,
-  )
-}
-
 export function WorkspacePage() {
   const { projectId } = useParams()
   const [projectName, setProjectName] = useState('Untitled Project')
   const [snapshot, setSnapshot] = useState<WorkspaceSnapshot>(emptySnapshot)
   const [saveState, setSaveState] = useState<'saved' | 'saving'>('saved')
+  const [actionMessage, setActionMessage] = useState<string | null>(null)
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([])
   const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([])
   const [batchCategory, setBatchCategory] = useState('')
@@ -102,6 +91,7 @@ export function WorkspacePage() {
   const [historyIndex, setHistoryIndex] = useState(0)
   const [canvasStageVersion, setCanvasStageVersion] = useState(0)
   const historyRef = useRef<WorkspaceSnapshot[]>([emptySnapshot])
+  const actionMessageTimeoutRef = useRef<number | null>(null)
 
   useEffect(() => {
     async function loadProject() {
@@ -134,13 +124,14 @@ export function WorkspacePage() {
   } = deriveWorkspaceSelectionState(snapshot, selectedNodeIds, selectedEdgeIds)
   const canUndo = historyIndex > 0
   const canRedo = historyIndex < historyRef.current.length - 1
+  const batchMetadataState = deriveWorkspaceBatchMetadataState(selectedNodes)
 
   useEffect(() => {
     if (selectedNodeIds.length > 1) {
-      setBatchCategory('')
+      setBatchCategory(batchMetadataState.sharedCategory ?? '')
       setBatchTagsText('')
     }
-  }, [selectedNodeIds.length])
+  }, [batchMetadataState.sharedCategory, selectedNodeIds.length])
 
   async function persistSnapshot(nextSnapshot: WorkspaceSnapshot, options?: { recordHistory?: boolean }) {
     const cleanSnapshot = sanitizeSnapshot(nextSnapshot)
@@ -168,6 +159,17 @@ export function WorkspacePage() {
     }
 
     setSaveState('saved')
+  }
+
+  function showActionMessage(message: string) {
+    setActionMessage(message)
+    if (actionMessageTimeoutRef.current) {
+      window.clearTimeout(actionMessageTimeoutRef.current)
+    }
+    actionMessageTimeoutRef.current = window.setTimeout(() => {
+      setActionMessage(null)
+      actionMessageTimeoutRef.current = null
+    }, 2200)
   }
 
   function clearSelection() {
@@ -209,6 +211,7 @@ export function WorkspacePage() {
     if (nodeIds.length === 0) return
 
     applySnapshotWithoutSelection(deleteNodesFromSnapshot(snapshot, nodeIds))
+    showActionMessage(`${nodeIds.length} node${nodeIds.length > 1 ? 's' : ''} deleted`)
   }
 
   function deleteEdges(edgeIds: string[]) {
@@ -221,6 +224,7 @@ export function WorkspacePage() {
     }
 
     applySnapshotWithoutSelection(nextSnapshot)
+    showActionMessage(`${edgeIds.length} connection${edgeIds.length > 1 ? 's' : ''} deleted`)
   }
 
   function handleDuplicateMany() {
@@ -236,6 +240,7 @@ export function WorkspacePage() {
     setSelectedEdgeIds([])
     setCanvasStageVersion((current) => current + 1)
     void persistSnapshot(nextSnapshot)
+    showActionMessage(`${result.duplicatedVisibleIds.length} node${result.duplicatedVisibleIds.length > 1 ? 's' : ''} duplicated`)
     window.requestAnimationFrame(() => {
       setSelectedNodeIds(result.duplicatedVisibleIds)
     })
@@ -265,6 +270,7 @@ export function WorkspacePage() {
       ),
     }
     void persistSnapshot(nextSnapshot)
+    showActionMessage(`${groupLabel} created`)
   }
 
   function handleUngroup() {
@@ -272,6 +278,7 @@ export function WorkspacePage() {
     const nextSnapshot = ungroupSelectedNodes(snapshot, selectedNodeIds)
     if (snapshotsEqual(snapshot, nextSnapshot)) return
     void persistSnapshot(nextSnapshot)
+    showActionMessage('Selection ungrouped')
   }
 
   function handleSelectGroup() {
@@ -293,6 +300,15 @@ export function WorkspacePage() {
     setSelectedNodeIds(result.memberIds)
     setSelectedEdgeIds([])
     void persistSnapshot(result.snapshot)
+    showActionMessage(result.collapsed ? 'Group collapsed' : 'Group expanded')
+  }
+
+  function handleGroupLabelChange(value: string) {
+    if (!activeGroupId) return
+
+    const nextSnapshot = renameGroup(snapshot, activeGroupId, value)
+    if (snapshotsEqual(snapshot, nextSnapshot)) return
+    void persistSnapshot(nextSnapshot)
   }
 
   useEffect(() => {
@@ -363,7 +379,7 @@ export function WorkspacePage() {
       if (action.type === 'nudge-selected-nodes') {
         const nextSnapshot: WorkspaceSnapshot = {
           ...snapshot,
-          nodes: nudgeSelectedNodes(snapshot.nodes, selectedNodeIds, action.delta.x, action.delta.y),
+          nodes: moveNodesByDelta(snapshot.nodes, selectedNodeIds, action.delta.x, action.delta.y),
         }
         void persistSnapshot(nextSnapshot)
       }
@@ -425,18 +441,74 @@ export function WorkspacePage() {
     }
 
     void persistSnapshot(nextSnapshot)
+    showActionMessage('Layout updated')
   }
 
-  function applyBatchMeta() {
+  function handleApplyBatchCategory() {
     if (selectedNodeIds.length < 2) return
 
     const nextSnapshot: WorkspaceSnapshot = {
       ...snapshot,
-      nodes: applyBatchMetadata(snapshot.nodes, selectedNodeIds, batchCategory, batchTagsText),
+      nodes: applyBatchCategory(snapshot.nodes, selectedNodeIds, batchCategory),
     }
 
     void persistSnapshot(nextSnapshot)
+    if (batchCategory.trim()) {
+      showActionMessage(`Category set to ${batchCategory.trim()}`)
+    }
   }
+
+  function handleApplyBatchTags() {
+    if (selectedNodeIds.length < 2) return
+
+    const nextSnapshot: WorkspaceSnapshot = {
+      ...snapshot,
+      nodes: applyBatchTags(snapshot.nodes, selectedNodeIds, batchTagsText),
+    }
+
+    void persistSnapshot(nextSnapshot)
+    const tagCount = batchTagsText
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean).length
+    if (tagCount > 0) {
+      showActionMessage(`${tagCount} tag${tagCount > 1 ? 's' : ''} merged`)
+    }
+  }
+
+  function handleClearBatchCategory() {
+    if (selectedNodeIds.length < 2) return
+
+    const nextSnapshot: WorkspaceSnapshot = {
+      ...snapshot,
+      nodes: clearBatchMetadata(snapshot.nodes, selectedNodeIds, ['category']),
+    }
+
+    setBatchCategory('')
+    void persistSnapshot(nextSnapshot)
+    showActionMessage('Category cleared')
+  }
+
+  function handleClearBatchTags() {
+    if (selectedNodeIds.length < 2) return
+
+    const nextSnapshot: WorkspaceSnapshot = {
+      ...snapshot,
+      nodes: clearBatchMetadata(snapshot.nodes, selectedNodeIds, ['tags']),
+    }
+
+    setBatchTagsText('')
+    void persistSnapshot(nextSnapshot)
+    showActionMessage('Tags cleared')
+  }
+
+  useEffect(() => {
+    return () => {
+      if (actionMessageTimeoutRef.current) {
+        window.clearTimeout(actionMessageTimeoutRef.current)
+      }
+    }
+  }, [])
 
   function handleDeleteNode() {
     if (!selectedNode) return
@@ -479,6 +551,11 @@ export function WorkspacePage() {
                     <Check className="h-3.5 w-3.5" />
                     {saveState === 'saving' ? 'Saving...' : 'Saved locally'}
                   </span>
+                  {actionMessage ? (
+                    <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--panel)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)]">
+                      {actionMessage}
+                    </span>
+                  ) : null}
                   <span>{snapshot.nodes.length} nodes</span>
                   <span>{snapshot.edges.length} connections</span>
                 </div>
@@ -640,6 +717,10 @@ export function WorkspacePage() {
               selectedEdgeCount={selectedEdgeIds.length}
               batchCategory={batchCategory}
               batchTagsText={batchTagsText}
+              batchTypeCounts={batchMetadataState.typeCounts}
+              batchSharedCategory={batchMetadataState.sharedCategory}
+              batchHasMixedCategories={batchMetadataState.hasMixedCategories}
+              batchUniqueTags={batchMetadataState.uniqueTags}
               activeGroupLabel={activeGroupLabel}
               activeGroupCollapsed={activeGroupCollapsed}
               canUngroupSelection={canUngroupSelection}
@@ -652,9 +733,13 @@ export function WorkspacePage() {
               onEdgeLabelChange={handleEdgeLabelChange}
               onBatchCategoryChange={setBatchCategory}
               onBatchTagsChange={setBatchTagsText}
-              onApplyBatchMeta={applyBatchMeta}
+              onApplyBatchCategory={handleApplyBatchCategory}
+              onApplyBatchTags={handleApplyBatchTags}
+              onClearBatchCategory={handleClearBatchCategory}
+              onClearBatchTags={handleClearBatchTags}
               onApplyLayout={handleApplyLayout}
               onCreateGroup={handleCreateGroup}
+              onGroupLabelChange={handleGroupLabelChange}
               onUngroup={handleUngroup}
               onSelectGroup={handleSelectGroup}
               onToggleGroupCollapse={() => activeGroupId && handleToggleGroupCollapse(activeGroupId)}

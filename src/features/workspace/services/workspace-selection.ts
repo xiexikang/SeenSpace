@@ -15,6 +15,44 @@ type WorkspaceSelectionState = {
   selectionSummary: string
 }
 
+export type WorkspaceBatchMetadataState = {
+  typeCounts: Array<{ type: WorkspaceNode['type']; count: number }>
+  sharedCategory?: string
+  hasMixedCategories: boolean
+  uniqueTags: string[]
+}
+
+export function deriveWorkspaceBatchMetadataState(selectedNodes: WorkspaceNode[]): WorkspaceBatchMetadataState {
+  const typeCountMap = new Map<WorkspaceNode['type'], number>()
+  const categoryValues = selectedNodes
+    .map((node) => {
+      if ('category' in node.data && typeof node.data.category === 'string') {
+        return node.data.category
+      }
+      return node.data.meta ?? ''
+    })
+    .map((value) => value.trim())
+  const normalizedCategories = Array.from(new Set(categoryValues.filter(Boolean)))
+  const uniqueTagSet = new Set<string>()
+
+  selectedNodes.forEach((node) => {
+    typeCountMap.set(node.type, (typeCountMap.get(node.type) ?? 0) + 1)
+    if ('tags' in node.data) {
+      ;(node.data.tags ?? []).forEach((tag) => {
+        const normalizedTag = tag.trim()
+        if (normalizedTag) uniqueTagSet.add(normalizedTag)
+      })
+    }
+  })
+
+  return {
+    typeCounts: Array.from(typeCountMap.entries()).map(([type, count]) => ({ type, count })),
+    sharedCategory: normalizedCategories.length === 1 ? normalizedCategories[0] : undefined,
+    hasMixedCategories: normalizedCategories.length > 1,
+    uniqueTags: Array.from(uniqueTagSet),
+  }
+}
+
 export function deriveWorkspaceSelectionState(
   snapshot: WorkspaceSnapshot,
   selectedNodeIds: string[],

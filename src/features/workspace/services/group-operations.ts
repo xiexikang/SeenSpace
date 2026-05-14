@@ -13,6 +13,26 @@ export function getVisibleSelectedNodeIds(nodes: WorkspaceNode[], selectedNodeId
   return nodes.filter((node) => !node.hidden && selectedNodeIds.includes(node.id)).map((node) => node.id)
 }
 
+export function expandSelectedNodeIdsByGroup(nodes: WorkspaceNode[], selectedNodeIds: string[]) {
+  if (selectedNodeIds.length === 0) return []
+
+  const selectedIdSet = new Set(selectedNodeIds)
+  const selectedGroupIds = new Set(
+    nodes
+      .filter((node) => selectedIdSet.has(node.id))
+      .map((node) => node.data.groupId)
+      .filter((groupId): groupId is string => Boolean(groupId)),
+  )
+
+  if (selectedGroupIds.size === 0) {
+    return selectedNodeIds
+  }
+
+  return nodes
+    .filter((node) => selectedIdSet.has(node.id) || selectedGroupIds.has(node.data.groupId ?? ''))
+    .map((node) => node.id)
+}
+
 export function duplicateSelectedNodes(nodes: WorkspaceNode[], selectedNodeIds: string[]) {
   const selectedSet = new Set(selectedNodeIds)
   const selectedNodes = nodes.filter((node) => selectedSet.has(node.id))
@@ -161,6 +181,28 @@ export function toggleGroupCollapse(snapshot: WorkspaceSnapshot, groupId: string
           : node,
       ),
     },
+  }
+}
+
+export function renameGroup(snapshot: WorkspaceSnapshot, groupId: string, groupLabel: string) {
+  const normalizedLabel = groupLabel.trim()
+  if (!groupId || !normalizedLabel) {
+    return snapshot
+  }
+
+  return {
+    ...snapshot,
+    nodes: snapshot.nodes.map((node) =>
+      node.data.groupId === groupId
+        ? {
+            ...node,
+            data: {
+              ...node.data,
+              groupLabel: normalizedLabel,
+            },
+          }
+        : node,
+    ),
   }
 }
 

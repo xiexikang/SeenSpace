@@ -4,7 +4,9 @@ import {
   buildRenderableNodes,
   deleteNodesFromSnapshot,
   duplicateSelectedNodes,
+  expandSelectedNodeIdsByGroup,
   getVisibleSelectedNodeIds,
+  renameGroup,
   toggleGroupCollapse,
   ungroupSelectedNodes,
 } from './group-operations'
@@ -121,6 +123,60 @@ describe('group operations', () => {
     expect(hiddenMember?.hidden).toBe(true)
     expect(hiddenMember?.selected).toBe(false)
     expect(getVisibleSelectedNodeIds(renderState.nodes, [leadId, memberId])).toEqual([leadId])
+  })
+
+  it('expands selection to the full group when any group member is selected', () => {
+    const nodes: WorkspaceNode[] = [
+      createNode({
+        id: 'lead-1',
+        data: {
+          title: 'Lead',
+          groupId: 'group-1',
+          groupLabel: 'Group 1',
+          groupLeadId: 'lead-1',
+        },
+      }),
+      createNode({
+        id: 'member-1',
+        data: {
+          title: 'Member',
+          groupId: 'group-1',
+          groupLabel: 'Group 1',
+          groupLeadId: 'lead-1',
+        },
+      }),
+      createNode({ id: 'solo-1', data: { title: 'Solo' } }),
+    ]
+
+    expect(expandSelectedNodeIdsByGroup(nodes, ['member-1'])).toEqual(['lead-1', 'member-1'])
+    expect(expandSelectedNodeIdsByGroup(nodes, ['solo-1'])).toEqual(['solo-1'])
+  })
+
+  it('renames every member of a group', () => {
+    const snapshot = createSnapshot([
+      createNode({
+        id: 'lead-1',
+        data: {
+          title: 'Lead',
+          groupId: 'group-1',
+          groupLabel: 'Group 1',
+          groupLeadId: 'lead-1',
+        },
+      }),
+      createNode({
+        id: 'member-1',
+        data: {
+          title: 'Member',
+          groupId: 'group-1',
+          groupLabel: 'Group 1',
+          groupLeadId: 'lead-1',
+        },
+      }),
+    ])
+
+    const nextSnapshot = renameGroup(snapshot, 'group-1', 'References')
+
+    expect(new Set(nextSnapshot.nodes.map((node) => node.data.groupLabel))).toEqual(new Set(['References']))
   })
 
   it('removes nodes and connected edges together', () => {

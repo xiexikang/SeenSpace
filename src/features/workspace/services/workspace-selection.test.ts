@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deriveWorkspaceSelectionState } from './workspace-selection'
+import { deriveWorkspaceBatchMetadataState, deriveWorkspaceSelectionState } from './workspace-selection'
 import { createEdge, createNode, createSnapshot } from './workspace-test-utils'
 
 describe('workspace selection', () => {
@@ -63,5 +63,41 @@ describe('workspace selection', () => {
     expect(state.selectedEdges).toHaveLength(0)
     expect(state.totalSelectionCount).toBe(0)
     expect(state.selectionSummary).toBe('Local-first canvas workspace')
+  })
+
+  it('derives shared category and unique tags for batch metadata', () => {
+    const selectedNodes = [
+      createNode({
+        id: 'a',
+        data: { title: 'A', meta: 'Research', tags: ['alpha'] } as never,
+      }),
+      createNode({
+        id: 'b',
+        type: 'tag_meta',
+        data: { title: 'B', meta: 'Research', category: 'Research', tags: ['alpha', 'beta'] },
+      }),
+    ]
+
+    const state = deriveWorkspaceBatchMetadataState(selectedNodes)
+
+    expect(state.sharedCategory).toBe('Research')
+    expect(state.hasMixedCategories).toBe(false)
+    expect(state.uniqueTags).toEqual(['alpha', 'beta'])
+    expect(state.typeCounts).toEqual([
+      { type: 'note', count: 1 },
+      { type: 'tag_meta', count: 1 },
+    ])
+  })
+
+  it('detects mixed categories in batch metadata', () => {
+    const selectedNodes = [
+      createNode({ id: 'a', data: { title: 'A', meta: 'Research' } }),
+      createNode({ id: 'b', data: { title: 'B', meta: 'Launch' } }),
+    ]
+
+    const state = deriveWorkspaceBatchMetadataState(selectedNodes)
+
+    expect(state.sharedCategory).toBeUndefined()
+    expect(state.hasMixedCategories).toBe(true)
   })
 })

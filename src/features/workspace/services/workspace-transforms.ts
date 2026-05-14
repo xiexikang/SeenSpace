@@ -114,10 +114,39 @@ export function updateSelectedNodesLayout(
   })
 }
 
-export function applyBatchMetadata(
+export function applyBatchCategory(
   nodes: WorkspaceNode[],
   selectedNodeIds: string[],
   batchCategory: string,
+) {
+  if (selectedNodeIds.length < 2) {
+    return nodes
+  }
+
+  const idSet = new Set(selectedNodeIds)
+  const normalizedCategory = batchCategory.trim()
+
+  return nodes.map((node) => {
+    if (!idSet.has(node.id)) return node
+
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        ...(normalizedCategory ? { meta: normalizedCategory } : {}),
+        ...(('category' in node.data || node.type === 'tag_meta')
+          ? ({
+              category: normalizedCategory || (node.data as TagMetaNodeData).category,
+            } as Partial<TagMetaNodeData>)
+          : {}),
+      },
+    }
+  })
+}
+
+export function applyBatchTags(
+  nodes: WorkspaceNode[],
+  selectedNodeIds: string[],
   batchTagsText: string,
 ) {
   if (selectedNodeIds.length < 2) {
@@ -126,6 +155,9 @@ export function applyBatchMetadata(
 
   const idSet = new Set(selectedNodeIds)
   const tags = parseTags(batchTagsText)
+  if (tags.length === 0) {
+    return nodes
+  }
 
   return nodes.map((node) => {
     if (!idSet.has(node.id)) return node
@@ -137,12 +169,70 @@ export function applyBatchMetadata(
       ...node,
       data: {
         ...node.data,
-        ...(batchCategory ? { meta: batchCategory } : {}),
-        ...(('category' in node.data || node.type === 'tag_meta')
-          ? ({ category: batchCategory || (node.data as TagMetaNodeData).category } as Partial<TagMetaNodeData>)
-          : {}),
         ...(tags.length > 0 ? { tags: mergedTags } : {}),
       },
+    }
+  })
+}
+
+export function applyBatchMetadata(
+  nodes: WorkspaceNode[],
+  selectedNodeIds: string[],
+  batchCategory: string,
+  batchTagsText: string,
+) {
+  return applyBatchTags(applyBatchCategory(nodes, selectedNodeIds, batchCategory), selectedNodeIds, batchTagsText)
+}
+
+export function moveNodesByDelta(
+  nodes: WorkspaceNode[],
+  selectedNodeIds: string[],
+  xDelta: number,
+  yDelta: number,
+) {
+  if (selectedNodeIds.length === 0 || (xDelta === 0 && yDelta === 0)) {
+    return nodes
+  }
+
+  const selectedSet = new Set(selectedNodeIds)
+  return nodes.map((node) =>
+    selectedSet.has(node.id)
+      ? {
+          ...node,
+          position: {
+            x: node.position.x + xDelta,
+            y: node.position.y + yDelta,
+          },
+        }
+      : node,
+  )
+}
+
+export function clearBatchMetadata(
+  nodes: WorkspaceNode[],
+  selectedNodeIds: string[],
+  fields: Array<'category' | 'tags'>,
+) {
+  if (selectedNodeIds.length === 0 || fields.length === 0) {
+    return nodes
+  }
+
+  const selectedSet = new Set(selectedNodeIds)
+  return nodes.map((node) => {
+    if (!selectedSet.has(node.id)) return node
+
+    const nextData: WorkspaceNode['data'] = {
+      ...node.data,
+      ...(fields.includes('category') ? { meta: undefined } : {}),
+      ...(fields.includes('tags') && 'tags' in node.data ? { tags: undefined } : {}),
+      ...(fields.includes('category') && ('category' in node.data || node.type === 'tag_meta')
+        ? { category: undefined }
+        : {}),
+    }
+
+    return {
+      ...node,
+      data: nextData,
     }
   })
 }
