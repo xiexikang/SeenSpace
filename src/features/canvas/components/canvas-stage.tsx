@@ -38,6 +38,13 @@ import { createConnectionEdge } from '../../workspace/services/workspace-edges'
 import {
   expandSelectedNodeIdsByGroup,
 } from '../../workspace/services/group-operations'
+import {
+  applyClipboardPayloadToNode,
+  createNodeFromClipboardPayload,
+  getPasteConflictTarget,
+  parseClipboardImport,
+  type ClipboardImportPayload,
+} from '../services/clipboard-import'
 import { CanvasEmptyState } from './canvas-empty-state'
 import { ZoomControls } from './zoom-controls'
 
@@ -69,6 +76,12 @@ const defaultEdgeOptions = {
     color: 'var(--text-muted)',
   },
 } as const
+
+function isEditablePasteTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false
+  const tagName = target.tagName
+  return tagName === 'INPUT' || tagName === 'TEXTAREA' || target.isContentEditable
+}
 
 function nodeShapeSignature(node: WorkspaceNode) {
   return JSON.stringify({
@@ -127,6 +140,11 @@ export function CanvasStage({
   const [isGridSnapEnabled, setIsGridSnapEnabled] = useState(true)
   const [hoveredGroupId, setHoveredGroupId] = useState<string | null>(null)
   const [draggingGroupId, setDraggingGroupId] = useState<string | null>(null)
+  const [pendingPaste, setPendingPaste] = useState<{
+    payload: ClipboardImportPayload
+    targetNodeId?: string
+  } | null>(null)
+  const stageRef = useRef<HTMLDivElement | null>(null)
   const flowRef = useRef<ReactFlowInstance<WorkspaceNode, WorkspaceEdge> | null>(null)
   const saveTimeoutRef = useRef<number | null>(null)
   const viewportRef = useRef(snapshot.viewport)
@@ -151,6 +169,14 @@ export function CanvasStage({
       nodes: flowRef.current.getNodes() as WorkspaceNode[],
       edges: flowRef.current.getEdges() as WorkspaceEdge[],
       viewport: flowRef.current.getViewport(),
+    })
+  }, [onSnapshotChange])
+
+  const emitSnapshotWith = useCallback((nextNodes: WorkspaceNode[], nextEdges: WorkspaceEdge[]) => {
+    onSnapshotChange?.({
+      nodes: nextNodes,
+      edges: nextEdges,
+      viewport: flowRef.current?.getViewport() ?? viewportRef.current,
     })
   }, [onSnapshotChange])
 
@@ -203,6 +229,78 @@ export function CanvasStage({
       emitSnapshot()
     }, 0)
   }
+
+  function getClipboardNodePosition() {
+    const stageRect = stageRef.current?.getBoundingClientRect()
+    const currentViewport = flowRef.current?.getViewport() ?? viewportRef.current
+    const zoom = currentViewport.zoom || 1
+    const centerX = (stageRect?.width ?? 960) / 2
+    const centerY = (stageRect?.height ?? 680) / 2
+    const offset = (nodes.length % 6) * 24
+
+    return {
+      x: (centerX - currentViewport.x) / zoom + offset - 120,
+      y: (centerY - currentViewport.y) / zoom + offset - 80,
+    }
+  }
+
+  const addNodeFromClipboard = useCallback((payload: ClipboardImportPayload) => {
+    setNodes((currentNodes) => {
+      const nextNode = createNodeFromClipboardPayload(payload, getClipboardNodePosition())
+      const nextNodes = [...currentNodes, nextNode]
+      onSelectionChange?.({ nodeIds: [nextNode.id], edgeIds: [] })
+      window.setTimeout(() => emitSnapshotWith(nextNodes, edges), 0)
+      return nextNodes
+    })
+    setPendingPaste(null)
+  }, [edges, emitSnapshotWith, nodes.length, onSelectionChange, setNodes])
+
+  const overwriteNodeFromClipboard = useCallback((payload: ClipboardImportPayload, targetNodeId: string) => {
+    setNodes((currentNodes) => {
+      const nextNodes = currentNodes.map((node) =>
+        node.id === targetNodeId ? applyClipboardPayloadToNode(node, payload) : node,
+      )
+      onSelectionChange?.({ nodeIds: [targetNodeId], edgeIds: [] })
+      window.setTimeout(() => emitSnapshotWith(nextNodes, edges), 0)
+      return nextNodes
+    })
+    setPendingPaste(null)
+  }, [edges, emitSnapshotWith, onSelectionChange, setNodes])
+
+  const handleClipboardPayload = useCallback((payload: ClipboardImportPayload) => {
+    const conflictTarget = getPasteConflictTarget({
+      selectedNodeIds,
+      nodes,
+      payload,
+    })
+
+    if (conflictTarget) {
+      setPendingPaste({ payload, targetNodeId: conflictTarget.id })
+      return
+    }
+
+    addNodeFromClipboard(payload)
+  }, [addNodeFromClipboard, nodes, selectedNodeIds])
+
+  const handlePaste = useCallback(async (event: ClipboardEvent | React.ClipboardEvent) => {
+    if (isEditablePasteTarget(event.target)) return
+    if (!event.clipboardData) return
+
+    const payload = await parseClipboardImport(event.clipboardData)
+    if (!payload) return
+
+    event.preventDefault()
+    handleClipboardPayload(payload)
+  }, [handleClipboardPayload])
+
+  useEffect(() => {
+    function onPaste(event: ClipboardEvent) {
+      void handlePaste(event)
+    }
+
+    window.addEventListener('paste', onPaste)
+    return () => window.removeEventListener('paste', onPaste)
+  }, [handlePaste])
 
   function updateZoomLabel() {
     if (!flowRef.current) return
@@ -311,7 +409,10 @@ export function CanvasStage({
   }, [scheduleSnapshotSave])
 
   return (
-    <div className="relative h-full min-h-[680px] overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--canvas)] shadow-[var(--shadow-sm)] [&_.react-flow__edge-path]:transition-all [&_.react-flow__edge-path]:duration-150 [&_.react-flow__edge:hover_.react-flow__edge-path]:stroke-[var(--text-secondary)] [&_.react-flow__edge:hover_.react-flow__edge-path]:stroke-[1.9] [&_.react-flow__edge:hover_.react-flow__arrowhead]:fill-[var(--text-secondary)] [&_.react-flow__edge-textbg]:fill-[var(--panel)] [&_.react-flow__edge-textbg]:opacity-90 [&_.react-flow__edge-text]:fill-[var(--text-secondary)] [&_.react-flow__edge.selected_.react-flow__edge-path]:stroke-[var(--text-primary)] [&_.react-flow__edge.selected_.react-flow__edge-path]:stroke-[2.5] [&_.react-flow__edge.selected_.react-flow__edge-text]:fill-[var(--text-primary)] [&_.react-flow__edge.selected_.react-flow__arrowhead]:fill-[var(--text-primary)]">
+    <div
+      ref={stageRef}
+      className="relative h-full min-h-[680px] overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--canvas)] shadow-[var(--shadow-sm)] [&_.react-flow__edge-path]:transition-all [&_.react-flow__edge-path]:duration-150 [&_.react-flow__edge:hover_.react-flow__edge-path]:stroke-[var(--text-secondary)] [&_.react-flow__edge:hover_.react-flow__edge-path]:stroke-[1.9] [&_.react-flow__edge:hover_.react-flow__arrowhead]:fill-[var(--text-secondary)] [&_.react-flow__edge-textbg]:fill-[var(--panel)] [&_.react-flow__edge-textbg]:opacity-90 [&_.react-flow__edge-text]:fill-[var(--text-secondary)] [&_.react-flow__edge.selected_.react-flow__edge-path]:stroke-[var(--text-primary)] [&_.react-flow__edge.selected_.react-flow__edge-path]:stroke-[2.5] [&_.react-flow__edge.selected_.react-flow__edge-text]:fill-[var(--text-primary)] [&_.react-flow__edge.selected_.react-flow__arrowhead]:fill-[var(--text-primary)]"
+    >
       <div className="absolute left-5 top-5 z-10 flex flex-wrap items-center gap-2">
         {addableNodeTypes.map(({ type, label }) => (
           <button
@@ -483,6 +584,44 @@ export function CanvasStage({
       )}
 
       {nodes.length === 0 ? <CanvasEmptyState onAddNote={() => addNode('note')} /> : null}
+
+      {pendingPaste ? (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-[rgba(18,24,38,0.18)] px-4">
+          <div className="w-full max-w-sm rounded-[24px] border border-[var(--border)] bg-[var(--panel)] p-5 shadow-[var(--shadow-sm)]">
+            <div className="mb-2 text-sm font-semibold text-[var(--text-primary)]">检测到可粘贴内容</div>
+            <p className="mb-5 text-sm leading-6 text-[var(--text-secondary)]">
+              将作为新节点添加，还是覆盖当前选中节点？
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPendingPaste(null)}
+                className="rounded-full border border-[var(--border)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={() => addNodeFromClipboard(pendingPaste.payload)}
+                className="rounded-full border border-[var(--border)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
+              >
+                新增节点
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  pendingPaste.targetNodeId
+                    ? overwriteNodeFromClipboard(pendingPaste.payload, pendingPaste.targetNodeId)
+                    : addNodeFromClipboard(pendingPaste.payload)
+                }
+                className="rounded-full bg-[var(--text-primary)] px-4 py-2 text-xs font-medium text-[var(--background)]"
+              >
+                覆盖当前
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <ZoomControls
         zoomLabel={zoomLabel}

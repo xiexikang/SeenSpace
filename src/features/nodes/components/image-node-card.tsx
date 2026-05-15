@@ -14,7 +14,15 @@ export function ImageNodeCard({ data, selected }: NodeProps<ImageNode>) {
     >
       <div className="space-y-3">
         <div className="rounded-[18px] border border-[var(--border)] bg-[linear-gradient(135deg,rgba(182,196,210,0.36),rgba(237,240,243,0.92))] p-3">
-          <div className="aspect-[4/3] rounded-[14px] border border-[rgba(255,255,255,0.3)] bg-[rgba(255,255,255,0.28)]" />
+          {data.imageUrl ? (
+            <img
+              src={data.imageUrl}
+              alt={data.title}
+              className="aspect-[4/3] w-full rounded-[14px] border border-[rgba(255,255,255,0.3)] object-cover"
+            />
+          ) : (
+            <div className="aspect-[4/3] rounded-[14px] border border-[rgba(255,255,255,0.3)] bg-[rgba(255,255,255,0.28)]" />
+          )}
         </div>
         <div className="text-sm font-semibold text-[var(--text-primary)]">{data.title}</div>
         {data.description ? (

@@ -133,6 +133,18 @@ describe('CanvasStage', () => {
     vi.restoreAllMocks()
   })
 
+  function dispatchPaste(text: string) {
+    const event = new Event('paste', { bubbles: true, cancelable: true })
+    Object.defineProperty(event, 'clipboardData', {
+      value: {
+        items: [],
+        files: [],
+        getData: (type: string) => (type === 'text/plain' ? text : ''),
+      },
+    })
+    window.dispatchEvent(event)
+  }
+
   it('adds a note node and emits the updated snapshot', async () => {
     const onSnapshotChange = vi.fn()
 
@@ -277,6 +289,107 @@ describe('CanvasStage', () => {
     expect(lastSnapshot.edges[0]).toMatchObject({
       source: 'source-1',
       target: 'target-1',
+    })
+  })
+
+  it('pastes a URL as a selected web node', async () => {
+    const onSnapshotChange = vi.fn()
+    const onSelectionChange = vi.fn()
+
+    render(
+      <CanvasStage
+        snapshot={createSnapshot([])}
+        onSnapshotChange={onSnapshotChange}
+        onSelectionChange={onSelectionChange}
+      />,
+    )
+
+    await act(async () => {
+      dispatchPaste('https://www.example.com/page')
+      await Promise.resolve()
+      await vi.runAllTimersAsync()
+    })
+
+    const lastSnapshot = onSnapshotChange.mock.calls.at(-1)?.[0]
+    expect(lastSnapshot.nodes).toHaveLength(1)
+    expect(lastSnapshot.nodes[0]).toMatchObject({
+      type: 'web',
+      data: {
+        url: 'https://www.example.com/page',
+        domain: 'example.com',
+      },
+    })
+    expect(onSelectionChange).toHaveBeenCalledWith({
+      nodeIds: [lastSnapshot.nodes[0].id],
+      edgeIds: [],
+    })
+  })
+
+  it('pastes plain text as a selected note node', async () => {
+    const onSnapshotChange = vi.fn()
+
+    render(<CanvasStage snapshot={createSnapshot([])} onSnapshotChange={onSnapshotChange} />)
+
+    await act(async () => {
+      dispatchPaste('A useful pasted note')
+      await Promise.resolve()
+      await vi.runAllTimersAsync()
+    })
+
+    const lastSnapshot = onSnapshotChange.mock.calls.at(-1)?.[0]
+    expect(lastSnapshot.nodes).toHaveLength(1)
+    expect(lastSnapshot.nodes[0]).toMatchObject({
+      type: 'note',
+      data: {
+        body: 'A useful pasted note',
+      },
+    })
+  })
+
+  it('offers overwrite when pasted content matches the single selected node type', async () => {
+    const onSnapshotChange = vi.fn()
+    const snapshot = createSnapshot([
+      createNode({
+        id: 'web-1',
+        type: 'web',
+        data: {
+          title: 'Original Web',
+          url: 'https://old.example',
+          domain: 'old.example',
+        },
+      }),
+    ])
+
+    render(
+      <CanvasStage
+        snapshot={snapshot}
+        selectedNodeIds={['web-1']}
+        onSnapshotChange={onSnapshotChange}
+      />,
+    )
+
+    await act(async () => {
+      dispatchPaste('https://next.example/research')
+      await Promise.resolve()
+    })
+
+    expect(screen.getByText('检测到可粘贴内容')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '覆盖当前' }))
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
+
+    const lastSnapshot = onSnapshotChange.mock.calls.at(-1)?.[0]
+    expect(lastSnapshot.nodes).toHaveLength(1)
+    expect(lastSnapshot.nodes[0]).toMatchObject({
+      id: 'web-1',
+      type: 'web',
+      data: {
+        title: 'Original Web',
+        url: 'https://next.example/research',
+        domain: 'next.example',
+      },
     })
   })
 })
