@@ -4,10 +4,10 @@ import { randomId } from '../../../shared/utils/random-id'
 const duplicateOffset = { x: 44, y: 44 }
 
 const nodeTypeLabels: Record<WorkspaceNodeType, string> = {
-  note: 'Note',
-  image: 'Image',
-  web: 'Web Clip',
-  tag_meta: 'Tag / Meta',
+  note: '笔记',
+  image: '图片',
+  web: '网页',
+  tag_meta: '标签 / 元信息',
 }
 
 export function getVisibleSelectedNodeIds(nodes: WorkspaceNode[], selectedNodeIds: string[]) {

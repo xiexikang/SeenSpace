@@ -124,8 +124,8 @@ export function createNodeFromClipboardPayload(
       position,
       data: {
         title: payload.domain,
-        description: 'Pasted from clipboard.',
-        meta: 'Web Clip',
+        description: '从剪贴板粘贴。',
+        meta: '网页',
         url: payload.url,
         domain: payload.domain,
       },
@@ -138,9 +138,9 @@ export function createNodeFromClipboardPayload(
       type: 'image',
       position,
       data: {
-        title: payload.fileName || 'Pasted Image',
-        description: 'Pasted from clipboard.',
-        meta: 'Image',
+        title: payload.fileName || '粘贴的图片',
+        description: '从剪贴板粘贴。',
+        meta: '图片',
         imageUrl: payload.dataUrl,
         palette: payload.mimeType,
       },
@@ -152,9 +152,9 @@ export function createNodeFromClipboardPayload(
     type: 'note',
     position,
     data: {
-      title: 'Pasted Text',
+      title: '粘贴的文本',
       description: describeText(payload.text),
-      meta: 'Note',
+      meta: '笔记',
       body: payload.text,
     },
   } satisfies NoteNode
@@ -169,7 +169,7 @@ export function applyClipboardPayloadToNode(
       ...node,
       data: {
         ...node.data,
-        meta: 'Web Clip',
+        meta: '网页',
         url: payload.url,
         domain: payload.domain,
       },
@@ -181,7 +181,7 @@ export function applyClipboardPayloadToNode(
       ...node,
       data: {
         ...node.data,
-        meta: 'Image',
+        meta: '图片',
         imageUrl: payload.dataUrl,
         palette: payload.mimeType ?? node.data.palette,
       },

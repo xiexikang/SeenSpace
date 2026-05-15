@@ -38,7 +38,7 @@ describe('workspace selection', () => {
     expect(state.activeGroupCollapsed).toBe(true)
     expect(state.canUngroupSelection).toBe(true)
     expect(state.totalSelectionCount).toBe(2)
-    expect(state.selectionSummary).toBe('Group 1 selected')
+    expect(state.selectionSummary).toBe('已选中 Group 1')
   })
 
   it('derives edge selection labels and linked nodes', () => {
@@ -55,7 +55,7 @@ describe('workspace selection', () => {
     expect(state.selectedEdge?.id).toBe('edge-1')
     expect(state.sourceNode?.data.title).toBe('Source')
     expect(state.targetNode?.data.title).toBe('Target')
-    expect(state.selectionSummary).toBe('relates to selected')
+    expect(state.selectionSummary).toBe('已选中 relates to')
   })
 
   it('falls back to empty-state summary when nothing is selected', () => {
@@ -66,7 +66,7 @@ describe('workspace selection', () => {
     expect(state.selectedNodes).toHaveLength(0)
     expect(state.selectedEdges).toHaveLength(0)
     expect(state.totalSelectionCount).toBe(0)
-    expect(state.selectionSummary).toBe('Local-first canvas workspace')
+    expect(state.selectionSummary).toBe('本地优先的画布工作区')
   })
 
   it('derives shared category and unique tags for batch metadata', () => {

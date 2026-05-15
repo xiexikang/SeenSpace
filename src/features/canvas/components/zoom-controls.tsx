@@ -29,7 +29,7 @@ export function ZoomControls({
         }`}
       >
         <Grid2x2 className="mr-1 h-3.5 w-3.5" />
-        Snap
+        吸附
       </button>
       <button
         type="button"

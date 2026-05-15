@@ -23,17 +23,24 @@ import type { WorkspaceEdge, WorkspaceNode } from '../../types/workspace'
 import { relationshipPresets } from '../../features/workspace/services/workspace-edges'
 
 const layoutActions = [
-  { id: 'align-left', label: 'Align Left', icon: AlignStartVertical },
-  { id: 'align-center-x', label: 'Center X', icon: AlignCenterVertical },
-  { id: 'align-right', label: 'Align Right', icon: AlignEndVertical },
-  { id: 'align-top', label: 'Align Top', icon: AlignStartHorizontal },
-  { id: 'align-center-y', label: 'Center Y', icon: AlignCenterHorizontal },
-  { id: 'align-bottom', label: 'Align Bottom', icon: AlignEndHorizontal },
-  { id: 'distribute-x', label: 'Distribute X', icon: BetweenHorizonalStart },
-  { id: 'distribute-y', label: 'Distribute Y', icon: BetweenVerticalStart },
+  { id: 'align-left', label: '左对齐', icon: AlignStartVertical },
+  { id: 'align-center-x', label: '水平居中', icon: AlignCenterVertical },
+  { id: 'align-right', label: '右对齐', icon: AlignEndVertical },
+  { id: 'align-top', label: '顶部对齐', icon: AlignStartHorizontal },
+  { id: 'align-center-y', label: '垂直居中', icon: AlignCenterHorizontal },
+  { id: 'align-bottom', label: '底部对齐', icon: AlignEndHorizontal },
+  { id: 'distribute-x', label: '水平分布', icon: BetweenHorizonalStart },
+  { id: 'distribute-y', label: '垂直分布', icon: BetweenVerticalStart },
 ] as const
 
 type LayoutActionId = (typeof layoutActions)[number]['id']
+
+const nodeTypeLabels: Record<WorkspaceNode['type'], string> = {
+  note: '笔记',
+  web: '网页',
+  image: '图片',
+  tag_meta: '标签',
+}
 
 type WorkspaceInspectorProps = {
   node?: WorkspaceNode
@@ -90,7 +97,7 @@ function renderTypeFields(
   if (node.type === 'note') {
     return (
       <label className="mb-4 block">
-        <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Body</div>
+        <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">正文</div>
         <textarea
           value={node.data.body ?? ''}
           onChange={(event) => onChange({ body: event.target.value })}
@@ -113,7 +120,7 @@ function renderTypeFields(
           />
         </label>
         <label className="mb-4 block">
-          <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Domain</div>
+          <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">域名</div>
           <input
             value={node.data.domain ?? ''}
             onChange={(event) => onChange({ domain: event.target.value })}
@@ -128,7 +135,7 @@ function renderTypeFields(
     return (
       <>
         <label className="mb-4 block">
-          <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Image URL</div>
+          <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">图片地址</div>
           <input
             value={node.data.imageUrl ?? ''}
             onChange={(event) => onChange({ imageUrl: event.target.value })}
@@ -136,7 +143,7 @@ function renderTypeFields(
           />
         </label>
         <label className="mb-4 block">
-          <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Palette</div>
+          <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">色彩</div>
           <input
             value={node.data.palette ?? ''}
             onChange={(event) => onChange({ palette: event.target.value })}
@@ -150,7 +157,7 @@ function renderTypeFields(
   return (
     <>
       <label className="mb-4 block">
-        <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Category</div>
+        <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">分类</div>
         <input
           value={node.data.category ?? ''}
           onChange={(event) => onChange({ category: event.target.value })}
@@ -158,7 +165,7 @@ function renderTypeFields(
         />
       </label>
       <label className="mb-6 block">
-        <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Tags</div>
+        <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">标签</div>
         <textarea
           value={(node.data.tags ?? []).join(', ')}
           onChange={(event) =>
@@ -256,13 +263,13 @@ export function WorkspaceInspector({
             )}
           </div>
           <div>
-            <div className="text-sm font-semibold text-[var(--text-primary)]">Inspector</div>
+            <div className="text-sm font-semibold text-[var(--text-primary)]">检查器</div>
             <div className="text-xs text-[var(--text-secondary)]">
               {isNodeMultiSelect
-                ? 'Batch actions for selected nodes'
+                ? '批量处理选中的节点'
                 : isEdgeSingleSelect || isEdgeMultiSelect
-                  ? 'Inspect selected connections'
-                  : 'Edit the selected canvas item'}
+                  ? '查看选中的连接'
+                  : '编辑选中的画布项'}
             </div>
           </div>
         </div>
@@ -281,12 +288,12 @@ export function WorkspaceInspector({
       {isNodeMultiSelect ? (
         <div className="flex flex-1 flex-col">
           <div className="mb-4 rounded-2xl border border-[var(--border)] bg-[var(--panel-elevated)] px-3 py-2 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-secondary)]">
-            {activeGroupLabel ? `${activeGroupLabel} selected` : `${selectedNodeCount} nodes selected`}
+            {activeGroupLabel ? `已选中 ${activeGroupLabel}` : `已选中 ${selectedNodeCount} 个节点`}
           </div>
 
           {activeGroupLabel ? (
             <label className="mb-4 block">
-              <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Group Name</div>
+              <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">分组名称</div>
               <input
                 value={activeGroupLabel}
                 onChange={(event) => onGroupLabelChange(event.target.value)}
@@ -297,25 +304,25 @@ export function WorkspaceInspector({
 
           <div className="mb-4 rounded-[24px] border border-dashed border-[var(--border)] bg-[var(--background)] p-4">
             <p className="text-sm leading-6 text-[var(--text-secondary)]">
-              Batch metadata helps group notes, images, and links into the same lane without opening each card.
+              批量元信息可以把笔记、图片和链接归到同一条线索里，无需逐个打开卡片。
             </p>
           </div>
 
           <div className="mb-4 grid grid-cols-3 gap-2">
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-3">
-              <div className="mb-1 text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">Types</div>
+              <div className="mb-1 text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">类型</div>
               <div className="text-sm font-medium text-[var(--text-primary)]">
-                {batchTypeCounts.map(({ type, count }) => `${count} ${type}`).join(' · ')}
+                {batchTypeCounts.map(({ type, count }) => `${count} ${nodeTypeLabels[type]}`).join(' · ')}
               </div>
             </div>
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-3">
-              <div className="mb-1 text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">Category</div>
+              <div className="mb-1 text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">分类</div>
               <div className="text-sm font-medium text-[var(--text-primary)]">
-                {batchHasMixedCategories ? 'Mixed' : batchSharedCategory || 'Empty'}
+                {batchHasMixedCategories ? '混合' : batchSharedCategory || '空'}
               </div>
             </div>
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-3">
-              <div className="mb-1 text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">Tags</div>
+              <div className="mb-1 text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">标签</div>
               <div className="text-sm font-medium text-[var(--text-primary)]">{batchUniqueTags.length}</div>
             </div>
           </div>
@@ -327,7 +334,7 @@ export function WorkspaceInspector({
               className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--panel)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
             >
               <FolderInput className="h-4 w-4" />
-              Group
+              分组
             </button>
             <button
               type="button"
@@ -340,7 +347,7 @@ export function WorkspaceInspector({
               ) : (
                 <FolderOpen className="h-4 w-4" />
               )}
-              {activeGroupLabel ? (activeGroupCollapsed ? 'Expand' : 'Collapse') : 'Ungroup'}
+              {activeGroupLabel ? (activeGroupCollapsed ? '展开' : '折叠') : '取消分组'}
             </button>
           </div>
 
@@ -351,14 +358,14 @@ export function WorkspaceInspector({
               className="mb-4 inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--panel)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
             >
               <FolderOpen className="h-4 w-4" />
-              Remove Group
+              移除分组
             </button>
           ) : null}
 
           <div className="mb-4 rounded-[24px] border border-[var(--border)] bg-[var(--background)] p-4">
-            <div className="mb-3 text-xs font-medium text-[var(--text-secondary)]">Layout Tools</div>
+            <div className="mb-3 text-xs font-medium text-[var(--text-secondary)]">布局工具</div>
             <p className="mb-3 text-xs leading-5 text-[var(--text-muted)]">
-              Alignment and distribution now respect each node's measured card size.
+              对齐和分布会参考每个节点实际测量后的卡片尺寸。
             </p>
             <div className="grid grid-cols-4 gap-2">
               {layoutActions.map(({ id, label, icon: Icon }) => (
@@ -376,11 +383,11 @@ export function WorkspaceInspector({
           </div>
 
           <label className="mb-4 block">
-            <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Batch Category</div>
+            <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">批量分类</div>
             <input
               value={batchCategory}
               onChange={(event) => onBatchCategoryChange(event.target.value)}
-              placeholder={batchHasMixedCategories ? 'Set a shared category...' : 'Moodboard, Research, Launch...'}
+              placeholder={batchHasMixedCategories ? '设置统一分类...' : '情绪板、研究、发布...'}
               className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
             />
           </label>
@@ -391,24 +398,24 @@ export function WorkspaceInspector({
               onClick={onApplyBatchCategory}
               className="inline-flex h-10 flex-1 items-center justify-center rounded-2xl bg-[var(--text-primary)] px-4 text-sm font-medium text-[var(--background)]"
             >
-              Apply Category
+              应用分类
             </button>
             <button
               type="button"
               onClick={onClearBatchCategory}
               className="inline-flex h-10 items-center justify-center rounded-2xl border border-[var(--border)] px-3 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
             >
-              Clear Category
+              清空分类
             </button>
           </div>
 
           <label className="mb-4 block">
-            <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Batch Tags</div>
+            <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">批量标签</div>
             <textarea
               value={batchTagsText}
               onChange={(event) => onBatchTagsChange(event.target.value)}
               placeholder={
-                batchUniqueTags.length > 0 ? `${batchUniqueTags.slice(0, 3).join(', ')}...` : 'editorial, restraint, warm gray'
+                batchUniqueTags.length > 0 ? `${batchUniqueTags.slice(0, 3).join(', ')}...` : '编辑感、克制、暖灰'
               }
               rows={4}
               className="w-full resize-none rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm leading-6 text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
@@ -420,7 +427,7 @@ export function WorkspaceInspector({
             onClick={onApplyBatchTags}
             className="mb-3 inline-flex h-10 items-center justify-center rounded-2xl bg-[var(--text-primary)] px-4 text-sm font-medium text-[var(--background)]"
           >
-            Merge Tags
+            合并标签
           </button>
 
           <button
@@ -428,7 +435,7 @@ export function WorkspaceInspector({
             onClick={onClearBatchTags}
             className="mb-3 inline-flex h-10 items-center justify-center rounded-2xl border border-[var(--border)] px-4 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
           >
-            Clear Tags
+            清空标签
           </button>
 
           <button
@@ -437,7 +444,7 @@ export function WorkspaceInspector({
             className="mb-3 inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
           >
             <Copy className="h-4 w-4" />
-            Duplicate Selected
+            复制选中项
           </button>
 
           <button
@@ -446,30 +453,30 @@ export function WorkspaceInspector({
             className="mt-auto inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
           >
             <Trash2 className="h-4 w-4" />
-            Delete Selected
+            删除选中项
           </button>
         </div>
       ) : isEdgeMultiSelect ? (
         <div className="flex flex-1 flex-col">
           <div className="mb-4 rounded-2xl border border-[var(--border)] bg-[var(--panel-elevated)] px-3 py-2 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-secondary)]">
-            {selectedEdgeCount} connections selected
+            已选中 {selectedEdgeCount} 条连接
           </div>
 
           <div className="mb-4 rounded-[24px] border border-dashed border-[var(--border)] bg-[var(--background)] p-4">
             <p className="text-sm leading-6 text-[var(--text-secondary)]">
-              These links define how notes, images, and references talk to each other across the board.
+              这些连接定义了笔记、图片和参考资料在画布中的关系。
             </p>
           </div>
 
           <div className="mb-4 grid grid-cols-2 gap-2">
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-3">
-              <div className="mb-1 text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">Labels</div>
+              <div className="mb-1 text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">标签</div>
               <div className="text-sm font-medium text-[var(--text-primary)]">
-                {batchEdgeHasMixedLabels ? 'Mixed' : batchEdgeSharedLabel || 'Empty'}
+                {batchEdgeHasMixedLabels ? '混合' : batchEdgeSharedLabel || '空'}
               </div>
             </div>
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-3">
-              <div className="mb-1 text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">Named</div>
+              <div className="mb-1 text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">已命名</div>
               <div className="text-sm font-medium text-[var(--text-primary)]">
                 {batchEdgeLabeledCount} / {selectedEdgeCount}
               </div>
@@ -477,7 +484,7 @@ export function WorkspaceInspector({
           </div>
 
           <div className="mb-4 rounded-[24px] border border-[var(--border)] bg-[var(--background)] p-4">
-            <div className="mb-3 text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">Relationship Mix</div>
+            <div className="mb-3 text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">关系分布</div>
             <div className="flex flex-wrap gap-2">
               {batchEdgeLabelBreakdown.map((entry) => (
                 <button
@@ -497,7 +504,7 @@ export function WorkspaceInspector({
                       : 'border-[var(--border)] bg-[var(--panel)] text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]'
                   }`}
                 >
-                  <span>{entry.isEmpty ? 'Empty' : entry.label}</span>
+                  <span>{entry.isEmpty ? '空' : entry.label}</span>
                   <span className="rounded-full bg-[var(--panel-elevated)] px-2 py-0.5 text-[11px] text-[var(--text-primary)]">
                     {entry.count}
                   </span>
@@ -507,7 +514,7 @@ export function WorkspaceInspector({
           </div>
 
           <label className="mb-4 block">
-            <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Batch Relationship</div>
+            <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">批量关系</div>
             <input
               ref={batchEdgeLabelInputRef}
               value={batchEdgeLabel}
@@ -517,7 +524,7 @@ export function WorkspaceInspector({
                 event.preventDefault()
                 onApplyBatchEdgeLabel()
               }}
-              placeholder={batchEdgeHasMixedLabels ? 'Set a shared relationship...' : 'supports, depends on...'}
+              placeholder={batchEdgeHasMixedLabels ? '设置统一关系...' : '支持、依赖...'}
               className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
             />
           </label>
@@ -551,7 +558,7 @@ export function WorkspaceInspector({
             onClick={onApplyBatchEdgeLabel}
             className="mb-3 inline-flex h-10 items-center justify-center rounded-2xl bg-[var(--text-primary)] px-4 text-sm font-medium text-[var(--background)]"
           >
-            Apply Relationship
+            应用关系
           </button>
 
           <button
@@ -559,7 +566,7 @@ export function WorkspaceInspector({
             onClick={onClearBatchEdgeLabels}
             className="mb-3 inline-flex h-10 items-center justify-center rounded-2xl border border-[var(--border)] px-4 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
           >
-            Clear Labels
+            清空标签
           </button>
 
           <button
@@ -568,22 +575,22 @@ export function WorkspaceInspector({
             className="mt-auto inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
           >
             <Trash2 className="h-4 w-4" />
-            Delete Connections
+            删除连接
           </button>
         </div>
       ) : isEdgeSingleSelect && edge ? (
         <div className="flex flex-1 flex-col">
           <div className="mb-4 rounded-2xl border border-[var(--border)] bg-[var(--panel-elevated)] px-3 py-2 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-secondary)]">
-            connection
+            连接
           </div>
 
           <label className="mb-4 block">
-            <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Relationship Label</div>
+            <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">关系标签</div>
             <input
               ref={edgeLabelInputRef}
               value={typeof edge.label === 'string' ? edge.label : ''}
               onChange={(event) => onEdgeLabelChange(event.target.value)}
-              placeholder="supports, contradicts, derives from..."
+              placeholder="支持、对比、来源于..."
               className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
             />
           </label>
@@ -594,12 +601,12 @@ export function WorkspaceInspector({
               onClick={onClearEdgeLabel}
               className="inline-flex h-10 items-center justify-center rounded-2xl border border-[var(--border)] px-4 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
             >
-              Clear Label
+              清空标签
             </button>
           </div>
 
           <div className="mb-4">
-            <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Quick Relationships</div>
+            <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">快捷关系</div>
             <div className="flex flex-wrap gap-2">
               {relationshipPresets.map((preset, index) => {
                 const isActive = edge.label === preset
@@ -624,7 +631,7 @@ export function WorkspaceInspector({
 
           <div className="mb-3 rounded-[24px] border border-[var(--border)] bg-[var(--background)] p-4">
             <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
-              <span>Source</span>
+              <span>来源</span>
               <ArrowRight className="h-3.5 w-3.5" />
             </div>
             <div className="text-sm text-[var(--text-primary)]">{edgeSourceTitle ?? edge.source}</div>
@@ -632,7 +639,7 @@ export function WorkspaceInspector({
 
           <div className="mb-6 rounded-[24px] border border-[var(--border)] bg-[var(--panel-elevated)] p-4">
             <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
-              <span>Target</span>
+              <span>目标</span>
               <ArrowRight className="h-3.5 w-3.5" />
             </div>
             <div className="text-sm text-[var(--text-primary)]">{edgeTargetTitle ?? edge.target}</div>
@@ -644,13 +651,13 @@ export function WorkspaceInspector({
             className="mt-auto inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
           >
             <Trash2 className="h-4 w-4" />
-            Delete Connection
+            删除连接
           </button>
         </div>
       ) : node ? (
         <div className="flex flex-1 flex-col">
           <div className="mb-4 rounded-2xl border border-[var(--border)] bg-[var(--panel-elevated)] px-3 py-2 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-secondary)]">
-            {node.type}
+            {nodeTypeLabels[node.type]}
           </div>
 
           {node.data.groupLabel ? (
@@ -669,7 +676,7 @@ export function WorkspaceInspector({
                 className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--panel)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
               >
                 <FolderOpen className="h-4 w-4" />
-                Ungroup
+                取消分组
               </button>
               <button
                 type="button"
@@ -677,13 +684,13 @@ export function WorkspaceInspector({
                 className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--panel)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
               >
                 {node.data.groupCollapsed ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
-                {node.data.groupCollapsed ? 'Expand' : 'Collapse'}
+                {node.data.groupCollapsed ? '展开' : '折叠'}
               </button>
             </div>
           ) : null}
 
           <label className="mb-4 block">
-            <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Title</div>
+            <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">标题</div>
             <input
               value={node.data.title}
               onChange={(event) => onChange({ title: event.target.value })}
@@ -692,7 +699,7 @@ export function WorkspaceInspector({
           </label>
 
           <label className="mb-4 block">
-            <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Description</div>
+            <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">描述</div>
             <textarea
               value={node.data.description ?? ''}
               onChange={(event) => onChange({ description: event.target.value })}
@@ -702,7 +709,7 @@ export function WorkspaceInspector({
           </label>
 
           <label className="mb-4 block">
-            <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Meta Label</div>
+            <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">元信息标签</div>
             <input
               value={node.data.meta ?? ''}
               onChange={(event) => onChange({ meta: event.target.value })}
@@ -718,13 +725,13 @@ export function WorkspaceInspector({
             className="mt-auto inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
           >
             <Trash2 className="h-4 w-4" />
-            Delete Node
+            删除节点
           </button>
         </div>
       ) : (
         <div className="flex flex-1 items-center justify-center rounded-[24px] border border-dashed border-[var(--border)] bg-[var(--background)] p-6 text-center">
           <p className="text-sm leading-6 text-[var(--text-secondary)]">
-            Select one or more nodes or connections to edit details or remove them in a batch.
+            选择一个或多个节点/连接，即可编辑详情或批量移除。
           </p>
         </div>
       )}

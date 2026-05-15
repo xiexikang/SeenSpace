@@ -112,13 +112,13 @@ export function deriveWorkspaceSelectionState(
   const selectionSummary =
     selectedNodeIds.length > 0
       ? activeGroupLabel
-        ? `${activeGroupLabel} selected`
-        : `${selectedNodeIds.length} node${selectedNodeIds.length > 1 ? 's' : ''} selected`
+        ? `已选中 ${activeGroupLabel}`
+        : `已选中 ${selectedNodeIds.length} 个节点`
       : selectedEdgeIds.length > 0
         ? selectedEdges.length === 1
-          ? `${selectedEdges[0].label || 'connection'} selected`
-          : `${selectedEdgeIds.length} connection${selectedEdgeIds.length > 1 ? 's' : ''} selected`
-        : 'Local-first canvas workspace'
+          ? `已选中 ${selectedEdges[0].label || '连接'}`
+          : `已选中 ${selectedEdgeIds.length} 条连接`
+        : '本地优先的画布工作区'
 
   return {
     selectedNodes,

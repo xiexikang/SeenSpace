@@ -14,8 +14,8 @@ function createEmptyCanvas(): WorkspaceSnapshot {
 const seededProjects: ProjectRecord[] = [
   {
     id: 'brand-identity',
-    name: 'Brand Identity Exploration',
-    summary: 'Moodboards and typographic references for the desktop application.',
+    name: '品牌识别探索',
+    summary: '桌面应用的情绪板与字体参考。',
     updatedAt: new Date('2026-05-12T14:20:00').toISOString(),
     createdAt: new Date('2026-05-10T10:00:00').toISOString(),
     nodeCount: 24,
@@ -25,8 +25,8 @@ const seededProjects: ProjectRecord[] = [
   },
   {
     id: 'app-ui-components',
-    name: 'App UI Components',
-    summary: 'Shared library of components for the workspace experience.',
+    name: '应用 UI 组件',
+    summary: '用于工作区体验的共享组件库。',
     updatedAt: new Date('2026-05-11T16:00:00').toISOString(),
     createdAt: new Date('2026-05-09T09:30:00').toISOString(),
     nodeCount: 12,
@@ -36,8 +36,8 @@ const seededProjects: ProjectRecord[] = [
   },
   {
     id: 'personal-knowledge',
-    name: 'Personal Knowledge Notes',
-    summary: 'Articles, references, and random thoughts worth revisiting later.',
+    name: '个人知识笔记',
+    summary: '值得稍后回看的文章、参考资料和零散想法。',
     updatedAt: new Date('2026-05-09T13:00:00').toISOString(),
     createdAt: new Date('2026-05-05T08:20:00').toISOString(),
     nodeCount: 3,
@@ -47,8 +47,8 @@ const seededProjects: ProjectRecord[] = [
   },
   {
     id: 'product-architecture',
-    name: 'Product Architecture',
-    summary: 'Mapping systems, module ideas, and interaction behaviors.',
+    name: '产品架构',
+    summary: '梳理系统、模块想法与交互行为。',
     updatedAt: new Date('2026-05-04T11:00:00').toISOString(),
     createdAt: new Date('2026-04-28T15:45:00').toISOString(),
     nodeCount: 89,
@@ -101,12 +101,12 @@ export async function createProject() {
   const timestamp = nowIso()
   const project: ProjectRecord = {
     id,
-    name: 'Untitled Project',
-    summary: 'A fresh canvas for links, images, notes, and AI insight.',
+    name: '未命名项目',
+    summary: '用于链接、图片、笔记和 AI 洞察的新画布。',
     updatedAt: timestamp,
     createdAt: timestamp,
     nodeCount: 0,
-    initials: 'NEW',
+    initials: '新',
     thumbnailVariant: 'mist',
     canvas: createEmptyCanvas(),
   }

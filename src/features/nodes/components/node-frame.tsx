@@ -96,7 +96,7 @@ export function NodeFrame({
                 : 'bg-[rgba(125,170,151,0.16)] text-[var(--text-secondary)]'
             }`}
           >
-            {edgeFocusRole}
+            {edgeFocusRole === 'source' ? '来源' : '目标'}
           </span>
         ) : null}
         {groupLabel ? (
@@ -110,10 +110,10 @@ export function NodeFrame({
         <div className="mb-3 rounded-[18px] border border-[rgba(24,24,27,0.1)] bg-[linear-gradient(180deg,rgba(255,255,255,0.88),rgba(245,246,248,0.98))] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
           <div className="mb-1 flex items-center justify-between gap-2">
             <div className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
-              Collapsed Group
+              已折叠分组
             </div>
             <div className="text-xs text-[var(--text-secondary)]">
-              {collapsedGroupSummary.memberCount} items
+              {collapsedGroupSummary.memberCount} 项
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -145,14 +145,14 @@ export function NodeFrame({
               <div className="flex items-center justify-between gap-2 rounded-[14px] border border-[var(--border)] bg-[var(--panel)] px-3 py-2">
                 <div className="min-w-0">
                   <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
-                    Peek
+                    预览
                   </div>
                   <div className="truncate text-sm text-[var(--text-secondary)]">
                     {collapsedGroupSummary.previewItems[0]?.title}
                   </div>
                 </div>
                 <div className="text-xs text-[var(--text-muted)] transition-transform duration-150 group-hover/node:-translate-y-0.5">
-                  Hover
+                  悬停
                 </div>
               </div>
 
@@ -165,10 +165,10 @@ export function NodeFrame({
               >
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <div className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
-                    Group Preview
+                    分组预览
                   </div>
                   <div className="text-xs text-[var(--text-secondary)]">
-                    {collapsedGroupSummary.memberCount} items
+                    {collapsedGroupSummary.memberCount} 项
                   </div>
                 </div>
                 <div className="space-y-2">

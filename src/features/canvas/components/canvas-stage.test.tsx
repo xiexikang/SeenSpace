@@ -150,7 +150,7 @@ describe('CanvasStage', () => {
 
     render(<CanvasStage snapshot={createSnapshot([])} onSnapshotChange={onSnapshotChange} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add Note' }))
+    fireEvent.click(screen.getByRole('button', { name: '添加笔记' }))
     await act(async () => {
       await vi.runAllTimersAsync()
     })
@@ -162,7 +162,7 @@ describe('CanvasStage', () => {
     expect(lastSnapshot.nodes[0]).toMatchObject({
       type: 'note',
       data: {
-        title: 'Blank Note',
+        title: '空白笔记',
       },
     })
   })

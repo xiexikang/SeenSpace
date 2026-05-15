@@ -5,7 +5,7 @@ import { NodeFrame } from './node-frame'
 export function TagMetaNodeCard({ data, selected }: NodeProps<TagMetaNode>) {
   return (
     <NodeFrame
-      typeLabel="Tag / Meta"
+      typeLabel="标签 / 元信息"
       accentClassName="bg-[rgba(171,145,194,0.16)] text-[var(--text-secondary)]"
       selected={selected}
       edgeFocusRole={data.edgeFocusRole}

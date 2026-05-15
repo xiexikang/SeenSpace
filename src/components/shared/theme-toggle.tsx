@@ -14,10 +14,10 @@ export function ThemeToggle() {
         'inline-flex h-9 items-center gap-2 rounded-full border px-3 text-xs font-medium transition-colors',
         'border-[var(--border)] bg-[var(--panel)] text-[var(--text-primary)] hover:bg-[var(--panel-elevated)]',
       )}
-      aria-label="Toggle theme"
+      aria-label="切换主题"
     >
       {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-      {isDark ? 'Light' : 'Dark'}
+      {isDark ? '亮色' : '暗色'}
     </button>
   )
 }

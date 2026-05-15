@@ -12,7 +12,7 @@ export function AppRouter() {
     <Suspense
       fallback={
         <div className="flex min-h-screen items-center justify-center bg-[var(--background)] text-sm text-[var(--text-secondary)]">
-          Loading workspace...
+          正在加载工作区...
         </div>
       }
     >

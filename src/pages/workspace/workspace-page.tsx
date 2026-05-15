@@ -53,10 +53,10 @@ function nextGroupLabel(nodes: WorkspaceNode[]) {
   const usedNumbers = nodes
     .map((node) => node.data.groupLabel)
     .filter(Boolean)
-    .map((label) => Number(label?.replace('Group ', '')))
+    .map((label) => Number(label?.replace('Group ', '').replace('分组 ', '')))
     .filter((value) => Number.isFinite(value))
   const max = usedNumbers.length > 0 ? Math.max(...usedNumbers) : 0
-  return `Group ${max + 1}`
+  return `分组 ${max + 1}`
 }
 
 function getGroupNodeIds(nodes: WorkspaceNode[], groupId: string) {
@@ -65,7 +65,7 @@ function getGroupNodeIds(nodes: WorkspaceNode[], groupId: string) {
 
 export function WorkspacePage() {
   const { projectId } = useParams()
-  const [projectName, setProjectName] = useState('Untitled Project')
+  const [projectName, setProjectName] = useState('未命名项目')
   const [snapshot, setSnapshot] = useState<WorkspaceSnapshot>(emptySnapshot)
   const [saveState, setSaveState] = useState<'saved' | 'saving'>('saved')
   const [actionMessage, setActionMessage] = useState<string | null>(null)
@@ -206,7 +206,7 @@ export function WorkspacePage() {
     if (nodeIds.length === 0) return
 
     applySnapshotWithoutSelection(deleteNodesFromSnapshot(snapshot, nodeIds))
-    showActionMessage(`${nodeIds.length} node${nodeIds.length > 1 ? 's' : ''} deleted`)
+    showActionMessage(`已删除 ${nodeIds.length} 个节点`)
   }
 
   function deleteEdges(edgeIds: string[]) {
@@ -219,7 +219,7 @@ export function WorkspacePage() {
     }
 
     applySnapshotWithoutSelection(nextSnapshot)
-    showActionMessage(`${edgeIds.length} connection${edgeIds.length > 1 ? 's' : ''} deleted`)
+    showActionMessage(`已删除 ${edgeIds.length} 条连接`)
   }
 
   function handleDuplicateMany() {
@@ -235,7 +235,7 @@ export function WorkspacePage() {
     setSelectedEdgeIds([])
     setCanvasStageVersion((current) => current + 1)
     void persistSnapshot(nextSnapshot)
-    showActionMessage(`${result.duplicatedVisibleIds.length} node${result.duplicatedVisibleIds.length > 1 ? 's' : ''} duplicated`)
+    showActionMessage(`已复制 ${result.duplicatedVisibleIds.length} 个节点`)
     window.requestAnimationFrame(() => {
       setSelectedNodeIds(result.duplicatedVisibleIds)
     })
@@ -265,7 +265,7 @@ export function WorkspacePage() {
       ),
     }
     void persistSnapshot(nextSnapshot)
-    showActionMessage(`${groupLabel} created`)
+    showActionMessage(`已创建 ${groupLabel}`)
   }
 
   function handleUngroup() {
@@ -273,7 +273,7 @@ export function WorkspacePage() {
     const nextSnapshot = ungroupSelectedNodes(snapshot, selectedNodeIds)
     if (snapshotsEqual(snapshot, nextSnapshot)) return
     void persistSnapshot(nextSnapshot)
-    showActionMessage('Selection ungrouped')
+    showActionMessage('已取消分组')
   }
 
   function handleSelectGroup() {
@@ -295,7 +295,7 @@ export function WorkspacePage() {
     setSelectedNodeIds(result.memberIds)
     setSelectedEdgeIds([])
     void persistSnapshot(result.snapshot)
-    showActionMessage(result.collapsed ? 'Group collapsed' : 'Group expanded')
+    showActionMessage(result.collapsed ? '分组已折叠' : '分组已展开')
   }
 
   function handleGroupLabelChange(value: string) {
@@ -377,7 +377,7 @@ export function WorkspacePage() {
 
         if (selectedEdgeIds.length === 1 && selectedEdge) {
           handleEdgeLabelChange(preset)
-          showActionMessage(`Relationship set to ${preset}`)
+          showActionMessage(`关系已设为 ${preset}`)
           return
         }
 
@@ -388,7 +388,7 @@ export function WorkspacePage() {
           }
 
           void persistSnapshot(nextSnapshot)
-          showActionMessage(`Applied ${formatRelationshipName(preset)} to ${selectedEdgeIds.length} connections`)
+          showActionMessage(`已将 ${formatRelationshipName(preset)} 应用到 ${selectedEdgeIds.length} 条连接`)
         }
         return
       }
@@ -413,7 +413,7 @@ export function WorkspacePage() {
   function handleEdgeCreate(edge: WorkspaceEdge) {
     setSelectedNodeIds([])
     setSelectedEdgeIds([edge.id])
-    showActionMessage(`Connection created: ${typeof edge.label === 'string' && edge.label.trim() ? edge.label : 'untitled'}`)
+    showActionMessage(`已创建连接：${typeof edge.label === 'string' && edge.label.trim() ? edge.label : '未命名'}`)
   }
 
   function handleNodeChange(updates: Partial<WorkspaceNode['data']>) {
@@ -449,7 +449,7 @@ export function WorkspacePage() {
   }
 
   function formatRelationshipName(value: string) {
-    return value.trim() || 'empty'
+    return value.trim() || '空'
   }
 
   function handleApplyBatchEdgeLabel() {
@@ -461,7 +461,7 @@ export function WorkspacePage() {
     }
 
     void persistSnapshot(nextSnapshot)
-    showActionMessage(`Applied ${formatRelationshipName(batchEdgeLabel)} to ${selectedEdgeIds.length} connections`)
+    showActionMessage(`已将 ${formatRelationshipName(batchEdgeLabel)} 应用到 ${selectedEdgeIds.length} 条连接`)
   }
 
   function handleApplyBatchEdgeLabelValue(value: string) {
@@ -474,7 +474,7 @@ export function WorkspacePage() {
 
     setBatchEdgeLabel(value)
     void persistSnapshot(nextSnapshot)
-    showActionMessage(`Applied ${formatRelationshipName(value)} to ${selectedEdgeIds.length} connections`)
+    showActionMessage(`已将 ${formatRelationshipName(value)} 应用到 ${selectedEdgeIds.length} 条连接`)
   }
 
   function handleClearEdgeLabel() {
@@ -486,7 +486,7 @@ export function WorkspacePage() {
     }
 
     void persistSnapshot(nextSnapshot)
-    showActionMessage('Relationship cleared')
+    showActionMessage('关系已清空')
   }
 
   function handleClearBatchEdgeLabels() {
@@ -499,7 +499,7 @@ export function WorkspacePage() {
 
     setBatchEdgeLabel('')
     void persistSnapshot(nextSnapshot)
-    showActionMessage('Connection labels cleared')
+    showActionMessage('连接标签已清空')
   }
 
   function handleApplyLayout(action: LayoutActionId) {
@@ -511,7 +511,7 @@ export function WorkspacePage() {
     }
 
     void persistSnapshot(nextSnapshot)
-    showActionMessage('Layout updated')
+    showActionMessage('布局已更新')
   }
 
   function handleApplyBatchCategory() {
@@ -524,7 +524,7 @@ export function WorkspacePage() {
 
     void persistSnapshot(nextSnapshot)
     if (batchCategory.trim()) {
-      showActionMessage(`Category set to ${batchCategory.trim()}`)
+      showActionMessage(`分类已设为 ${batchCategory.trim()}`)
     }
   }
 
@@ -542,7 +542,7 @@ export function WorkspacePage() {
       .map((tag) => tag.trim())
       .filter(Boolean).length
     if (tagCount > 0) {
-      showActionMessage(`${tagCount} tag${tagCount > 1 ? 's' : ''} merged`)
+      showActionMessage(`已合并 ${tagCount} 个标签`)
     }
   }
 
@@ -556,7 +556,7 @@ export function WorkspacePage() {
 
     setBatchCategory('')
     void persistSnapshot(nextSnapshot)
-    showActionMessage('Category cleared')
+    showActionMessage('分类已清空')
   }
 
   function handleClearBatchTags() {
@@ -569,7 +569,7 @@ export function WorkspacePage() {
 
     setBatchTagsText('')
     void persistSnapshot(nextSnapshot)
-    showActionMessage('Tags cleared')
+    showActionMessage('标签已清空')
   }
 
   useEffect(() => {
@@ -619,15 +619,15 @@ export function WorkspacePage() {
                 <div className="mt-1 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
                   <span className="inline-flex items-center gap-1">
                     <Check className="h-3.5 w-3.5" />
-                    {saveState === 'saving' ? 'Saving...' : 'Saved locally'}
+                    {saveState === 'saving' ? '保存中...' : '已保存到本地'}
                   </span>
                   {actionMessage ? (
                     <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--panel)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)]">
                       {actionMessage}
                     </span>
                   ) : null}
-                  <span>{snapshot.nodes.length} nodes</span>
-                  <span>{snapshot.edges.length} connections</span>
+                  <span>{snapshot.nodes.length} 个节点</span>
+                  <span>{snapshot.edges.length} 条连接</span>
                 </div>
               </div>
             </div>
@@ -664,7 +664,7 @@ export function WorkspacePage() {
                         className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]"
                       >
                         <FolderInput className="h-3.5 w-3.5" />
-                        Group
+                        分组
                       </button>
                       <button
                         type="button"
@@ -673,7 +673,7 @@ export function WorkspacePage() {
                         className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)] disabled:opacity-40"
                       >
                         <FolderOpen className="h-3.5 w-3.5" />
-                        Ungroup
+                        取消分组
                       </button>
                       <button
                         type="button"
@@ -682,7 +682,7 @@ export function WorkspacePage() {
                         className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)] disabled:opacity-40"
                       >
                         {activeGroupCollapsed ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
-                        {activeGroupCollapsed ? 'Expand' : 'Collapse'}
+                        {activeGroupCollapsed ? '展开' : '折叠'}
                       </button>
                       <button
                         type="button"
@@ -690,7 +690,7 @@ export function WorkspacePage() {
                         className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]"
                       >
                         <Copy className="h-3.5 w-3.5" />
-                        Duplicate
+                        复制
                       </button>
                     </>
                   ) : null}
@@ -700,7 +700,7 @@ export function WorkspacePage() {
                     className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]"
                   >
                     <X className="h-3.5 w-3.5" />
-                    Clear
+                    清除
                   </button>
                   <button
                     type="button"
@@ -708,7 +708,7 @@ export function WorkspacePage() {
                     className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
-                    Delete Selected
+                    删除选中项
                   </button>
                 </>
               ) : totalSelectionCount === 1 ? (
@@ -724,7 +724,7 @@ export function WorkspacePage() {
                         className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]"
                       >
                         <FolderInput className="h-3.5 w-3.5" />
-                        Select Group
+                        选择分组
                       </button>
                       <button
                         type="button"
@@ -732,7 +732,7 @@ export function WorkspacePage() {
                         className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]"
                       >
                         {selectedNode.data.groupCollapsed ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
-                        {selectedNode.data.groupCollapsed ? 'Expand' : 'Collapse'}
+                        {selectedNode.data.groupCollapsed ? '展开' : '折叠'}
                       </button>
                     </>
                   ) : null}
@@ -743,7 +743,7 @@ export function WorkspacePage() {
                       className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]"
                     >
                       <Copy className="h-3.5 w-3.5" />
-                      Duplicate
+                      复制
                     </button>
                   ) : null}
                   <button
@@ -752,7 +752,7 @@ export function WorkspacePage() {
                     className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]"
                   >
                     <X className="h-3.5 w-3.5" />
-                    Clear
+                    清除
                   </button>
                 </>
               ) : (

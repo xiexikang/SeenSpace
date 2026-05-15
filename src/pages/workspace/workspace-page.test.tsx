@@ -180,19 +180,19 @@ describe('WorkspacePage', () => {
     render(<WorkspacePage />)
 
     await waitFor(() => expect(screen.getByText('Undo Test Project')).toBeTruthy())
-    expect(screen.getByText('0 nodes')).toBeTruthy()
+    expect(screen.getByText(/0\s*个节点/)).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Push One Node Snapshot' }))
-    await waitFor(() => expect(screen.getByText('1 nodes')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText(/1\s*个节点/)).toBeTruthy())
 
     fireEvent.click(screen.getByRole('button', { name: 'Push Two Node Snapshot' }))
-    await waitFor(() => expect(screen.getByText('2 nodes')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText(/2\s*个节点/)).toBeTruthy())
 
     fireEvent.keyDown(window, { key: 'z', ctrlKey: true })
-    await waitFor(() => expect(screen.getByText('1 nodes')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText(/1\s*个节点/)).toBeTruthy())
 
     fireEvent.keyDown(window, { key: 'z', ctrlKey: true, shiftKey: true })
-    await waitFor(() => expect(screen.getByText('2 nodes')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText(/2\s*个节点/)).toBeTruthy())
 
     await waitFor(() => expect(updateProjectCanvasMock).toHaveBeenCalledTimes(4))
     expect(
@@ -209,20 +209,20 @@ describe('WorkspacePage', () => {
     await waitFor(() => expect(screen.getByText('Undo Test Project')).toBeTruthy())
 
     fireEvent.click(screen.getByRole('button', { name: 'Push One Node Snapshot' }))
-    await waitFor(() => expect(screen.getByText('1 nodes')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText(/1\s*个节点/)).toBeTruthy())
 
     fireEvent.click(screen.getByRole('button', { name: 'Push Two Node Snapshot' }))
-    await waitFor(() => expect(screen.getByText('2 nodes')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText(/2\s*个节点/)).toBeTruthy())
 
     const toolbarButtons = screen.getAllByRole('button')
     const undoButton = toolbarButtons[0]
     const redoButton = toolbarButtons[1]
 
     fireEvent.click(undoButton)
-    await waitFor(() => expect(screen.getByText('1 nodes')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText(/1\s*个节点/)).toBeTruthy())
 
     fireEvent.click(redoButton)
-    await waitFor(() => expect(screen.getByText('2 nodes')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText(/2\s*个节点/)).toBeTruthy())
   })
 
   it('groups and ungroups a multi-node selection', async () => {
@@ -241,13 +241,13 @@ describe('WorkspacePage', () => {
     await waitFor(() => expect(screen.getByText('Inspector Selected Nodes: 2')).toBeTruthy())
 
     fireEvent.click(screen.getByRole('button', { name: 'Trigger Create Group' }))
-    await waitFor(() => expect(screen.getByText('Inspector Active Group: Group 1')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText('Inspector Active Group: 分组 1')).toBeTruthy())
 
     const groupedSnapshot = updateProjectCanvasMock.mock.calls.at(-1)?.[1] as WorkspaceSnapshot
     const groupedNodes = groupedSnapshot.nodes
     expect(groupedNodes.every((node) => node.data.groupId)).toBe(true)
     expect(new Set(groupedNodes.map((node) => node.data.groupId)).size).toBe(1)
-    expect(groupedNodes.map((node) => node.data.groupLabel)).toEqual(['Group 1', 'Group 1'])
+    expect(groupedNodes.map((node) => node.data.groupLabel)).toEqual(['分组 1', '分组 1'])
 
     fireEvent.click(screen.getByRole('button', { name: 'Trigger Ungroup' }))
     await waitFor(() => expect(screen.getByText('Inspector Active Group: none')).toBeTruthy())

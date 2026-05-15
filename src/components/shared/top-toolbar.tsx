@@ -17,7 +17,7 @@ type TopToolbarProps = {
 export function TopToolbar({
   title,
   rightAction = 'new-project',
-  searchPlaceholder = 'Search canvas...',
+  searchPlaceholder = '搜索画布...',
   searchValue,
   onSearchChange,
   viewMode = 'grid',
@@ -31,7 +31,7 @@ export function TopToolbar({
       <label className="flex h-9 w-full max-w-[240px] items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-3 text-[var(--text-secondary)]">
         <Search className="h-4 w-4" />
         <input
-          aria-label="Search"
+          aria-label="搜索"
           placeholder={searchPlaceholder}
           value={searchValue}
           onChange={(event) => onSearchChange?.(event.target.value)}
@@ -50,7 +50,7 @@ export function TopToolbar({
               className="inline-flex h-9 items-center gap-2 rounded-full bg-[var(--text-primary)] px-4 text-sm font-medium text-[var(--background)]"
             >
               <Plus className="h-4 w-4" />
-              New Project
+              新建项目
             </button>
           </>
         ) : (
@@ -65,7 +65,7 @@ export function TopToolbar({
               type="button"
               className="inline-flex h-9 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-3 text-sm text-[var(--text-primary)]"
             >
-              Assistant
+              助手
             </button>
           </>
         )}

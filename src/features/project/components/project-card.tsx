@@ -47,7 +47,7 @@ export function ProjectCard({
         style={{ background: accentMap[variant] }}
       >
         <span className="rounded-full border border-[var(--border-strong)] bg-[var(--background)] px-2.5 py-1 text-xs text-[var(--text-secondary)]">
-          {nodes} Nodes
+          {nodes} 个节点
         </span>
         <span className="rounded-full border border-[var(--border)] bg-[var(--panel)] px-2.5 py-1 text-[10px] font-semibold tracking-[0.08em] text-[var(--text-secondary)]">
           {initials}
@@ -57,7 +57,7 @@ export function ProjectCard({
       <div className="space-y-1 px-1 pb-1">
         <div className="truncate text-sm font-semibold text-[var(--text-primary)]">{title}</div>
         <p className="line-clamp-2 text-sm leading-5 text-[var(--text-secondary)]">{summary}</p>
-        <div className="pt-2 text-xs text-[var(--text-muted)]">Updated {updatedAt}</div>
+        <div className="pt-2 text-xs text-[var(--text-muted)]">更新于 {updatedAt}</div>
       </div>
     </Link>
   )

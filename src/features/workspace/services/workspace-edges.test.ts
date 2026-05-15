@@ -7,21 +7,21 @@ describe('workspace edges', () => {
     const sourceNode = createNode({ id: 'note-1', type: 'note' })
     const targetNode = createNode({ id: 'meta-1', type: 'tag_meta' })
 
-    expect(suggestEdgeLabel(sourceNode, targetNode)).toBe('references')
+    expect(suggestEdgeLabel(sourceNode, targetNode)).toBe('引用')
   })
 
   it('suggests supports when tag meta nodes point outward', () => {
     const sourceNode = createNode({ id: 'meta-1', type: 'tag_meta' })
     const targetNode = createNode({ id: 'note-1', type: 'note' })
 
-    expect(suggestEdgeLabel(sourceNode, targetNode)).toBe('supports')
+    expect(suggestEdgeLabel(sourceNode, targetNode)).toBe('支持')
   })
 
   it('suggests clusters with for same-type links', () => {
     const sourceNode = createNode({ id: 'note-1', type: 'note' })
     const targetNode = createNode({ id: 'note-2', type: 'note' })
 
-    expect(suggestEdgeLabel(sourceNode, targetNode)).toBe('clusters with')
+    expect(suggestEdgeLabel(sourceNode, targetNode)).toBe('同组')
   })
 
   it('creates a new edge with a generated id and suggested label', () => {
@@ -43,7 +43,7 @@ describe('workspace edges', () => {
     expect(edge.id).toBeTruthy()
     expect(edge.source).toBe('web-1')
     expect(edge.target).toBe('note-1')
-    expect(edge.label).toBe('references')
+    expect(edge.label).toBe('引用')
     expect(edge.animated).toBe(false)
   })
 })

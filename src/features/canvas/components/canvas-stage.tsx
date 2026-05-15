@@ -60,10 +60,10 @@ type CanvasStageProps = {
 }
 
 const addableNodeTypes: Array<{ type: WorkspaceNodeType; label: string }> = [
-  { type: 'note', label: 'Add Note' },
-  { type: 'image', label: 'Add Image' },
-  { type: 'web', label: 'Add Web Clip' },
-  { type: 'tag_meta', label: 'Add Tag / Meta' },
+  { type: 'note', label: '添加笔记' },
+  { type: 'image', label: '添加图片' },
+  { type: 'web', label: '添加网页' },
+  { type: 'tag_meta', label: '添加标签 / 元信息' },
 ]
 
 const defaultEdgeOptions = {

@@ -5,7 +5,7 @@ import { NodeFrame } from './node-frame'
 export function NoteNodeCard({ data, selected }: NodeProps<NoteNode>) {
   return (
     <NodeFrame
-      typeLabel="Note"
+      typeLabel="笔记"
       accentClassName="bg-[rgba(182,163,122,0.16)] text-[var(--text-secondary)]"
       selected={selected}
       edgeFocusRole={data.edgeFocusRole}

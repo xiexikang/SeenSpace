@@ -2,36 +2,36 @@ import type { WorkspaceEdge, WorkspaceNode } from '../../../types/workspace'
 import { randomId } from '../../../shared/utils/random-id'
 
 export const relationshipPresets = [
-  'supports',
-  'references',
-  'contrasts with',
-  'derived from',
-  'depends on',
-  'clusters with',
+  '支持',
+  '引用',
+  '对比',
+  '来源于',
+  '依赖',
+  '同组',
 ] as const
 
 export function suggestEdgeLabel(sourceNode?: WorkspaceNode, targetNode?: WorkspaceNode) {
   if (targetNode?.type === 'tag_meta') {
-    return 'references'
+    return '引用'
   }
 
   if (sourceNode?.type === 'tag_meta') {
-    return 'supports'
+    return '支持'
   }
 
   if (sourceNode?.type === 'web' && targetNode?.type === 'note') {
-    return 'references'
+    return '引用'
   }
 
   if (sourceNode?.type === 'image' && targetNode?.type === 'note') {
-    return 'supports'
+    return '支持'
   }
 
   if (sourceNode?.type && targetNode?.type && sourceNode.type === targetNode.type) {
-    return 'clusters with'
+    return '同组'
   }
 
-  return 'references'
+  return '引用'
 }
 
 export function createConnectionEdge(

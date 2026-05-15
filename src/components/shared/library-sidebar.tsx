@@ -2,15 +2,15 @@ import { FolderOpen, Image, NotebookPen, Settings, Star, Trash2, Globe } from 'l
 import { cn } from '../../lib/utils'
 
 const primaryItems = [
-  { label: 'All Notes', icon: NotebookPen, active: true },
-  { label: 'Images', icon: Image },
-  { label: 'Web Clips', icon: Globe },
-  { label: 'Favorites', icon: Star },
+  { label: '全部笔记', icon: NotebookPen, active: true },
+  { label: '图片', icon: Image },
+  { label: '网页', icon: Globe },
+  { label: '收藏', icon: Star },
 ]
 
 const secondaryItems = [
-  { label: 'Settings', icon: Settings },
-  { label: 'Trash', icon: Trash2 },
+  { label: '设置', icon: Settings },
+  { label: '回收站', icon: Trash2 },
 ]
 
 export function LibrarySidebar() {
@@ -22,8 +22,8 @@ export function LibrarySidebar() {
             <FolderOpen className="h-4 w-4" />
           </div>
           <div>
-            <div className="text-base font-semibold text-[var(--text-primary)]">Library</div>
-            <div className="text-xs text-[var(--text-secondary)]">Inspiration</div>
+            <div className="text-base font-semibold text-[var(--text-primary)]">素材库</div>
+            <div className="text-xs text-[var(--text-secondary)]">灵感收集</div>
           </div>
         </div>
       </div>

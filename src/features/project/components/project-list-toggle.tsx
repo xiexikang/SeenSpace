@@ -24,7 +24,7 @@ export function ProjectListToggle({ mode, onChange }: ProjectListToggleProps) {
         )}
       >
         <Grid2x2 className="h-4 w-4" />
-        Grid
+        网格
       </button>
       <button
         type="button"
@@ -37,7 +37,7 @@ export function ProjectListToggle({ mode, onChange }: ProjectListToggleProps) {
         )}
       >
         <List className="h-4 w-4" />
-        List
+        列表
       </button>
     </div>
   )

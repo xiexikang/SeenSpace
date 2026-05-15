@@ -16,10 +16,10 @@ function formatUpdatedAt(value: string) {
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
   const diffDays = Math.floor(diffHours / 24)
 
-  if (diffHours < 1) return 'just now'
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
-  return new Date(value).toLocaleDateString()
+  if (diffHours < 1) return '刚刚'
+  if (diffHours < 24) return `${diffHours} 小时前`
+  if (diffDays < 7) return `${diffDays} 天前`
+  return new Date(value).toLocaleDateString('zh-CN')
 }
 
 export function ProjectListPage() {
@@ -61,7 +61,7 @@ export function ProjectListPage() {
       <main className="flex min-w-0 flex-1 flex-col">
         <TopToolbar
           title="SeenSpace (见间)"
-          searchPlaceholder="Search projects..."
+          searchPlaceholder="搜索项目..."
           searchValue={search}
           onSearchChange={setSearch}
           viewMode={viewMode}
@@ -73,7 +73,7 @@ export function ProjectListPage() {
           <div className="mb-6 flex items-end justify-between">
             <div>
               <div className="mb-1 flex items-center gap-2">
-                <h1 className="text-[32px] font-semibold tracking-tight text-[var(--text-primary)]">All Projects</h1>
+                <h1 className="text-[32px] font-semibold tracking-tight text-[var(--text-primary)]">全部项目</h1>
                 <span className="rounded-full border border-[var(--border)] px-2 py-1 text-xs text-[var(--text-secondary)]">
                   {filteredProjects.length}
                 </span>
@@ -105,9 +105,9 @@ export function ProjectListPage() {
 
           {filteredProjects.length === 0 ? (
             <div className="mt-10 rounded-[28px] border border-dashed border-[var(--border)] bg-[var(--panel)] px-6 py-12 text-center shadow-[var(--shadow-sm)]">
-              <div className="mb-2 text-lg font-semibold text-[var(--text-primary)]">No matching projects</div>
+              <div className="mb-2 text-lg font-semibold text-[var(--text-primary)]">没有匹配的项目</div>
               <p className="text-sm text-[var(--text-secondary)]">
-                Try a different keyword or create a fresh workspace.
+                换个关键词试试，或新建一个工作区。
               </p>
             </div>
           ) : null}

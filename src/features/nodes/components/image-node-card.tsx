@@ -5,7 +5,7 @@ import { NodeFrame } from './node-frame'
 export function ImageNodeCard({ data, selected }: NodeProps<ImageNode>) {
   return (
     <NodeFrame
-      typeLabel="Image"
+      typeLabel="图片"
       accentClassName="bg-[rgba(125,170,151,0.18)] text-[var(--text-secondary)]"
       selected={selected}
       edgeFocusRole={data.edgeFocusRole}
@@ -28,7 +28,7 @@ export function ImageNodeCard({ data, selected }: NodeProps<ImageNode>) {
         {data.description ? (
           <p className="text-sm leading-5 text-[var(--text-secondary)]">{data.description}</p>
         ) : null}
-        {data.palette ? <div className="text-xs text-[var(--text-muted)]">Palette: {data.palette}</div> : null}
+        {data.palette ? <div className="text-xs text-[var(--text-muted)]">色彩：{data.palette}</div> : null}
       </div>
     </NodeFrame>
   )
