@@ -28,3 +28,8 @@ coverage
 *.sw?
 .trae/*
 .playwright-cli/
+
+.codegraph/*
+CODE_WIKI.md
+DEVELOPMENT-CHECKLIST.md
+SeenSpace-PRD.md
