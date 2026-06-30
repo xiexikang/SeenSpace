@@ -290,7 +290,7 @@ export function WorkspaceInspector({
   }, [edge?.id, isEdgeSingleSelect])
 
   return (
-    <aside className="flex w-[320px] shrink-0 flex-col rounded-[28px] border border-[var(--border)] bg-[var(--panel)] p-4 shadow-[var(--shadow-sm)]">
+    <div className="flex min-h-0 flex-1 flex-col">
       <div className="mb-4 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[var(--panel-elevated)] text-[var(--text-secondary)]">
@@ -773,6 +773,6 @@ export function WorkspaceInspector({
           </p>
         </div>
       )}
-    </aside>
+    </div>
   )
 }

@@ -64,6 +64,26 @@ textarea {
   font: inherit;
 }
 
+button,
+[role="button"],
+[role="menuitem"],
+[role="option"],
+[aria-haspopup],
+a[href],
+summary {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+input,
+textarea {
+  cursor: text;
+}
+
 a {
   color: inherit;
   text-decoration: none;

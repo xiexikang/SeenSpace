@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, Copy, FolderInput, FolderOpen, Layers3, Maximize2, Minimize2, Redo2, Trash2, Undo2, X } from 'lucide-react'
+import { ArrowLeft, Check, Copy, FolderInput, FolderOpen, Info, Layers3, Maximize2, Minimize2, Redo2, Sparkles, Trash2, Undo2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { LibrarySidebar } from '../../components/shared/library-sidebar'
@@ -43,6 +43,7 @@ import {
 import type { WorkspaceEdge, WorkspaceNode, WorkspaceSnapshot } from '../../types/workspace'
 
 const historyLimit = 80
+type RightPanel = 'inspector' | 'analysis'
 
 function sameIds(left: string[], right: string[]) {
   if (left.length !== right.length) return false
@@ -90,6 +91,7 @@ export function WorkspacePage() {
   const [batchCategory, setBatchCategory] = useState('')
   const [batchTagsText, setBatchTagsText] = useState('')
   const [batchEdgeLabel, setBatchEdgeLabel] = useState('')
+  const [rightPanel, setRightPanel] = useState<RightPanel>('inspector')
   const [historyIndex, setHistoryIndex] = useState(0)
   const [canvasStageVersion, setCanvasStageVersion] = useState(0)
   const historyRef = useRef<WorkspaceSnapshot[]>([emptySnapshot])
@@ -835,59 +837,91 @@ export function WorkspacePage() {
                 }}
               />
             </div>
-            <WorkspaceInspector
-              node={selectedNode}
-              edge={selectedEdge as WorkspaceEdge | undefined}
-              edgeSourceTitle={sourceNode?.data.title}
-              edgeTargetTitle={targetNode?.data.title}
-              selectedNodeCount={selectedNodeIds.length}
-              selectedEdgeCount={selectedEdgeIds.length}
-              batchCategory={batchCategory}
-              batchTagsText={batchTagsText}
-              batchEdgeLabel={batchEdgeLabel}
-              batchEdgeSharedLabel={batchEdgeState.sharedLabel}
-              batchEdgeHasMixedLabels={batchEdgeState.hasMixedLabels}
-              batchEdgeLabeledCount={batchEdgeState.labeledCount}
-              batchEdgeLabelBreakdown={batchEdgeState.labelBreakdown}
-              batchTypeCounts={batchMetadataState.typeCounts}
-              batchSharedCategory={batchMetadataState.sharedCategory}
-              batchHasMixedCategories={batchMetadataState.hasMixedCategories}
-              batchUniqueTags={batchMetadataState.uniqueTags}
-              activeGroupLabel={activeGroupLabel}
-              activeGroupCollapsed={activeGroupCollapsed}
-              canUngroupSelection={canUngroupSelection}
-              onChange={handleNodeChange}
-              onDelete={handleDeleteNode}
-              onDeleteMany={handleDeleteMany}
-              onDuplicateMany={handleDuplicateMany}
-              onDeleteEdge={handleDeleteEdge}
-              onDeleteManyEdges={handleDeleteManyEdges}
-              onEdgeLabelChange={handleEdgeLabelChange}
-              onClearEdgeLabel={handleClearEdgeLabel}
-              onBatchEdgeLabelChange={setBatchEdgeLabel}
-              onApplyBatchEdgeLabel={handleApplyBatchEdgeLabel}
-              onApplyBatchEdgeLabelValue={handleApplyBatchEdgeLabelValue}
-              onClearBatchEdgeLabels={handleClearBatchEdgeLabels}
-              onBatchCategoryChange={setBatchCategory}
-              onBatchTagsChange={setBatchTagsText}
-              onApplyBatchCategory={handleApplyBatchCategory}
-              onApplyBatchTags={handleApplyBatchTags}
-              onClearBatchCategory={handleClearBatchCategory}
-              onClearBatchTags={handleClearBatchTags}
-              onApplyLayout={handleApplyLayout}
-              onCreateGroup={handleCreateGroup}
-              onGroupLabelChange={handleGroupLabelChange}
-              onUngroup={handleUngroup}
-              onSelectGroup={handleSelectGroup}
-              onToggleGroupCollapse={() => activeGroupId && handleToggleGroupCollapse(activeGroupId)}
-              onClearSelection={clearSelection}
-            />
+            <aside className="flex min-h-0 w-[320px] shrink-0 flex-col rounded-[28px] border border-[var(--border)] bg-[var(--panel)] p-4 shadow-[var(--shadow-sm)]">
+              <div className="mb-4 grid grid-cols-2 gap-2 rounded-2xl border border-[var(--border-strong)] bg-[var(--panel-elevated)] p-1.5">
+                {[
+                  { id: 'inspector' as const, label: '检查器', icon: Info },
+                  { id: 'analysis' as const, label: 'AI 分析', icon: Sparkles },
+                ].map((item) => {
+                  const Icon = item.icon
+
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setRightPanel(item.id)}
+                      className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-colors ${
+                        rightPanel === item.id
+                          ? 'bg-[var(--text-primary)] text-[var(--background)] shadow-[var(--shadow-sm)]'
+                          : 'text-[var(--text-secondary)] hover:bg-[var(--panel)] hover:text-[var(--text-primary)]'
+                      }`}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {item.label}
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {rightPanel === 'inspector' ? (
+                  <WorkspaceInspector
+                    node={selectedNode}
+                    edge={selectedEdge as WorkspaceEdge | undefined}
+                    edgeSourceTitle={sourceNode?.data.title}
+                    edgeTargetTitle={targetNode?.data.title}
+                    selectedNodeCount={selectedNodeIds.length}
+                    selectedEdgeCount={selectedEdgeIds.length}
+                    batchCategory={batchCategory}
+                    batchTagsText={batchTagsText}
+                    batchEdgeLabel={batchEdgeLabel}
+                    batchEdgeSharedLabel={batchEdgeState.sharedLabel}
+                    batchEdgeHasMixedLabels={batchEdgeState.hasMixedLabels}
+                    batchEdgeLabeledCount={batchEdgeState.labeledCount}
+                    batchEdgeLabelBreakdown={batchEdgeState.labelBreakdown}
+                    batchTypeCounts={batchMetadataState.typeCounts}
+                    batchSharedCategory={batchMetadataState.sharedCategory}
+                    batchHasMixedCategories={batchMetadataState.hasMixedCategories}
+                    batchUniqueTags={batchMetadataState.uniqueTags}
+                    activeGroupLabel={activeGroupLabel}
+                    activeGroupCollapsed={activeGroupCollapsed}
+                    canUngroupSelection={canUngroupSelection}
+                    onChange={handleNodeChange}
+                    onDelete={handleDeleteNode}
+                    onDeleteMany={handleDeleteMany}
+                    onDuplicateMany={handleDuplicateMany}
+                    onDeleteEdge={handleDeleteEdge}
+                    onDeleteManyEdges={handleDeleteManyEdges}
+                    onEdgeLabelChange={handleEdgeLabelChange}
+                    onClearEdgeLabel={handleClearEdgeLabel}
+                    onBatchEdgeLabelChange={setBatchEdgeLabel}
+                    onApplyBatchEdgeLabel={handleApplyBatchEdgeLabel}
+                    onApplyBatchEdgeLabelValue={handleApplyBatchEdgeLabelValue}
+                    onClearBatchEdgeLabels={handleClearBatchEdgeLabels}
+                    onBatchCategoryChange={setBatchCategory}
+                    onBatchTagsChange={setBatchTagsText}
+                    onApplyBatchCategory={handleApplyBatchCategory}
+                    onApplyBatchTags={handleApplyBatchTags}
+                    onClearBatchCategory={handleClearBatchCategory}
+                    onClearBatchTags={handleClearBatchTags}
+                    onApplyLayout={handleApplyLayout}
+                    onCreateGroup={handleCreateGroup}
+                    onGroupLabelChange={handleGroupLabelChange}
+                    onUngroup={handleUngroup}
+                    onSelectGroup={handleSelectGroup}
+                    onToggleGroupCollapse={() => activeGroupId && handleToggleGroupCollapse(activeGroupId)}
+                    onClearSelection={clearSelection}
+                  />
+                ) : (
+                  <AnalysisSidebar
+                    snapshot={snapshot}
+                    selectedNodeIds={selectedNodeIds}
+                    onInsertInsight={handleInsertInsight}
+                  />
+                )}
+              </div>
+            </aside>
           </div>
-          <AnalysisSidebar
-            snapshot={snapshot}
-            selectedNodeIds={selectedNodeIds}
-            onInsertInsight={handleInsertInsight}
-          />
         </section>
       </main>
     </div>

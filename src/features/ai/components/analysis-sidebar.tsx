@@ -1,4 +1,4 @@
-import { Loader2, Plus, Sparkles, X } from 'lucide-react'
+import { Loader2, Plus, Sparkles } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { WorkspaceSnapshot } from '../../../types/workspace'
 import {
@@ -14,7 +14,6 @@ type AnalysisSidebarProps = {
 }
 
 export function AnalysisSidebar({ snapshot, selectedNodeIds, onInsertInsight }: AnalysisSidebarProps) {
-  const [isOpen, setIsOpen] = useState(false)
   const [scope, setScope] = useState<AnalysisScope>('canvas')
   const [question, setQuestion] = useState('')
   const [result, setResult] = useState<AnalysisResult | null>(null)
@@ -58,21 +57,8 @@ export function AnalysisSidebar({ snapshot, selectedNodeIds, onInsertInsight }: 
     onInsertInsight(result)
   }
 
-  if (!isOpen) {
-    return (
-      <button
-        type="button"
-        aria-label="打开 AI 分析"
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-5 right-5 z-50 inline-flex h-12 w-12 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--panel)] text-[var(--text-primary)] shadow-[var(--shadow-md)] transition-transform hover:scale-105 hover:bg-[var(--panel-elevated)]"
-      >
-        <Sparkles className="h-5 w-5" />
-      </button>
-    )
-  }
-
   return (
-    <aside className="fixed bottom-5 right-5 z-50 flex max-h-[calc(100vh-40px)] w-[320px] flex-col rounded-[22px] border border-[var(--border)] bg-[var(--panel)] p-4 shadow-[var(--shadow-md)]">
+    <div className="flex min-h-0 flex-1 flex-col">
       <div className="mb-4 flex items-center gap-2">
         <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[var(--panel-elevated)] text-[var(--text-secondary)]">
           <Sparkles className="h-4 w-4" />
@@ -81,14 +67,6 @@ export function AnalysisSidebar({ snapshot, selectedNodeIds, onInsertInsight }: 
           <div className="text-sm font-semibold text-[var(--text-primary)]">AI 分析</div>
           <div className="text-xs text-[var(--text-secondary)]">把素材整理成洞察卡片</div>
         </div>
-        <button
-          type="button"
-          aria-label="收起 AI 分析"
-          onClick={() => setIsOpen(false)}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--background)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-        >
-          <X className="h-4 w-4" />
-        </button>
       </div>
 
       <div className="mb-4 grid grid-cols-2 gap-2 rounded-full border border-[var(--border)] bg-[var(--background)] p-1">
@@ -174,6 +152,6 @@ export function AnalysisSidebar({ snapshot, selectedNodeIds, onInsertInsight }: 
           分析结果会先在这里预览，再插入为画布节点。
         </div>
       )}
-    </aside>
+    </div>
   )
 }

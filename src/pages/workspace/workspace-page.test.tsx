@@ -394,8 +394,8 @@ describe('WorkspacePage', () => {
 
     await waitFor(() => expect(screen.getByText('Undo Test Project')).toBeTruthy())
     fireEvent.click(screen.getByRole('button', { name: 'Select First Two Nodes' }))
+    fireEvent.click(screen.getByRole('button', { name: 'AI 分析' }))
     await waitFor(() => expect(screen.getByText('AI Selected Nodes: 2')).toBeTruthy())
-    fireEvent.click(screen.getByRole('button', { name: '打开 AI 分析' }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Trigger Insert Insight' }))
 
