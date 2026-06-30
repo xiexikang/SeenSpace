@@ -45,10 +45,50 @@ http://localhost:7788
 
 Vite 配置中启用了 `host: 0.0.0.0`、`port: 7788` 和 `strictPort: true`。如果端口被占用，需要先释放端口或修改 `vite.config.ts`。
 
+### AI 分析服务
+
+AI 分析侧栏会优先请求本地代理服务 `/api/ai/analyze`，代理服务再调用 OpenAI-compatible Chat Completions 接口。请不要把模型 API Key 放进 Vite 前端环境变量。
+
+新开一个终端启动代理服务：
+
+```bash
+LLM_API_KEY=你的 API Key LLM_MODEL=gpt-4o-mini pnpm dev:ai
+```
+
+Windows PowerShell 可以用当前终端环境变量：
+
+```powershell
+$env:LLM_API_KEY="你的 API Key"
+$env:LLM_MODEL="gpt-4o-mini"
+pnpm dev:ai
+```
+
+也可以在项目根目录创建 `.env.local`：
+
+```text
+LLM_API_KEY=你的 API Key
+LLM_BASE_URL=https://api.deepseek.com/v1
+LLM_MODEL=deepseek-chat
+```
+
+修改配置后需要重启 `pnpm dev:ai`。
+
+可选配置：
+
+```text
+AI_SERVER_PORT=8787
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_MODEL=gpt-4o-mini
+AI_CORS_ORIGIN=http://localhost:7788
+```
+
+如果代理服务未启动或模型请求失败，前端会自动降级为本地启发式洞察，保证画布功能仍可使用。
+
 ## 常用命令
 
 ```bash
 pnpm dev      # 启动开发服务器
+pnpm dev:ai   # 启动 AI 分析代理服务
 pnpm build    # 类型检查并构建生产包
 pnpm preview  # 预览构建产物
 pnpm test     # 运行测试

@@ -18,7 +18,7 @@ export function AnalysisSidebar({ snapshot, selectedNodeIds, onInsertInsight }: 
   const [scope, setScope] = useState<AnalysisScope>('canvas')
   const [question, setQuestion] = useState('')
   const [result, setResult] = useState<AnalysisResult | null>(null)
-  const [status, setStatus] = useState<'idle' | 'analyzing' | 'ready'>('idle')
+  const [status, setStatus] = useState<'idle' | 'analyzing' | 'ready' | 'error'>('idle')
   const selectedCount = selectedNodeIds.length
   const sourceCount = scope === 'selection' ? selectedCount : snapshot.nodes.length
   const canAnalyze = scope === 'canvas' ? snapshot.nodes.length > 0 : selectedCount > 0
@@ -39,14 +39,18 @@ export function AnalysisSidebar({ snapshot, selectedNodeIds, onInsertInsight }: 
     if (!canAnalyze) return
 
     setStatus('analyzing')
-    const nextResult = await analyzeWorkspaceSnapshot({
-      snapshot,
-      selectedNodeIds,
-      scope,
-      question,
-    })
-    setResult(nextResult)
-    setStatus('ready')
+    try {
+      const nextResult = await analyzeWorkspaceSnapshot({
+        snapshot,
+        selectedNodeIds,
+        scope,
+        question,
+      })
+      setResult(nextResult)
+      setStatus('ready')
+    } catch {
+      setStatus('error')
+    }
   }
 
   function handleInsert() {
@@ -130,14 +134,20 @@ export function AnalysisSidebar({ snapshot, selectedNodeIds, onInsertInsight }: 
         type="button"
         onClick={handleAnalyze}
         disabled={!canAnalyze || status === 'analyzing'}
-        className="mb-4 inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-[var(--text-primary)] px-4 text-sm font-medium text-[var(--background)] disabled:opacity-40"
+        className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-[var(--text-primary)] px-4 text-sm font-medium text-[var(--background)] disabled:opacity-40"
       >
         {status === 'analyzing' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
         {status === 'analyzing' ? '分析中...' : '开始分析'}
       </button>
 
+      {status === 'error' ? (
+        <div className="mt-3 rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs leading-5 text-[var(--text-secondary)]">
+          分析失败，请检查 AI 服务配置后重试。
+        </div>
+      ) : null}
+
       {result ? (
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-[18px] border border-[var(--border)] bg-[var(--background)] p-4">
+        <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-y-auto rounded-[18px] border border-[var(--border)] bg-[var(--background)] p-4">
           <div className="mb-2 text-sm font-semibold text-[var(--text-primary)]">{result.title}</div>
           <p className="mb-3 text-sm leading-6 text-[var(--text-secondary)]">{result.summary}</p>
           <div className="mb-4 flex flex-wrap gap-2">
@@ -160,7 +170,7 @@ export function AnalysisSidebar({ snapshot, selectedNodeIds, onInsertInsight }: 
           </button>
         </div>
       ) : (
-        <div className="flex min-h-[140px] items-center justify-center rounded-[18px] border border-dashed border-[var(--border)] bg-[var(--background)] p-4 text-center text-sm leading-6 text-[var(--text-secondary)]">
+        <div className="mt-4 flex min-h-[140px] items-center justify-center rounded-[18px] border border-dashed border-[var(--border)] bg-[var(--background)] p-4 text-center text-sm leading-6 text-[var(--text-secondary)]">
           分析结果会先在这里预览，再插入为画布节点。
         </div>
       )}

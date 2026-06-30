@@ -1,4 +1,5 @@
 import type { WorkspaceNode, WorkspaceSnapshot } from '../../../types/workspace'
+import { buildAnalysisRequestPayload } from './analysis-payload'
 
 export type AnalysisScope = 'canvas' | 'selection'
 
@@ -46,7 +47,7 @@ function getKeywordCandidates(nodes: WorkspaceNode[]) {
   return Array.from(words).slice(0, 6)
 }
 
-export async function analyzeWorkspaceSnapshot({
+function buildLocalAnalysisResult({
   snapshot,
   selectedNodeIds,
   scope,
@@ -56,7 +57,7 @@ export async function analyzeWorkspaceSnapshot({
   selectedNodeIds: string[]
   scope: AnalysisScope
   question: string
-}): Promise<AnalysisResult> {
+}): AnalysisResult {
   const selectedSet = new Set(selectedNodeIds)
   const sourceNodes =
     scope === 'selection' && selectedNodeIds.length > 0
@@ -91,5 +92,82 @@ export async function analyzeWorkspaceSnapshot({
     scope,
     sourceNodeIds,
     question: trimmedQuestion || undefined,
+  }
+}
+
+function isAnalysisResult(value: unknown): value is AnalysisResult {
+  const result = value as Partial<AnalysisResult>
+  return (
+    typeof result?.title === 'string' &&
+    typeof result.summary === 'string' &&
+    Array.isArray(result.keywords) &&
+    (result.scope === 'canvas' || result.scope === 'selection') &&
+    Array.isArray(result.sourceNodeIds)
+  )
+}
+
+async function analyzeWorkspaceSnapshotRemotely({
+  snapshot,
+  selectedNodeIds,
+  scope,
+  question,
+}: {
+  snapshot: WorkspaceSnapshot
+  selectedNodeIds: string[]
+  scope: AnalysisScope
+  question: string
+}): Promise<AnalysisResult> {
+  const response = await fetch('/api/ai/analyze', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(
+      buildAnalysisRequestPayload({
+        snapshot,
+        selectedNodeIds,
+        scope,
+        question,
+      }),
+    ),
+  })
+
+  if (!response.ok) {
+    throw new Error('AI analysis request failed.')
+  }
+
+  const result: unknown = await response.json()
+  if (!isAnalysisResult(result)) {
+    throw new Error('AI analysis response was invalid.')
+  }
+
+  return result
+}
+
+export async function analyzeWorkspaceSnapshot({
+  snapshot,
+  selectedNodeIds,
+  scope,
+  question,
+}: {
+  snapshot: WorkspaceSnapshot
+  selectedNodeIds: string[]
+  scope: AnalysisScope
+  question: string
+}): Promise<AnalysisResult> {
+  try {
+    return await analyzeWorkspaceSnapshotRemotely({
+      snapshot,
+      selectedNodeIds,
+      scope,
+      question,
+    })
+  } catch {
+    return buildLocalAnalysisResult({
+      snapshot,
+      selectedNodeIds,
+      scope,
+      question,
+    })
   }
 }
