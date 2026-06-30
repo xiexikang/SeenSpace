@@ -4,6 +4,8 @@ import { Link, useParams } from 'react-router-dom'
 import { LibrarySidebar } from '../../components/shared/library-sidebar'
 import { TopToolbar } from '../../components/shared/top-toolbar'
 import { WorkspaceInspector } from '../../components/workspace/workspace-inspector'
+import { AnalysisSidebar } from '../../features/ai/components/analysis-sidebar'
+import type { AnalysisResult } from '../../features/ai/services/analysis-service'
 import { CanvasStage } from '../../features/canvas/components/canvas-stage'
 import { getProjectById, updateProjectCanvas } from '../../features/project/services/project-service'
 import {
@@ -61,6 +63,20 @@ function nextGroupLabel(nodes: WorkspaceNode[]) {
 
 function getGroupNodeIds(nodes: WorkspaceNode[], groupId: string) {
   return nodes.filter((node) => node.data.groupId === groupId).map((node) => node.id)
+}
+
+function getInsightNodePosition(nodes: WorkspaceNode[], sourceNodeIds: string[]) {
+  const sourceIdSet = new Set(sourceNodeIds)
+  const sourceNodes = nodes.filter((node) => sourceIdSet.has(node.id))
+
+  if (sourceNodes.length === 0) {
+    return { x: 160 + nodes.length * 24, y: 160 }
+  }
+
+  return {
+    x: Math.max(...sourceNodes.map((node) => node.position.x)) + 340,
+    y: Math.min(...sourceNodes.map((node) => node.position.y)),
+  }
 }
 
 export function WorkspacePage() {
@@ -572,6 +588,45 @@ export function WorkspacePage() {
     showActionMessage('标签已清空')
   }
 
+  function handleInsertInsight(result: AnalysisResult) {
+    const nodeId = randomId()
+    const position = getInsightNodePosition(snapshot.nodes, result.sourceNodeIds)
+    const sourceNodeIdSet = new Set(result.sourceNodeIds)
+    const sourceNodes = snapshot.nodes.filter((node) => sourceNodeIdSet.has(node.id))
+    const insightNode: WorkspaceNode = {
+      id: nodeId,
+      type: 'ai_insight',
+      position,
+      data: {
+        title: result.title,
+        description: result.summary,
+        meta: 'AI 洞察',
+        summary: result.summary,
+        keywords: result.keywords,
+        sourceNodeIds: result.sourceNodeIds,
+        scope: result.scope,
+        question: result.question,
+      },
+    }
+    const insightEdges: WorkspaceEdge[] = sourceNodes.slice(0, 4).map((node) => ({
+      id: randomId(),
+      source: node.id,
+      target: nodeId,
+      label: '提炼为',
+      animated: false,
+    }))
+    const nextSnapshot: WorkspaceSnapshot = {
+      ...snapshot,
+      nodes: [...snapshot.nodes, insightNode],
+      edges: [...snapshot.edges, ...insightEdges],
+    }
+
+    setSelectedNodeIds([nodeId])
+    setSelectedEdgeIds([])
+    void persistSnapshot(nextSnapshot)
+    showActionMessage('AI 洞察已添加到画布')
+  }
+
   useEffect(() => {
     return () => {
       if (actionMessageTimeoutRef.current) {
@@ -828,6 +883,11 @@ export function WorkspacePage() {
               onClearSelection={clearSelection}
             />
           </div>
+          <AnalysisSidebar
+            snapshot={snapshot}
+            selectedNodeIds={selectedNodeIds}
+            onInsertInsight={handleInsertInsight}
+          />
         </section>
       </main>
     </div>

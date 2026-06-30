@@ -99,6 +99,48 @@ vi.mock('../../components/workspace/workspace-inspector', () => ({
   ),
 }))
 
+vi.mock('../../features/ai/components/analysis-sidebar', () => ({
+  AnalysisSidebar: ({
+    snapshot,
+    selectedNodeIds,
+    onInsertInsight,
+  }: {
+    snapshot: WorkspaceSnapshot
+    selectedNodeIds: string[]
+    onInsertInsight: (result: {
+      title: string
+      summary: string
+      keywords: string[]
+      scope: 'canvas' | 'selection'
+      sourceNodeIds: string[]
+      question?: string
+    }) => void
+  }) => (
+    <div data-testid="analysis-sidebar">
+      <button type="button">打开 AI 分析</button>
+      <div>AI Selected Nodes: {selectedNodeIds.length}</div>
+      <button
+        type="button"
+        onClick={() =>
+          onInsertInsight({
+            title: '选中内容洞察',
+            summary: '这是一条测试洞察。',
+            keywords: ['测试', '洞察'],
+            scope: selectedNodeIds.length > 0 ? 'selection' : 'canvas',
+            sourceNodeIds:
+              selectedNodeIds.length > 0
+                ? selectedNodeIds
+                : snapshot.nodes.slice(0, 2).map((node) => node.id),
+            question: '测试问题',
+          })
+        }
+      >
+        Trigger Insert Insight
+      </button>
+    </div>
+  ),
+}))
+
 vi.mock('../../features/project/services/project-service', () => ({
   getProjectById: (...args: unknown[]) => getProjectByIdMock(...args),
   updateProjectCanvas: (...args: unknown[]) => updateProjectCanvasMock(...args),
@@ -337,6 +379,39 @@ describe('WorkspacePage', () => {
     await waitFor(() => {
       const snapshot = updateProjectCanvasMock.mock.calls.at(-1)?.[1] as WorkspaceSnapshot
       expect(snapshot.edges.map((edge) => edge.label)).toEqual(['supports', 'supports'])
+    })
+  })
+
+  it('inserts an AI insight node and links it to source nodes', async () => {
+    loadProject(
+      createSnapshot([
+        createNode({ id: 'source-1', data: { title: 'Source 1' } }),
+        createNode({ id: 'source-2', position: { x: 240, y: 0 }, data: { title: 'Source 2' } }),
+      ]),
+    )
+
+    render(<WorkspacePage />)
+
+    await waitFor(() => expect(screen.getByText('Undo Test Project')).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Select First Two Nodes' }))
+    await waitFor(() => expect(screen.getByText('AI Selected Nodes: 2')).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: '打开 AI 分析' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Trigger Insert Insight' }))
+
+    await waitFor(() => {
+      const snapshot = updateProjectCanvasMock.mock.calls.at(-1)?.[1] as WorkspaceSnapshot
+      const insightNode = snapshot.nodes.find((node) => node.type === 'ai_insight')
+
+      expect(snapshot.nodes).toHaveLength(3)
+      expect(insightNode?.data.title).toBe('选中内容洞察')
+      expect(insightNode?.data.summary).toBe('这是一条测试洞察。')
+      expect(insightNode?.data.sourceNodeIds).toEqual(['source-1', 'source-2'])
+      expect(snapshot.edges).toHaveLength(2)
+      expect(snapshot.edges.map((edge) => [edge.source, edge.target, edge.label])).toEqual([
+        ['source-1', insightNode?.id, '提炼为'],
+        ['source-2', insightNode?.id, '提炼为'],
+      ])
     })
   })
 })

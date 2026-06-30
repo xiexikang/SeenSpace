@@ -40,6 +40,7 @@ const nodeTypeLabels: Record<WorkspaceNode['type'], string> = {
   web: '网页',
   image: '图片',
   tag_meta: '标签',
+  ai_insight: 'AI 洞察',
 }
 
 type WorkspaceInspectorProps = {
@@ -150,6 +151,43 @@ function renderTypeFields(
             className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none"
           />
         </label>
+      </>
+    )
+  }
+
+  if (node.type === 'ai_insight') {
+    return (
+      <>
+        <label className="mb-4 block">
+          <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">摘要</div>
+          <textarea
+            value={node.data.summary ?? ''}
+            onChange={(event) => onChange({ summary: event.target.value })}
+            rows={5}
+            className="w-full resize-none rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm leading-6 text-[var(--text-primary)] outline-none"
+          />
+        </label>
+        <label className="mb-4 block">
+          <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">关键词</div>
+          <textarea
+            value={(node.data.keywords ?? []).join(', ')}
+            onChange={(event) =>
+              onChange({
+                keywords: event.target.value
+                  .split(',')
+                  .map((value) => value.trim())
+                  .filter(Boolean),
+              })
+            }
+            rows={3}
+            className="w-full resize-none rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm leading-6 text-[var(--text-primary)] outline-none"
+          />
+        </label>
+        {node.data.question ? (
+          <div className="mb-4 rounded-[18px] border border-[var(--border)] bg-[var(--background)] p-3 text-xs leading-5 text-[var(--text-secondary)]">
+            追问：{node.data.question}
+          </div>
+        ) : null}
       </>
     )
   }

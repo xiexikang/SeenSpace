@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, type ReactNode } from 'react'
 import { Handle, Position } from '@xyflow/react'
-import { Globe, Image as ImageIcon, NotebookText, Tags } from 'lucide-react'
+import { Globe, Image as ImageIcon, NotebookText, Sparkles, Tags } from 'lucide-react'
 import type { CollapsedGroupSummary } from '../../../types/workspace'
 
 type NodeFrameProps = {
@@ -27,6 +27,7 @@ export function NodeFrame({
     image: ImageIcon,
     web: Globe,
     tag_meta: Tags,
+    ai_insight: Sparkles,
   } as const
   const isCollapsedGroupCard = Boolean(collapsedGroupSummary)
   const edgeFocusAccent =

@@ -8,6 +8,7 @@ const nodeTypeLabels: Record<WorkspaceNodeType, string> = {
   image: '图片',
   web: '网页',
   tag_meta: '标签 / 元信息',
+  ai_insight: 'AI 洞察',
 }
 
 export function getVisibleSelectedNodeIds(nodes: WorkspaceNode[], selectedNodeIds: string[]) {
@@ -264,6 +265,8 @@ export function buildRenderableNodes(snapshotNodes: WorkspaceNode[], selectedNod
                 ? node.data.domain ?? node.data.url
                 : 'category' in node.data
                   ? node.data.category
+                  : 'summary' in node.data
+                    ? node.data.summary
                   : undefined),
         }))
         .filter((item) => Boolean(item.title))
