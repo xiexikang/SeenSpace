@@ -4,10 +4,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.router import api_router
 from app.core.config import settings
 from app.core.database import Base, engine
+from app.core.migrations import migrate_existing_schema
 from app.services.seed_service import ensure_project_seed
 
 
 def create_app() -> FastAPI:
+    Base.metadata.create_all(bind=engine)
+    migrate_existing_schema()
     Base.metadata.create_all(bind=engine)
     ensure_project_seed()
 

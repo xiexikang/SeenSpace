@@ -4,7 +4,9 @@ from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
 from app.models.project import Project
+from app.models.user import User
 from app.schemas.workspace import create_empty_canvas
+from app.services.auth_service import hash_password, now_utc
 
 
 def parse_seed_time(value: str) -> datetime:
@@ -54,17 +56,42 @@ SEEDED_PROJECTS = [
     },
 ]
 
+DEMO_USER_ID = "demo-user"
+DEMO_USERNAME = "demo"
+
+
+def ensure_demo_user(db: Session) -> User:
+    user = db.get(User, DEMO_USER_ID)
+    if user:
+        return user
+
+    timestamp = now_utc()
+    user = User(
+        id=DEMO_USER_ID,
+        username=DEMO_USERNAME,
+        name="演示用户",
+        password_hash=hash_password("seenspace123"),
+        created_at=timestamp,
+        updated_at=timestamp,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
 
 def seed_projects(db: Session) -> None:
+    owner = ensure_demo_user(db)
     empty_canvas = create_empty_canvas().model_dump()
     for item in SEEDED_PROJECTS:
-        db.add(Project(**item, canvas_json=empty_canvas))
+        db.add(Project(**item, owner_id=owner.id, canvas_json=empty_canvas))
     db.commit()
 
 
 def ensure_project_seed() -> None:
     db = SessionLocal()
     try:
+        ensure_demo_user(db)
         if db.query(Project).count() == 0:
             seed_projects(db)
     finally:
