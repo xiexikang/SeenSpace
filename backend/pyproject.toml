@@ -1,0 +1,18 @@
+[project]
+name = "seenspace-backend"
+version = "0.1.0"
+description = "FastAPI backend for SeenSpace."
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.136.0",
+  "httpx>=0.28.0",
+  "pydantic>=2.12.0",
+  "pydantic-settings>=2.12.0",
+  "pymysql>=1.1.0",
+  "sqlalchemy>=2.0.0",
+  "uvicorn>=0.41.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

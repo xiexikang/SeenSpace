@@ -23,7 +23,7 @@ SeenSpace / 见间是一款以无限画布为核心、本地优先的灵感整�
 - Tailwind CSS 4
 - React Router 7
 - React Flow (`@xyflow/react`)
-- Dexie / IndexedDB
+- FastAPI / SQLAlchemy
 - next-themes
 - lucide-react
 - Vitest + Testing Library
@@ -45,25 +45,29 @@ http://localhost:7788
 
 Vite 配置中启用了 `host: 0.0.0.0`、`port: 7788` 和 `strictPort: true`。如果端口被占用，需要先释放端口或修改 `vite.config.ts`。
 
-### AI 分析服务
+### Python 后端
 
-AI 分析侧栏会优先请求本地代理服务 `/api/ai/analyze`，代理服务再调用 OpenAI-compatible Chat Completions 接口。请不要把模型 API Key 放进 Vite 前端环境变量。
-
-新开一个终端启动代理服务：
+项目数据与 AI 分析接口由 FastAPI 后端提供。开发时新开一个终端启动后端：
 
 ```bash
-LLM_API_KEY=你的 API Key LLM_MODEL=gpt-4o-mini pnpm dev:ai
+python -m uvicorn app.main:app --app-dir backend --reload --port 8787
 ```
+
+前端通过 Vite proxy 将 `/api` 请求转发到 `http://127.0.0.1:8787`。
+
+### AI 分析服务
+
+AI 分析侧栏会请求 Python 后端的 `/api/ai/analyze`，后端再调用 OpenAI-compatible Chat Completions 接口。请不要把模型 API Key 放进 Vite 前端环境变量。
 
 Windows PowerShell 可以用当前终端环境变量：
 
 ```powershell
 $env:LLM_API_KEY="你的 API Key"
 $env:LLM_MODEL="gpt-4o-mini"
-pnpm dev:ai
+python -m uvicorn app.main:app --app-dir backend --reload --port 8787
 ```
 
-也可以在项目根目录创建 `.env.local`：
+也可以在项目根目录或 `backend/` 目录创建 `.env.local`：
 
 ```text
 LLM_API_KEY=你的 API Key
@@ -71,28 +75,45 @@ LLM_BASE_URL=https://api.deepseek.com/v1
 LLM_MODEL=deepseek-chat
 ```
 
-修改配置后需要重启 `pnpm dev:ai`。
+修改配置后需要重启 Python 后端。
 
 可选配置：
 
 ```text
-AI_SERVER_PORT=8787
+DATABASE_URL=mysql+pymysql://seenspace:seenspace@127.0.0.1:3306/seenspace?charset=utf8mb4
+CORS_ORIGINS=["http://localhost:7788","http://127.0.0.1:7788"]
+LLM_API_KEY=你的 API Key
 LLM_BASE_URL=https://api.openai.com/v1
 LLM_MODEL=gpt-4o-mini
-AI_CORS_ORIGIN=http://localhost:7788
+LLM_TIMEOUT_SECONDS=45
 ```
 
-如果代理服务未启动或模型请求失败，前端会自动降级为本地启发式洞察，保证画布功能仍可使用。
+如果 Python 后端或模型请求失败，前端 AI 分析会自动降级为本地启发式洞察，保证画布功能仍可使用。
+
+MySQL 需要先创建数据库和用户，示例：
+
+```sql
+CREATE DATABASE seenspace CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'seenspace'@'localhost' IDENTIFIED BY 'seenspace';
+GRANT ALL PRIVILEGES ON seenspace.* TO 'seenspace'@'localhost';
+FLUSH PRIVILEGES;
+```
 
 ## 常用命令
 
 ```bash
-pnpm dev      # 启动开发服务器
-pnpm dev:ai   # 启动 AI 分析代理服务
-pnpm build    # 类型检查并构建生产包
-pnpm preview  # 预览构建产物
-pnpm test     # 运行测试
-pnpm lint     # 运行 ESLint
+pnpm dev       # 启动前端开发服务器
+pnpm dev:backend  # 启动 Python 后端
+pnpm dev:full  # 同时启动前端和 Python 后端
+pnpm build     # 类型检查并构建生产包
+pnpm preview   # 预览构建产物
+pnpm test      # 运行前端测试
+pnpm lint      # 运行 ESLint
+```
+
+```bash
+python -m uvicorn app.main:app --app-dir backend --reload --port 8787  # 启动后端
+python -m pytest backend/tests                                         # 运行后端测试
 ```
 
 ## 项目结构
@@ -101,7 +122,7 @@ pnpm lint     # 运行 ESLint
 src/
   app/          应用 Provider 与路由
   components/   跨页面共享组件与工作区检查器
-  db/           Dexie / IndexedDB 客户端
+  db/           旧 IndexedDB 客户端，迁移后不再作为主存储
   features/     项目、画布、节点、AI、工作区领域模块
   hooks/        React hooks
   lib/          通用工具函数
@@ -109,6 +130,9 @@ src/
   shared/       与业务无关的共享工具
   styles/       全局样式与主题变量
   types/        跨模块领域类型
+backend/
+  app/          FastAPI 应用、路由、schema、服务和数据库模型
+  tests/        后端接口测试
 ```
 
 更完整的代码结构、关键类型、模块职责和数据流说明见 [CODE_WIKI.md](./CODE_WIKI.md)。
@@ -132,16 +156,17 @@ type WorkspaceSnapshot = {
 }
 ```
 
-项目数据通过 `src/features/project/services/project-service.ts` 读写 Dexie。工作区页面在画布变更后清洗快照、写入历史栈，并调用 `updateProjectCanvas()` 持久化。
+项目数据通过 `src/features/project/services/project-service.ts` 请求 Python 后端。工作区页面在画布变更后清洗快照、写入历史栈，并调用 `updateProjectCanvas()` 持久化到后端数据库。
 
 ## 测试
 
-当前测试基于 Vitest，覆盖随机 ID、工作区服务、画布服务、画布组件和工作区页面等模块。
+当前前端测试基于 Vitest，覆盖随机 ID、工作区服务、画布服务、画布组件和工作区页面等模块。后端测试基于 pytest，覆盖健康检查、项目 API 和 AI 分析 API。
 
 运行：
 
 ```bash
 pnpm test
+python -m pytest backend/tests
 ```
 
 ## 开发文档
@@ -152,4 +177,4 @@ pnpm test
 
 ## 当前说明
 
-AI 分析模块已经接入真实大模型 API，但采用“前端 -> 本地代理服务 -> OpenAI-compatible 模型接口”的方式，避免把密钥暴露到浏览器。当前前端仍保留本地启发式回退逻辑，用于代理服务未启动、网络失败或模型返回异常时的兜底。
+AI 分析模块已经接入真实大模型 API，但采用“前端 -> Python 后端 -> OpenAI-compatible 模型接口”的方式，避免把密钥暴露到浏览器。当前前端仍保留本地启发式回退逻辑，用于后端未启动、网络失败或模型返回异常时的兜底。

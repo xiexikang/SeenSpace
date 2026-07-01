@@ -33,3 +33,9 @@ coverage
 CODE_WIKI.md
 DEVELOPMENT-CHECKLIST.md
 SeenSpace-PRD.md
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+backend/*.db
