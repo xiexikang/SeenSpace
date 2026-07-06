@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.schemas.workspace import WorkspaceSnapshot
 
@@ -19,3 +19,8 @@ class ProjectRecord(BaseModel):
 
 class UpdateProjectCanvasRequest(BaseModel):
     canvas: WorkspaceSnapshot
+
+
+class ProjectMetadataRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=160)
+    summary: str = Field(min_length=1, max_length=500)

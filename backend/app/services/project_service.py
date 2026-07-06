@@ -33,6 +33,11 @@ def to_project_record(project: Project) -> ProjectRecord:
     )
 
 
+def make_initials(name: str) -> str:
+    text = name.strip()
+    return text[:2] if text else "新"
+
+
 def list_projects(db: Session, owner_id: str) -> list[ProjectRecord]:
     projects = db.scalars(
         select(Project).where(Project.owner_id == owner_id).order_by(Project.updated_at.desc())
@@ -45,21 +50,44 @@ def get_project(db: Session, owner_id: str, project_id: str) -> ProjectRecord | 
     return to_project_record(project) if project else None
 
 
-def create_project(db: Session, owner_id: str) -> ProjectRecord:
+def create_project(db: Session, owner_id: str, name: str, summary: str) -> ProjectRecord:
     timestamp = now_utc()
+    normalized_name = name.strip()
+    normalized_summary = summary.strip()
     project = Project(
         id=uuid4().hex,
         owner_id=owner_id,
-        name="未命名项目",
-        summary="用于链接、图片、笔记和 AI 洞察的新画布。",
+        name=normalized_name,
+        summary=normalized_summary,
         created_at=timestamp,
         updated_at=timestamp,
         node_count=0,
-        initials="新",
+        initials=make_initials(normalized_name),
         thumbnail_variant="mist",
         canvas_json=create_empty_canvas().model_dump(),
     )
     db.add(project)
+    db.commit()
+    db.refresh(project)
+    return to_project_record(project)
+
+
+def update_project_metadata(
+    db: Session,
+    owner_id: str,
+    project_id: str,
+    name: str,
+    summary: str,
+) -> ProjectRecord | None:
+    project = db.scalar(select(Project).where(Project.id == project_id, Project.owner_id == owner_id))
+    if project is None:
+        return None
+
+    normalized_name = name.strip()
+    project.name = normalized_name
+    project.summary = summary.strip()
+    project.initials = make_initials(normalized_name)
+    project.updated_at = now_utc()
     db.commit()
     db.refresh(project)
     return to_project_record(project)
@@ -81,3 +109,13 @@ def update_project_canvas(
     db.commit()
     db.refresh(project)
     return to_project_record(project)
+
+
+def delete_project(db: Session, owner_id: str, project_id: str) -> bool:
+    project = db.scalar(select(Project).where(Project.id == project_id, Project.owner_id == owner_id))
+    if project is None:
+        return False
+
+    db.delete(project)
+    db.commit()
+    return True

@@ -34,11 +34,25 @@ def test_list_projects_returns_seeded_projects() -> None:
 
 def test_create_and_update_project_canvas() -> None:
     headers = auth_headers()
-    created = client.post("/api/projects", headers=headers)
+    created = client.post(
+        "/api/projects",
+        json={"name": "后端保存目录", "summary": "用于测试新增目录表单。"},
+        headers=headers,
+    )
 
     assert created.status_code == 200
     project = created.json()
     project_id = project["id"]
+    assert project["name"] == "后端保存目录"
+
+    renamed = client.patch(
+        f"/api/projects/{project_id}",
+        json={"name": "重命名目录", "summary": "用于测试修改目录表单。"},
+        headers=headers,
+    )
+    assert renamed.status_code == 200
+    assert renamed.json()["name"] == "重命名目录"
+    assert renamed.json()["summary"] == "用于测试修改目录表单。"
 
     canvas = {
         "nodes": [
@@ -62,3 +76,22 @@ def test_create_and_update_project_canvas() -> None:
     fetched = client.get(f"/api/projects/{project_id}", headers=headers)
     assert fetched.status_code == 200
     assert fetched.json()["canvas"]["nodes"][0]["data"]["title"] == "后端保存测试"
+
+
+def test_delete_project() -> None:
+    headers = auth_headers()
+    created = client.post(
+        "/api/projects",
+        json={"name": "待删除目录", "summary": "用于测试删除目录接口。"},
+        headers=headers,
+    )
+
+    assert created.status_code == 200
+    project_id = created.json()["id"]
+
+    deleted = client.delete(f"/api/projects/{project_id}", headers=headers)
+    assert deleted.status_code == 204
+    assert deleted.text == ""
+
+    fetched = client.get(f"/api/projects/{project_id}", headers=headers)
+    assert fetched.status_code == 404

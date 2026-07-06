@@ -32,6 +32,15 @@ async function request<T>(path: string, init?: Omit<RequestInit, 'body'> & Reque
     throw new Error(`API request failed: ${response.status}`)
   }
 
+  if (response.status === 204) {
+    return undefined as T
+  }
+
+  const contentType = response.headers.get('content-type') ?? ''
+  if (!contentType.includes('application/json')) {
+    return undefined as T
+  }
+
   return response.json() as Promise<T>
 }
 
@@ -45,4 +54,8 @@ export function apiPost<T>(path: string, body?: unknown) {
 
 export function apiPatch<T>(path: string, body: unknown) {
   return request<T>(path, { method: 'PATCH', body })
+}
+
+export function apiDelete(path: string) {
+  return request<void>(path, { method: 'DELETE' })
 }

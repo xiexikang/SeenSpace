@@ -1,10 +1,15 @@
-import { apiGet, apiPatch, apiPost } from '../../../lib/api-client'
+import { apiDelete, apiGet, apiPatch, apiPost } from '../../../lib/api-client'
 import type { ProjectRecord } from '../../../types/project'
 import type { WorkspaceSnapshot } from '../../../types/workspace'
 
 let healthRequest: Promise<unknown> | undefined
 let projectsRequest: Promise<ProjectRecord[]> | undefined
 const projectByIdRequests = new Map<string, Promise<ProjectRecord | undefined>>()
+
+export type ProjectMetadataInput = {
+  name: string
+  summary: string
+}
 
 function dedupeRequest<T>(
   getCurrent: () => Promise<T> | undefined,
@@ -62,13 +67,24 @@ function invalidateProjectRequests(id?: string) {
   projectByIdRequests.clear()
 }
 
-export async function createProject() {
-  const project = await apiPost<ProjectRecord>('/api/projects')
+export async function createProject(input: ProjectMetadataInput) {
+  const project = await apiPost<ProjectRecord>('/api/projects', input)
   invalidateProjectRequests()
+  return project
+}
+
+export async function updateProjectMetadata(id: string, input: ProjectMetadataInput) {
+  const project = await apiPatch<ProjectRecord>(`/api/projects/${id}`, input)
+  invalidateProjectRequests(id)
   return project
 }
 
 export async function updateProjectCanvas(id: string, canvas: WorkspaceSnapshot) {
   await apiPatch<ProjectRecord>(`/api/projects/${id}/canvas`, { canvas })
+  invalidateProjectRequests(id)
+}
+
+export async function deleteProject(id: string) {
+  await apiDelete(`/api/projects/${id}`)
   invalidateProjectRequests(id)
 }

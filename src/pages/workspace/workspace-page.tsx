@@ -1,6 +1,6 @@
 import { ArrowLeft, Check, Copy, FolderInput, FolderOpen, Info, Layers3, Maximize2, Minimize2, Redo2, Sparkles, Trash2, Undo2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { LibrarySidebar } from '../../components/shared/library-sidebar'
 import { TopToolbar } from '../../components/shared/top-toolbar'
 import { WorkspaceInspector } from '../../components/workspace/workspace-inspector'
@@ -81,6 +81,8 @@ function getInsightNodePosition(nodes: WorkspaceNode[], sourceNodeIds: string[])
 }
 
 export function WorkspacePage() {
+  const navigate = useNavigate()
+  const location = useLocation()
   const { projectId } = useParams()
   const [projectName, setProjectName] = useState('未命名项目')
   const [snapshot, setSnapshot] = useState<WorkspaceSnapshot>(emptySnapshot)
@@ -112,6 +114,14 @@ export function WorkspacePage() {
 
     void loadProject()
   }, [projectId])
+
+  useEffect(() => {
+    const state = location.state as { actionMessage?: string } | null
+    if (!state?.actionMessage) return
+
+    showActionMessage(state.actionMessage)
+    navigate(location.pathname, { replace: true, state: null })
+  }, [location.pathname, location.state, navigate])
 
   const {
     selectedNodes,
