@@ -2,36 +2,54 @@
 
 :root {
   color-scheme: light;
-  --background: #fbfbfa;
-  --sidebar: #f5f5f3;
+  --background: #f3f4f6;
+  --background-elevated: #ffffff;
+  --sidebar: #fbfbfc;
   --panel: #ffffff;
-  --panel-elevated: #f3f3f0;
-  --canvas: #fffefd;
-  --card-accent: rgba(188, 198, 207, 0.42);
-  --border: rgba(17, 24, 39, 0.08);
-  --border-strong: rgba(17, 24, 39, 0.12);
-  --text-primary: #121826;
-  --text-secondary: #5c6372;
-  --text-muted: #8b93a1;
-  --canvas-dot: rgba(17, 24, 39, 0.1);
-  --shadow-sm: 0 10px 26px rgba(15, 23, 42, 0.05);
+  --panel-elevated: #f6f7f9;
+  --panel-soft: #f0f2f5;
+  --canvas: #fcfcfd;
+  --accent: #ff284b;
+  --accent-strong: #cd0023;
+  --accent-soft: rgba(255, 40, 75, 0.1);
+  --card-accent: rgba(255, 40, 75, 0.08);
+  --border: #e8eaec;
+  --border-strong: rgba(34, 37, 41, 0.16);
+  --text-primary: #222529;
+  --text-secondary: #7f8792;
+  --text-muted: #9da3ac;
+  --canvas-dot: rgba(34, 37, 41, 0.12);
+  --shadow-sm: 0 0 1px rgba(0, 0, 0, 0.08), 0 14px 34px rgba(17, 24, 39, 0.06);
+  --shadow-lg: 0 0 1px rgba(0, 0, 0, 0.1), 0 22px 60px rgba(17, 24, 39, 0.12);
+  --hero-glow:
+    radial-gradient(circle at top left, rgba(255, 40, 75, 0.08), transparent 34%),
+    radial-gradient(circle at top right, rgba(227, 255, 127, 0.2), transparent 22%);
 }
 
 .dark {
   color-scheme: dark;
-  --background: #17181b;
-  --sidebar: #1d1f23;
-  --panel: #22252a;
-  --panel-elevated: #2a2d33;
-  --canvas: #1a1c20;
-  --card-accent: rgba(141, 157, 175, 0.18);
+  --background: #16181c;
+  --background-elevated: #1d2025;
+  --sidebar: #1a1d22;
+  --panel: #20242a;
+  --panel-elevated: #262b31;
+  --panel-soft: #2b3138;
+  --canvas: #181b20;
+  --accent: #ff4a65;
+  --accent-strong: #ff284b;
+  --accent-soft: rgba(255, 74, 101, 0.16);
+  --card-accent: rgba(255, 74, 101, 0.12);
   --border: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.14);
   --text-primary: #f6f7f9;
   --text-secondary: #b3bac6;
   --text-muted: #7f8794;
   --canvas-dot: rgba(255, 255, 255, 0.12);
-  --shadow-sm: 0 14px 36px rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 0 1px rgba(255, 255, 255, 0.04), 0 20px 42px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 0 1px rgba(255, 255, 255, 0.06), 0 28px 70px rgba(0, 0, 0, 0.42);
+  --hero-glow:
+    radial-gradient(circle at top left, rgba(255, 74, 101, 0.16), transparent 34%),
+    radial-gradient(circle at top right, rgba(227, 255, 127, 0.08), transparent 22%);
 }
 
 * {
@@ -49,19 +67,42 @@ body {
   background: var(--background);
   color: var(--text-primary);
   font-family:
-    Inter,
+    "Alibaba Sans",
+    "PingFang SC",
+    "Microsoft YaHei",
     ui-sans-serif,
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
+  background-image: var(--hero-glow);
+  background-attachment: fixed;
 }
 
 button,
 input,
 textarea {
   font: inherit;
+}
+
+input,
+textarea,
+button {
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 button,
@@ -87,4 +128,8 @@ textarea {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+::selection {
+  background: var(--accent-soft);
 }

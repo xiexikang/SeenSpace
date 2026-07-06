@@ -11,9 +11,9 @@ export function CanvasEmptyState({ onAddNote }: CanvasEmptyStateProps) {
         <button
           type="button"
           onClick={onAddNote}
-          className="pointer-events-auto mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--panel)] shadow-[var(--shadow-sm)]"
+          className="pointer-events-auto mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-[16px] border border-[var(--border)] bg-[var(--panel)] shadow-[var(--shadow-sm)]"
         >
-          <Plus className="h-5 w-5 text-[var(--text-secondary)]" />
+          <Plus className="h-5 w-5 text-[var(--accent)]" />
         </button>
         <h2 className="mb-2 text-xl font-semibold text-[var(--text-primary)]">空白画布</h2>
         <p className="text-sm leading-6 text-[var(--text-secondary)]">

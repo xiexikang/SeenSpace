@@ -14,14 +14,14 @@ export function TagMetaNodeCard({ data, selected }: NodeProps<TagMetaNode>) {
     >
       <div className="space-y-3">
         <div>
-          <div className="text-sm font-semibold text-[var(--text-primary)]">{data.title}</div>
+          <div className="text-base font-semibold leading-6 text-[var(--text-primary)]">{data.title}</div>
           {data.description ? (
-            <p className="mt-2 text-sm leading-5 text-[var(--text-secondary)]">{data.description}</p>
+            <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{data.description}</p>
           ) : null}
         </div>
 
         {data.category ? (
-          <div className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
+          <div className="inline-flex rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--accent-strong)]">
             {data.category}
           </div>
         ) : null}

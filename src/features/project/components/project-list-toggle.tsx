@@ -9,7 +9,7 @@ type ProjectListToggleProps = {
 
 export function ProjectListToggle({ mode, onChange }: ProjectListToggleProps) {
   return (
-    <div className="grid grid-cols-2 gap-1 rounded-full border border-[var(--border)] bg-[var(--background)] p-1">
+    <div className="grid grid-cols-2 gap-1 rounded-full border border-[var(--border)] bg-[var(--panel)] p-1 shadow-[var(--shadow-sm)]">
       {[
         { id: 'grid' as const, label: '网格', icon: Grid2x2 },
         { id: 'list' as const, label: '列表', icon: List },
@@ -23,9 +23,9 @@ export function ProjectListToggle({ mode, onChange }: ProjectListToggleProps) {
             aria-pressed={mode === item.id}
             onClick={() => onChange(item.id)}
             className={cn(
-              'inline-flex h-8 min-w-[72px] items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors',
+              'inline-flex h-9 min-w-[78px] items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors',
               mode === item.id
-                ? 'bg-[var(--panel-elevated)] text-[var(--text-primary)] shadow-[var(--shadow-sm)]'
+                ? 'bg-[var(--panel-elevated)] text-[var(--text-primary)]'
                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
             )}
           >

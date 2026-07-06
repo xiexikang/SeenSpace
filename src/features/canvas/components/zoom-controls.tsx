@@ -18,13 +18,13 @@ export function ZoomControls({
   onToggleSnap,
 }: ZoomControlsProps) {
   return (
-    <div className="absolute bottom-5 right-5 flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-3 py-2 shadow-[var(--shadow-sm)]">
+    <div className="absolute bottom-5 right-5 flex items-center gap-2 rounded-full border border-[var(--border)] bg-[color:color-mix(in_srgb,var(--panel)_92%,white_8%)] px-3 py-2 shadow-[var(--shadow-sm)] backdrop-blur-sm">
       <button
         type="button"
         onClick={onToggleSnap}
         className={`inline-flex h-8 items-center justify-center rounded-full px-2 text-xs font-medium transition-colors ${
           snapEnabled
-            ? 'bg-[var(--panel-elevated)] text-[var(--text-primary)]'
+            ? 'bg-[var(--accent)] text-white'
             : 'text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)] hover:text-[var(--text-primary)]'
         }`}
       >

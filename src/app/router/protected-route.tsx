@@ -13,10 +13,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   )
 
   useEffect(() => {
-    if (!getAuthToken()) {
-      setState('guest')
-      return
-    }
+    if (!getAuthToken()) return
 
     let isActive = true
     getCurrentUser()

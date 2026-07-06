@@ -12,13 +12,21 @@ export function NoteNodeCard({ data, selected }: NodeProps<NoteNode>) {
       groupLabel={data.groupCollapsed ? data.groupLabel : undefined}
       collapsedGroupSummary={data.groupCollapsed ? data.collapsedGroupSummary : undefined}
     >
-      <div className="space-y-2">
-        <div className="text-sm font-semibold text-[var(--text-primary)]">{data.title}</div>
+      <div className="space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-base font-semibold leading-6 text-[var(--text-primary)]">{data.title}</div>
+            <div className="mt-1 text-[11px] uppercase tracking-[0.12em] text-[var(--text-muted)]">Note entry</div>
+          </div>
+          <span className="shrink-0 rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-[11px] font-medium text-[var(--accent-strong)]">
+            文本
+          </span>
+        </div>
         {data.description ? (
-          <p className="text-sm leading-5 text-[var(--text-secondary)]">{data.description}</p>
+          <p className="text-sm leading-6 text-[var(--text-secondary)]">{data.description}</p>
         ) : null}
         {data.body ? (
-          <div className="rounded-2xl bg-[var(--panel-elevated)] px-3 py-2.5 text-sm leading-6 text-[var(--text-primary)]">
+          <div className="rounded-[18px] border border-[var(--border)] bg-[var(--panel-elevated)] px-3 py-3 text-sm leading-6 text-[var(--text-primary)]">
             {data.body}
           </div>
         ) : null}

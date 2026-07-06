@@ -67,39 +67,42 @@ export function NodeFrame({
 
       <div
         ref={frameRef}
-        className={`relative min-w-[220px] max-w-[300px] rounded-[20px] border bg-[var(--panel)] p-3 transition-all ${
+        className={`relative min-w-[236px] max-w-[308px] rounded-[22px] border bg-[var(--panel)] p-3 transition-all ${
           selected
-            ? 'border-[var(--text-primary)] shadow-[0_0_0_2px_rgba(24,24,27,0.08),0_18px_42px_rgba(24,24,27,0.14)]'
+            ? 'border-[var(--accent)] shadow-[0_0_0_2px_rgba(255,40,75,0.14),0_18px_42px_rgba(24,24,27,0.14)]'
             : edgeFocusAccent
               ? edgeFocusAccent
-            : isCollapsedGroupCard
+              : isCollapsedGroupCard
               ? 'border-[rgba(24,24,27,0.12)] shadow-[0_18px_38px_rgba(24,24,27,0.12)]'
               : 'border-[var(--border)] shadow-[var(--shadow-sm)]'
         }`}
       >
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-12 rounded-t-[22px] bg-[linear-gradient(180deg,rgba(255,40,75,0.05),transparent)]" />
       <Handle
         type="target"
         position={Position.Left}
         className="!h-2.5 !w-2.5 !border-0 !bg-[var(--text-muted)]"
       />
 
-      <div className="mb-3 flex items-center gap-2">
-        <span
-          className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.08em] ${accentClassName}`}
-        >
-          {typeLabel}
-        </span>
-        {edgeFocusRole ? (
+      <div className="relative mb-3 flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span
-            className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.08em] ${
-              edgeFocusRole === 'source'
-                ? 'bg-[rgba(116,146,185,0.16)] text-[var(--text-secondary)]'
-                : 'bg-[rgba(125,170,151,0.16)] text-[var(--text-secondary)]'
-            }`}
+            className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.12em] ${accentClassName}`}
           >
-            {edgeFocusRole === 'source' ? '来源' : '目标'}
+            {typeLabel}
           </span>
-        ) : null}
+          {edgeFocusRole ? (
+            <span
+              className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.08em] ${
+                edgeFocusRole === 'source'
+                  ? 'bg-[rgba(116,146,185,0.16)] text-[var(--text-secondary)]'
+                  : 'bg-[rgba(125,170,151,0.16)] text-[var(--text-secondary)]'
+              }`}
+            >
+              {edgeFocusRole === 'source' ? '来源' : '目标'}
+            </span>
+          ) : null}
+        </div>
         {groupLabel ? (
           <span className="inline-flex rounded-full border border-[var(--border)] bg-[var(--panel-elevated)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)]">
             {groupLabel}
@@ -200,7 +203,7 @@ export function NodeFrame({
         </div>
       ) : null}
 
-      {children}
+      <div className="relative">{children}</div>
 
       <Handle
         type="source"

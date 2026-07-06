@@ -145,14 +145,20 @@ export function WorkspacePage() {
 
   useEffect(() => {
     if (selectedNodeIds.length > 1) {
-      setBatchCategory(batchMetadataState.sharedCategory ?? '')
-      setBatchTagsText('')
+      const frameId = window.requestAnimationFrame(() => {
+        setBatchCategory(batchMetadataState.sharedCategory ?? '')
+        setBatchTagsText('')
+      })
+      return () => window.cancelAnimationFrame(frameId)
     }
   }, [batchMetadataState.sharedCategory, selectedNodeIds.length])
 
   useEffect(() => {
     if (selectedEdgeIds.length > 1) {
-      setBatchEdgeLabel(batchEdgeState.sharedLabel ?? '')
+      const frameId = window.requestAnimationFrame(() => {
+        setBatchEdgeLabel(batchEdgeState.sharedLabel ?? '')
+      })
+      return () => window.cancelAnimationFrame(frameId)
     }
   }, [batchEdgeState.sharedLabel, selectedEdgeIds.length])
 
@@ -672,24 +678,26 @@ export function WorkspacePage() {
       <main className="flex min-w-0 flex-1 flex-col">
         <TopToolbar title="SeenSpace (见间)" rightAction="workspace" />
 
-        <section className="flex flex-1 flex-col p-4">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 px-1">
+        <section className="flex flex-1 flex-col p-4 md:p-6">
+          <div className="mb-4 rounded-[24px] border border-[var(--border)] bg-[var(--panel)] px-4 py-4 shadow-[var(--shadow-sm)]">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-1">
             <div className="flex items-center gap-3">
               <Link
                 to="/"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--panel)] text-[var(--text-secondary)]"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-[14px] border border-[var(--border)] bg-[var(--panel-soft)] text-[var(--text-secondary)]"
               >
                 <ArrowLeft className="h-4 w-4" />
               </Link>
               <div>
-                <h1 className="text-sm font-semibold text-[var(--text-primary)]">{projectName}</h1>
+                <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--accent)]">Workspace</div>
+                <h1 className="text-base font-semibold text-[var(--text-primary)]">{projectName}</h1>
                 <div className="mt-1 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
                   <span className="inline-flex items-center gap-1">
                     <Check className="h-3.5 w-3.5" />
                     {saveState === 'saving' ? '保存中...' : '已保存到本地'}
                   </span>
                   {actionMessage ? (
-                    <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--panel)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)]">
+                    <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--panel-soft)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)]">
                       {actionMessage}
                     </span>
                   ) : null}
@@ -704,7 +712,7 @@ export function WorkspacePage() {
                 type="button"
                 onClick={handleUndo}
                 disabled={!canUndo}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--panel)] text-[var(--text-secondary)] disabled:opacity-40"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-[14px] border border-[var(--border)] bg-[var(--panel)] text-[var(--text-secondary)] disabled:opacity-40"
               >
                 <Undo2 className="h-4 w-4" />
               </button>
@@ -712,14 +720,14 @@ export function WorkspacePage() {
                 type="button"
                 onClick={handleRedo}
                 disabled={!canRedo}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--panel)] text-[var(--text-secondary)] disabled:opacity-40"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-[14px] border border-[var(--border)] bg-[var(--panel)] text-[var(--text-secondary)] disabled:opacity-40"
               >
                 <Redo2 className="h-4 w-4" />
               </button>
 
               {totalSelectionCount > 1 ? (
                 <>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel-soft)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]">
                     <Layers3 className="h-3.5 w-3.5" />
                     {selectionSummary}
                   </div>
@@ -728,7 +736,7 @@ export function WorkspacePage() {
                       <button
                         type="button"
                         onClick={handleCreateGroup}
-                        className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]"
+                        className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)] shadow-[var(--shadow-sm)]"
                       >
                         <FolderInput className="h-3.5 w-3.5" />
                         分组
@@ -737,7 +745,7 @@ export function WorkspacePage() {
                         type="button"
                         onClick={handleUngroup}
                         disabled={!canUngroupSelection}
-                        className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)] disabled:opacity-40"
+                        className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)] shadow-[var(--shadow-sm)] disabled:opacity-40"
                       >
                         <FolderOpen className="h-3.5 w-3.5" />
                         取消分组
@@ -746,7 +754,7 @@ export function WorkspacePage() {
                         type="button"
                         onClick={() => activeGroupId && handleToggleGroupCollapse(activeGroupId)}
                         disabled={!activeGroupId}
-                        className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)] disabled:opacity-40"
+                        className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)] shadow-[var(--shadow-sm)] disabled:opacity-40"
                       >
                         {activeGroupCollapsed ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
                         {activeGroupCollapsed ? '展开' : '折叠'}
@@ -754,7 +762,7 @@ export function WorkspacePage() {
                       <button
                         type="button"
                         onClick={handleDuplicateMany}
-                        className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]"
+                        className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)] shadow-[var(--shadow-sm)]"
                       >
                         <Copy className="h-3.5 w-3.5" />
                         复制
@@ -764,7 +772,7 @@ export function WorkspacePage() {
                   <button
                     type="button"
                     onClick={clearSelection}
-                    className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]"
+                    className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)] shadow-[var(--shadow-sm)]"
                   >
                     <X className="h-3.5 w-3.5" />
                     清除
@@ -772,7 +780,7 @@ export function WorkspacePage() {
                   <button
                     type="button"
                     onClick={selectedNodeIds.length > 0 ? handleDeleteMany : handleDeleteManyEdges}
-                    className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]"
+                    className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)] shadow-[var(--shadow-sm)]"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                     删除选中项
@@ -780,7 +788,7 @@ export function WorkspacePage() {
                 </>
               ) : totalSelectionCount === 1 ? (
                 <>
-                  <div className="rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]">
+                    <div className="rounded-full border border-[var(--border)] bg-[var(--panel-soft)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]">
                     {selectionSummary}
                   </div>
                   {selectedNode?.data.groupLabel ? (
@@ -788,7 +796,7 @@ export function WorkspacePage() {
                       <button
                         type="button"
                         onClick={handleSelectGroup}
-                        className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]"
+                        className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)] shadow-[var(--shadow-sm)]"
                       >
                         <FolderInput className="h-3.5 w-3.5" />
                         选择分组
@@ -796,7 +804,7 @@ export function WorkspacePage() {
                       <button
                         type="button"
                         onClick={() => selectedNode.data.groupId && handleToggleGroupCollapse(selectedNode.data.groupId)}
-                        className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]"
+                        className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)] shadow-[var(--shadow-sm)]"
                       >
                         {selectedNode.data.groupCollapsed ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
                         {selectedNode.data.groupCollapsed ? '展开' : '折叠'}
@@ -807,7 +815,7 @@ export function WorkspacePage() {
                     <button
                       type="button"
                       onClick={handleDuplicateMany}
-                      className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]"
+                      className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)] shadow-[var(--shadow-sm)]"
                     >
                       <Copy className="h-3.5 w-3.5" />
                       复制
@@ -816,18 +824,19 @@ export function WorkspacePage() {
                   <button
                     type="button"
                     onClick={clearSelection}
-                    className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]"
+                    className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)] shadow-[var(--shadow-sm)]"
                   >
                     <X className="h-3.5 w-3.5" />
                     清除
                   </button>
                 </>
               ) : (
-                <div className="rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]">
+                <div className="rounded-full border border-[var(--border)] bg-[var(--panel-soft)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]">
                   {selectionSummary}
                 </div>
               )}
             </div>
+          </div>
           </div>
 
           <div className="flex min-h-0 flex-1 gap-4">
@@ -847,8 +856,8 @@ export function WorkspacePage() {
                 }}
               />
             </div>
-            <aside className="flex min-h-0 w-[320px] shrink-0 flex-col rounded-[28px] border border-[var(--border)] bg-[var(--panel)] p-4 shadow-[var(--shadow-sm)]">
-              <div className="mb-4 grid grid-cols-2 gap-2 rounded-2xl border border-[var(--border-strong)] bg-[var(--panel-elevated)] p-1.5">
+            <aside className="hidden min-h-0 w-[340px] shrink-0 flex-col rounded-[28px] border border-[var(--border)] bg-[var(--panel)] p-4 shadow-[var(--shadow-sm)] xl:flex">
+              <div className="mb-4 grid grid-cols-2 gap-2 rounded-[18px] border border-[var(--border)] bg-[var(--panel-soft)] p-1.5">
                 {[
                   { id: 'inspector' as const, label: '检查器', icon: Info },
                   { id: 'analysis' as const, label: 'AI 分析', icon: Sparkles },
@@ -862,7 +871,7 @@ export function WorkspacePage() {
                       onClick={() => setRightPanel(item.id)}
                       className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-colors ${
                         rightPanel === item.id
-                          ? 'bg-[var(--text-primary)] text-[var(--background)] shadow-[var(--shadow-sm)]'
+                          ? 'bg-[var(--accent)] text-white shadow-[var(--shadow-sm)]'
                           : 'text-[var(--text-secondary)] hover:bg-[var(--panel)] hover:text-[var(--text-primary)]'
                       }`}
                     >

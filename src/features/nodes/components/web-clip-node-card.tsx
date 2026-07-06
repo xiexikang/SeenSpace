@@ -12,13 +12,23 @@ export function WebClipNodeCard({ data, selected }: NodeProps<WebNode>) {
       groupLabel={data.groupCollapsed ? data.groupLabel : undefined}
       collapsedGroupSummary={data.groupCollapsed ? data.collapsedGroupSummary : undefined}
     >
-      <div className="space-y-2">
-        <div className="text-sm font-semibold text-[var(--text-primary)]">{data.title}</div>
+      <div className="space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-base font-semibold leading-6 text-[var(--text-primary)]">{data.title}</div>
+            <div className="mt-1 text-[11px] uppercase tracking-[0.12em] text-[var(--text-muted)]">
+              {data.domain ?? 'Web reference'}
+            </div>
+          </div>
+          <span className="shrink-0 rounded-full border border-[var(--border)] bg-[var(--panel-soft)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)]">
+            链接
+          </span>
+        </div>
         {data.description ? (
-          <p className="text-sm leading-5 text-[var(--text-secondary)]">{data.description}</p>
+          <p className="text-sm leading-6 text-[var(--text-secondary)]">{data.description}</p>
         ) : null}
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5">
-          <div className="mb-1 text-xs text-[var(--text-muted)]">{data.domain ?? '网站'}</div>
+        <div className="rounded-[18px] border border-[var(--border)] bg-[var(--panel-elevated)] px-3 py-3">
+          <div className="mb-1 text-[11px] uppercase tracking-[0.12em] text-[var(--text-muted)]">来源地址</div>
           <div className="truncate text-sm text-[var(--text-primary)]">{data.url ?? 'https://example.com'}</div>
         </div>
       </div>

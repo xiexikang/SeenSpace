@@ -168,14 +168,35 @@ export function ProjectListPage() {
           onNewProject={handleCreateProject}
         />
 
-        <section className="px-6 py-7">
-          <div className="mb-6 flex items-end justify-between">
-            <div>
-              <div className="mb-1 flex items-center gap-2">
-                <h1 className="text-[32px] font-semibold tracking-tight text-[var(--text-primary)]">全部项目</h1>
-                <span className="rounded-full border border-[var(--border)] px-2 py-1 text-xs text-[var(--text-secondary)]">
+        <section className="px-4 py-6 md:px-6 md:py-7">
+          <div className="mb-6 overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--panel)] shadow-[var(--shadow-sm)]">
+            <div className="grid gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1.1fr)_280px] lg:items-end">
+              <div>
+                <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--accent)]">
+                  Pinboard Workspace
+                </div>
+                <div className="mb-2 flex items-center gap-2">
+                  <h1 className="text-[32px] font-semibold tracking-tight text-[var(--text-primary)]">全部项目</h1>
+                  <span className="rounded-full border border-[var(--border)] bg-[var(--panel-soft)] px-2 py-1 text-xs text-[var(--text-secondary)]">
                   {filteredProjects.length}
-                </span>
+                  </span>
+                </div>
+                <p className="max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
+                  用更像内容平台的方式浏览你的工作区。每个项目都保留原有数据、搜索、编辑和删除能力，只更新界面语言。
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-[20px] border border-[var(--border)] bg-[var(--panel-soft)] px-4 py-4">
+                  <div className="text-[11px] uppercase tracking-[0.14em] text-[var(--text-muted)]">已收录</div>
+                  <div className="mt-1 text-2xl font-semibold text-[var(--text-primary)]">{projects.length}</div>
+                  <div className="mt-1 text-xs text-[var(--text-secondary)]">项目目录</div>
+                </div>
+                <div className="rounded-[20px] border border-[var(--border)] bg-[linear-gradient(180deg,rgba(255,40,75,0.98),rgba(205,0,35,0.98))] px-4 py-4 text-white">
+                  <div className="text-[11px] uppercase tracking-[0.14em] text-white/72">状态</div>
+                  <div className="mt-1 text-2xl font-semibold">可继续</div>
+                  <div className="mt-1 text-xs text-white/72">不影响现有功能</div>
+                </div>
               </div>
             </div>
           </div>
@@ -183,7 +204,7 @@ export function ProjectListPage() {
           <div
             className={
               viewMode === 'grid'
-                ? 'grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4'
+                ? 'grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'
                 : 'flex flex-col gap-4'
             }
           >
@@ -216,7 +237,7 @@ export function ProjectListPage() {
                 <button
                   type="button"
                   onClick={handleCreateProject}
-                  className="h-10 rounded-full bg-[var(--text-primary)] px-4 text-sm font-medium text-[var(--background)]"
+                  className="h-11 rounded-full bg-[var(--accent)] px-5 text-sm font-semibold text-white hover:bg-[var(--accent-strong)]"
                 >
                   新建项目
                 </button>
@@ -228,8 +249,8 @@ export function ProjectListPage() {
 
       <Dialog.Root open={isProjectDialogOpen} onOpenChange={handleDialogOpenChange}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/35" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(420px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 rounded-[24px] border border-[var(--border)] bg-[var(--panel)] p-5 text-[var(--text-primary)] shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/28 backdrop-blur-sm" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(440px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 rounded-[28px] border border-[var(--border)] bg-[var(--panel)] p-6 text-[var(--text-primary)] shadow-[var(--shadow-lg)]">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <Dialog.Title className="text-lg font-semibold">
@@ -239,7 +260,7 @@ export function ProjectListPage() {
               <Dialog.Close asChild>
                 <button
                   type="button"
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-secondary)] transition-colors hover:bg-[var(--panel-elevated)] hover:text-[var(--text-primary)]"
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--text-secondary)] transition-colors hover:bg-[var(--panel-elevated)] hover:text-[var(--text-primary)]"
                   aria-label="关闭"
                 >
                   <X className="h-4 w-4" />
@@ -256,7 +277,7 @@ export function ProjectListPage() {
                   required
                   maxLength={160}
                   autoFocus
-                  className="h-11 w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 text-sm outline-none"
+                  className="h-11 w-full rounded-[16px] border border-[var(--border)] bg-[var(--panel-soft)] px-3 text-sm outline-none"
                 />
               </label>
 
@@ -268,7 +289,7 @@ export function ProjectListPage() {
                   required
                   maxLength={500}
                   rows={4}
-                  className="min-h-[104px] w-full resize-none rounded-2xl border border-[var(--border)] bg-[var(--background)] px-3 py-3 text-sm outline-none"
+                  className="min-h-[104px] w-full resize-none rounded-[16px] border border-[var(--border)] bg-[var(--panel-soft)] px-3 py-3 text-sm outline-none"
                 />
               </label>
 
@@ -284,7 +305,7 @@ export function ProjectListPage() {
                 <button
                   type="submit"
                   disabled={isSavingProject}
-                  className="h-10 rounded-full bg-[var(--text-primary)] px-4 text-sm font-medium text-[var(--background)] disabled:opacity-50"
+                  className="h-10 rounded-full bg-[var(--accent)] px-4 text-sm font-semibold text-white disabled:opacity-50"
                 >
                   {isSavingProject ? '保存中...' : editingProject ? '保存修改' : '创建目录'}
                 </button>
@@ -296,8 +317,8 @@ export function ProjectListPage() {
 
       <Dialog.Root open={isDeleteDialogOpen} onOpenChange={handleDeleteDialogOpenChange}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/35" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(420px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 rounded-[24px] border border-[var(--border)] bg-[var(--panel)] p-5 text-[var(--text-primary)] shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/28 backdrop-blur-sm" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(420px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 rounded-[28px] border border-[var(--border)] bg-[var(--panel)] p-6 text-[var(--text-primary)] shadow-[var(--shadow-lg)]">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
                 <Dialog.Title className="text-lg font-semibold">删除目录</Dialog.Title>
@@ -308,7 +329,7 @@ export function ProjectListPage() {
               <Dialog.Close asChild>
                 <button
                   type="button"
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-secondary)] transition-colors hover:bg-[var(--panel-elevated)] hover:text-[var(--text-primary)]"
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--text-secondary)] transition-colors hover:bg-[var(--panel-elevated)] hover:text-[var(--text-primary)]"
                   aria-label="关闭"
                 >
                   <X className="h-4 w-4" />
@@ -329,7 +350,7 @@ export function ProjectListPage() {
                 type="button"
                 onClick={handleDeleteProject}
                 disabled={isDeletingProject}
-                className="inline-flex h-10 items-center gap-2 rounded-full bg-red-600 px-4 text-sm font-medium text-white disabled:opacity-50"
+                className="inline-flex h-10 items-center gap-2 rounded-full bg-[var(--accent)] px-4 text-sm font-semibold text-white disabled:opacity-50"
               >
                 <Trash2 className="h-4 w-4" />
                 {isDeletingProject ? '删除中...' : '确认删除'}

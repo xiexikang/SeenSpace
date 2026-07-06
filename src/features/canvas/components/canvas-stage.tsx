@@ -153,12 +153,16 @@ export function CanvasStage({
 
   useEffect(() => {
     const { nodes: nextNodes, edges: nextEdges } = buildCanvasStageState(snapshot, focusedEdge)
+    const frameId = window.requestAnimationFrame(() => {
+      setZoomLabel(`${Math.round(snapshot.viewport.zoom * 100)}%`)
+      setViewport(snapshot.viewport)
+      viewportRef.current = snapshot.viewport
+    })
 
     setNodes((currentNodes) => (nodeListsEqual(currentNodes, nextNodes) ? currentNodes : nextNodes))
     setEdges((currentEdges) => (edgeListsEqual(currentEdges, nextEdges) ? currentEdges : nextEdges))
-    setZoomLabel(`${Math.round(snapshot.viewport.zoom * 100)}%`)
-    setViewport(snapshot.viewport)
-    viewportRef.current = snapshot.viewport
+
+    return () => window.cancelAnimationFrame(frameId)
   }, [focusedEdge, setEdges, setNodes, snapshot])
 
   const groupOverlays = useMemo(() => buildCanvasGroupOverlays(nodes, selectedNodeIds), [nodes, selectedNodeIds])
@@ -230,7 +234,7 @@ export function CanvasStage({
     }, 0)
   }
 
-  function getClipboardNodePosition() {
+  const getClipboardNodePosition = useCallback(() => {
     const stageRect = stageRef.current?.getBoundingClientRect()
     const currentViewport = flowRef.current?.getViewport() ?? viewportRef.current
     const zoom = currentViewport.zoom || 1
@@ -242,7 +246,7 @@ export function CanvasStage({
       x: (centerX - currentViewport.x) / zoom + offset - 120,
       y: (centerY - currentViewport.y) / zoom + offset - 80,
     }
-  }
+  }, [nodes.length])
 
   const addNodeFromClipboard = useCallback((payload: ClipboardImportPayload) => {
     setNodes((currentNodes) => {
@@ -253,7 +257,7 @@ export function CanvasStage({
       return nextNodes
     })
     setPendingPaste(null)
-  }, [edges, emitSnapshotWith, nodes.length, onSelectionChange, setNodes])
+  }, [edges, emitSnapshotWith, getClipboardNodePosition, onSelectionChange, setNodes])
 
   const overwriteNodeFromClipboard = useCallback((payload: ClipboardImportPayload, targetNodeId: string) => {
     setNodes((currentNodes) => {
@@ -411,7 +415,7 @@ export function CanvasStage({
   return (
     <div
       ref={stageRef}
-      className="relative h-full min-h-[680px] overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--canvas)] shadow-[var(--shadow-sm)] [&_.react-flow__edge-path]:transition-all [&_.react-flow__edge-path]:duration-150 [&_.react-flow__edge:hover_.react-flow__edge-path]:stroke-[var(--text-secondary)] [&_.react-flow__edge:hover_.react-flow__edge-path]:stroke-[1.9] [&_.react-flow__edge:hover_.react-flow__arrowhead]:fill-[var(--text-secondary)] [&_.react-flow__edge-textbg]:fill-[var(--panel)] [&_.react-flow__edge-textbg]:opacity-90 [&_.react-flow__edge-text]:fill-[var(--text-secondary)] [&_.react-flow__edge.selected_.react-flow__edge-path]:stroke-[var(--text-primary)] [&_.react-flow__edge.selected_.react-flow__edge-path]:stroke-[2.5] [&_.react-flow__edge.selected_.react-flow__edge-text]:fill-[var(--text-primary)] [&_.react-flow__edge.selected_.react-flow__arrowhead]:fill-[var(--text-primary)]"
+      className="relative h-full min-h-[680px] overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--canvas)] shadow-[var(--shadow-sm)] [&_.react-flow__edge-path]:transition-all [&_.react-flow__edge-path]:duration-150 [&_.react-flow__edge:hover_.react-flow__edge-path]:stroke-[var(--accent)] [&_.react-flow__edge:hover_.react-flow__edge-path]:stroke-[1.9] [&_.react-flow__edge:hover_.react-flow__arrowhead]:fill-[var(--accent)] [&_.react-flow__edge-textbg]:fill-[var(--panel)] [&_.react-flow__edge-textbg]:opacity-90 [&_.react-flow__edge-text]:fill-[var(--text-secondary)] [&_.react-flow__edge.selected_.react-flow__edge-path]:stroke-[var(--accent)] [&_.react-flow__edge.selected_.react-flow__edge-path]:stroke-[2.5] [&_.react-flow__edge.selected_.react-flow__edge-text]:fill-[var(--accent-strong)] [&_.react-flow__edge.selected_.react-flow__arrowhead]:fill-[var(--accent)]"
     >
       <div className="absolute left-5 top-5 z-10 flex flex-wrap items-center gap-2">
         {addableNodeTypes.map(({ type, label }) => (
@@ -419,7 +423,7 @@ export function CanvasStage({
             key={type}
             type="button"
             onClick={() => addNode(type)}
-            className="rounded-full border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] shadow-[var(--shadow-sm)]"
+            className="rounded-full border border-[var(--border)] bg-[color:color-mix(in_srgb,var(--panel)_92%,white_8%)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] shadow-[var(--shadow-sm)] backdrop-blur-sm hover:bg-[var(--panel)]"
           >
             {label}
           </button>
@@ -485,7 +489,7 @@ export function CanvasStage({
           <div
             className={`absolute inset-x-0 bottom-0 rounded-[24px] border border-dashed ${
               group.selected
-                ? 'border-[var(--text-primary)] bg-[rgba(24,24,27,0.03)]'
+                ? 'border-[var(--accent)] bg-[rgba(255,40,75,0.04)]'
                 : 'border-[var(--border)] bg-[rgba(255,255,255,0.45)]'
             }`}
             style={{ top: 24 }}
@@ -493,9 +497,9 @@ export function CanvasStage({
           <div
             className={`pointer-events-auto absolute left-3 top-0 flex items-center gap-2 rounded-full border px-3 py-1.5 shadow-[var(--shadow-sm)] transition-colors ${
               draggingGroupId === group.groupId
-                ? 'cursor-grabbing border-[var(--text-primary)] bg-[var(--panel-elevated)]'
+                ? 'cursor-grabbing border-[var(--accent)] bg-[var(--panel-elevated)]'
                 : hoveredGroupId === group.groupId
-                  ? 'cursor-grab border-[var(--text-primary)] bg-[var(--panel-elevated)]'
+                  ? 'cursor-grab border-[var(--accent)] bg-[var(--panel-elevated)]'
                   : 'cursor-grab border-[var(--border)] bg-[var(--panel)]'
             }`}
             onPointerDown={(event) => handleGroupPointerDown(event, group.groupId)}
@@ -535,7 +539,7 @@ export function CanvasStage({
         guide.kind === 'alignment-vertical' ? (
           <div
             key={`guide-${index}`}
-            className="pointer-events-none absolute z-20 w-px bg-[var(--text-primary)] opacity-60"
+            className="pointer-events-none absolute z-20 w-px bg-[var(--accent)] opacity-60"
             style={{
               left: guide.x * viewport.zoom + viewport.x,
               top: guide.y * viewport.zoom + viewport.y,
@@ -545,7 +549,7 @@ export function CanvasStage({
         ) : guide.kind === 'alignment-horizontal' ? (
           <div
             key={`guide-${index}`}
-            className="pointer-events-none absolute z-20 h-px bg-[var(--text-primary)] opacity-60"
+            className="pointer-events-none absolute z-20 h-px bg-[var(--accent)] opacity-60"
             style={{
               left: guide.x * viewport.zoom + viewport.x,
               top: guide.y * viewport.zoom + viewport.y,
@@ -557,7 +561,7 @@ export function CanvasStage({
             {guide.segments.map((segment, segmentIndex) => (
               <div
                 key={`guide-${index}-segment-${segmentIndex}`}
-                className="absolute h-px border-t border-dashed border-[var(--text-primary)] opacity-60"
+                className="absolute h-px border-t border-dashed border-[var(--accent)] opacity-60"
                 style={{
                   left: segment.x * viewport.zoom + viewport.x,
                   top: guide.y * viewport.zoom + viewport.y,
@@ -571,7 +575,7 @@ export function CanvasStage({
             {guide.segments.map((segment, segmentIndex) => (
               <div
                 key={`guide-${index}-segment-${segmentIndex}`}
-                className="absolute w-px border-l border-dashed border-[var(--text-primary)] opacity-60"
+                className="absolute w-px border-l border-dashed border-[var(--accent)] opacity-60"
                 style={{
                   left: guide.x * viewport.zoom + viewport.x,
                   top: segment.y * viewport.zoom + viewport.y,
@@ -587,7 +591,7 @@ export function CanvasStage({
 
       {pendingPaste ? (
         <div className="absolute inset-0 z-30 flex items-center justify-center bg-[rgba(18,24,38,0.18)] px-4">
-          <div className="w-full max-w-sm rounded-[24px] border border-[var(--border)] bg-[var(--panel)] p-5 shadow-[var(--shadow-sm)]">
+          <div className="w-full max-w-sm rounded-[24px] border border-[var(--border)] bg-[var(--panel)] p-5 shadow-[var(--shadow-lg)]">
             <div className="mb-2 text-sm font-semibold text-[var(--text-primary)]">检测到可粘贴内容</div>
             <p className="mb-5 text-sm leading-6 text-[var(--text-secondary)]">
               将作为新节点添加，还是覆盖当前选中节点？
@@ -614,7 +618,7 @@ export function CanvasStage({
                     ? overwriteNodeFromClipboard(pendingPaste.payload, pendingPaste.targetNodeId)
                     : addNodeFromClipboard(pendingPaste.payload)
                 }
-                className="rounded-full bg-[var(--text-primary)] px-4 py-2 text-xs font-medium text-[var(--background)]"
+                className="rounded-full bg-[var(--accent)] px-4 py-2 text-xs font-medium text-white"
               >
                 覆盖当前
               </button>

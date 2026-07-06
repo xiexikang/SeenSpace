@@ -39,30 +39,38 @@ export function LibrarySidebar() {
   }
 
   return (
-    <aside className="flex w-[248px] shrink-0 flex-col border-r border-[var(--border)] bg-[var(--sidebar)]">
-      <div className="px-5 pb-6 pt-6">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--panel-elevated)] text-[var(--text-primary)]">
+    <aside className="hidden w-[270px] shrink-0 border-r border-[var(--border)] bg-[color:color-mix(in_srgb,var(--sidebar)_94%,white_6%)] lg:flex lg:flex-col">
+      <div className="px-5 pb-6 pt-7">
+        <div className="rounded-[24px] border border-[var(--border)] bg-[var(--panel)] p-4 shadow-[var(--shadow-sm)]">
+          <div className="mb-3 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[var(--accent-soft)] text-[var(--accent)]">
             <FolderOpen className="h-4 w-4" />
           </div>
-          <div>
-            <div className="text-base font-semibold text-[var(--text-primary)]">素材库</div>
-            <div className="text-xs text-[var(--text-secondary)]">灵感收集</div>
+            <div>
+              <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--accent)]">Library</div>
+              <div className="text-base font-semibold text-[var(--text-primary)]">素材库</div>
+            </div>
+          </div>
+          <div className="rounded-[16px] bg-[var(--panel-soft)] px-3 py-2 text-xs leading-5 text-[var(--text-secondary)]">
+            图像优先、快速检索，把灵感集中到一个地方。
           </div>
         </div>
       </div>
 
-      <nav className="flex-1 px-3">
-        <div className="space-y-1">
+      <nav className="flex-1 px-4">
+        <div className="mb-3 px-2 text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--text-muted)]">
+          内容分区
+        </div>
+        <div className="space-y-2">
           {primaryItems.map(({ label, icon: Icon, active }) => (
             <button
               key={label}
               type="button"
               className={cn(
-                'flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors',
+                'flex w-full items-center gap-3 rounded-[16px] border px-3 py-3 text-sm transition-colors',
                 active
-                  ? 'bg-[var(--panel-elevated)] text-[var(--text-primary)]'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--panel)] hover:text-[var(--text-primary)]',
+                  ? 'border-transparent bg-[var(--accent)] text-white shadow-[var(--shadow-sm)]'
+                  : 'border-transparent bg-transparent text-[var(--text-secondary)] hover:border-[var(--border)] hover:bg-[var(--panel)] hover:text-[var(--text-primary)]',
               )}
             >
               <Icon className="h-4 w-4" />
@@ -72,26 +80,26 @@ export function LibrarySidebar() {
         </div>
       </nav>
 
-      <div className="relative border-t border-[var(--border)] p-3">
+      <div className="relative mt-auto border-t border-[var(--border)] p-4">
         <div className="group/account">
-          <div className="pointer-events-none absolute bottom-[60px] left-3 right-3 z-20 translate-y-2 opacity-0 transition duration-150 group-hover/account:pointer-events-auto group-hover/account:translate-y-0 group-hover/account:opacity-100 group-focus-within/account:pointer-events-auto group-focus-within/account:translate-y-0 group-focus-within/account:opacity-100">
-            <div className="rounded-xl border border-[var(--border)] bg-[color:color-mix(in_srgb,var(--panel)_94%,var(--background)_6%)] p-2 text-[var(--text-primary)] shadow-[0_12px_40px_rgba(0,0,0,0.22)] backdrop-blur-sm">
+          <div className="pointer-events-none absolute bottom-[72px] left-4 right-4 z-20 translate-y-2 opacity-0 transition duration-150 group-hover/account:pointer-events-auto group-hover/account:translate-y-0 group-hover/account:opacity-100 group-focus-within/account:pointer-events-auto group-focus-within/account:translate-y-0 group-focus-within/account:opacity-100">
+            <div className="rounded-[20px] border border-[var(--border)] bg-[color:color-mix(in_srgb,var(--panel)_96%,var(--background)_4%)] p-3 text-[var(--text-primary)] shadow-[var(--shadow-lg)] backdrop-blur-sm">
               <div className="flex items-center gap-2 border-b border-[var(--border)] px-1.5 pb-2">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[linear-gradient(135deg,#f4c87d,#8fb7a7_48%,#5d6f91)] text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28)]">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[linear-gradient(135deg,var(--accent),var(--accent-strong))] text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22)]">
                   {avatarText}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium">{displayName}</div>
                   <div className="truncate text-xs text-[var(--text-secondary)]">@{accountName}</div>
                 </div>
-                <span className="rounded-[5px] border border-[var(--border-strong)] bg-[color:color-mix(in_srgb,var(--panel-elevated)_82%,var(--text-primary)_18%)] px-1.5 py-0.5 text-[10px] font-medium leading-none text-[var(--text-primary)]">
+                <span className="rounded-full border border-[var(--accent-soft)] bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold leading-none text-[var(--accent-strong)]">
                   Pro
                 </span>
               </div>
               <button
                 type="button"
                 onClick={handleLogout}
-                className="mt-2 flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-[var(--panel)] px-3 text-sm text-[var(--text-primary)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--panel-elevated)_88%,var(--text-primary)_12%)]"
+                className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-[14px] bg-[var(--panel-soft)] px-3 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--panel-elevated)]"
               >
                 <LogOut className="h-4 w-4" />
                 <span>退出登录</span>
@@ -100,13 +108,13 @@ export function LibrarySidebar() {
           </div>
           <button
             type="button"
-            className="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--panel)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+            className="flex w-full items-center gap-2 rounded-[18px] border border-[var(--border)] bg-[var(--panel)] px-3 py-3 text-left text-sm text-[var(--text-primary)] shadow-[var(--shadow-sm)] transition-colors hover:bg-[var(--panel-elevated)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
           >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[linear-gradient(135deg,#f4c87d,#8fb7a7_48%,#5d6f91)] text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28)]">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[linear-gradient(135deg,var(--accent),var(--accent-strong))] text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22)]">
               {avatarText}
             </div>
             <div className="min-w-0 flex-1 truncate font-medium">{displayName}</div>
-            <span className="rounded-[5px] border border-[var(--border-strong)] bg-[color:color-mix(in_srgb,var(--panel-elevated)_82%,var(--text-primary)_18%)] px-1.5 py-0.5 text-[10px] font-medium leading-none text-[var(--text-primary)]">
+            <span className="rounded-full border border-[var(--accent-soft)] bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold leading-none text-[var(--accent-strong)]">
               Pro
             </span>
           </button>
