@@ -1,12 +1,23 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+APP_DIR = Path(__file__).resolve().parent.parent
+BACKEND_DIR = APP_DIR.parent
+PROJECT_ROOT = BACKEND_DIR.parent
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=(".env", ".env.local", "backend/.env", "backend/.env.local"),
+        env_file=(
+            PROJECT_ROOT / ".env",
+            PROJECT_ROOT / ".env.local",
+            BACKEND_DIR / ".env",
+            BACKEND_DIR / ".env.local",
+        ),
         extra="ignore",
     )
 
