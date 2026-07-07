@@ -60,7 +60,7 @@ def render_captcha_svg(code: str) -> str:
 
     return (
         '<svg xmlns="http://www.w3.org/2000/svg" width="136" height="48" viewBox="0 0 136 48">'
-        '<rect width="136" height="48" rx="12" fill="#f3f3f0"/>'
+        '<rect width="136" height="48" rx="12" fill="#ffffff"/>'
         '<g stroke="rgba(18,24,38,0.18)" stroke-width="1.4">'
         + "".join(lines)
         + "</g>"
