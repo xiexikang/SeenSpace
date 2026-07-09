@@ -175,8 +175,8 @@ export function LoginPage() {
       <header className="fixed left-0 right-0 top-0 z-30 flex h-20 items-center gap-6 border-b border-transparent bg-white/92 px-7 backdrop-blur-xl">
         <div className="flex items-center gap-4">
           <img className="h-8 w-8 rounded-[10px] object-cover shadow-[0_16px_36px_rgba(255,49,88,0.2)]" src={logoUrl} alt="SeenSpace" />
-          <a className="hidden text-sm font-medium text-[#171b22] md:block" href="#discover">
-            探索
+          <a className="hidden text-sm font-semibold text-[#171b22] md:block" href="#discover">
+            SeenSpace
           </a>
         </div>
         <div className="min-w-0 flex-1" />
@@ -324,26 +324,26 @@ export function LoginPage() {
       </section>
 
       {isAuthOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#11151b]/45 px-4 py-6 backdrop-blur-sm">
-          <div className="relative w-full max-w-[430px] rounded-[28px] bg-white p-6 shadow-[0_32px_100px_rgba(17,21,27,0.24)]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#11151b]/42 px-4 py-6 backdrop-blur-md">
+          <div className="relative w-full max-w-[430px] rounded-[30px] border border-white/70 bg-[linear-gradient(180deg,#ffffff_0%,#fdfdfe_100%)] p-7 shadow-[0_36px_110px_rgba(17,21,27,0.22)]">
             <button
               type="button"
               onClick={() => setIsAuthOpen(false)}
               aria-label="关闭弹窗"
-              className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-[#f3f5f8] text-[#596170] hover:bg-[#e9edf2] hover:text-[#171b22]"
+              className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-[14px] border border-[#e7ebf0] bg-white/88 text-[#7a8390] outline-none shadow-[0_8px_18px_rgba(17,21,27,0.06)] backdrop-blur transition-all hover:-translate-y-0.5 hover:border-[#dce1e8] hover:bg-white hover:text-[#171b22] focus:shadow-[0_0_0_4px_rgba(255,49,88,0.12)] focus-visible:outline-none"
             >
               <X className="h-4 w-4" />
             </button>
 
-            <div className="mb-6 pr-10">
-              <div className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-[#ff3158]">SeenSpace</div>
+            <div className="mb-7 pr-10">
+              <div className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-[#ff3158]">SeenSpace</div>
               <h2 className="text-2xl font-black text-[#121720]">{mode === 'login' ? '登录工作区' : '创建账号'}</h2>
-              <p className="mt-2 text-sm leading-6 text-[#596170]">
+              <p className="mt-3 text-sm leading-6 text-[#596170]">
                 {mode === 'login' ? '继续进入你的灵感项目和内容画布。' : '先创建一个账号，再开始整理项目。'}
               </p>
             </div>
 
-            <div className="mb-5 grid grid-cols-2 gap-2 rounded-full bg-[#f3f5f8] p-1">
+            <div className="mb-6 grid grid-cols-2 gap-2 rounded-[18px] bg-[#f3f5f8] p-1">
               {[
                 { id: 'login' as const, label: '登录' },
                 { id: 'register' as const, label: '注册' },
@@ -355,8 +355,10 @@ export function LoginPage() {
                     setMode(item.id)
                     setError('')
                   }}
-                  className={`rounded-full px-3 py-2 text-sm font-bold transition-colors ${
-                    mode === item.id ? 'bg-white text-[#121720] shadow-[0_10px_24px_rgba(31,37,45,0.08)]' : 'text-[#69717d]'
+                  className={`rounded-[14px] px-3 py-2.5 text-sm font-bold outline-none transition-all focus-visible:outline-none ${
+                    mode === item.id
+                      ? 'bg-white text-[#121720] shadow-[0_10px_24px_rgba(31,37,45,0.08)]'
+                      : 'text-[#69717d] hover:bg-white/70 hover:text-[#171b22]'
                   }`}
                 >
                   {item.label}
@@ -364,7 +366,7 @@ export function LoginPage() {
               ))}
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
               {mode === 'register' ? (
                 <label className="block">
                   <div className="mb-2 text-sm font-bold text-[#3e4652]">昵称</div>
@@ -372,7 +374,8 @@ export function LoginPage() {
                     value={name}
                     onChange={(event) => setName(event.target.value)}
                     required
-                    className="h-12 w-full rounded-[16px] border border-[#e5e8ed] bg-[#f8f9fb] px-4 text-sm outline-none focus:border-[#ff3158] focus:bg-white"
+                    placeholder="请输入昵称"
+                    className="h-12 w-full rounded-[16px] border border-[#e5e8ed] bg-[#f8f9fb] px-4 text-sm text-[#121720] placeholder:text-[#a3acb9] outline-none focus:border-[#ff3158] focus:bg-white focus:shadow-[0_0_0_4px_rgba(255,49,88,0.12)] focus-visible:outline-none"
                   />
                 </label>
               ) : null}
@@ -384,7 +387,8 @@ export function LoginPage() {
                   onChange={(event) => setUsername(event.target.value)}
                   required
                   minLength={3}
-                  className="h-12 w-full rounded-[16px] border border-[#e5e8ed] bg-[#f8f9fb] px-4 text-sm outline-none focus:border-[#ff3158] focus:bg-white"
+                  placeholder="请输入账号"
+                  className="h-12 w-full rounded-[16px] border border-[#e5e8ed] bg-[#f8f9fb] px-4 text-sm text-[#121720] placeholder:text-[#a3acb9] outline-none focus:border-[#ff3158] focus:bg-white focus:shadow-[0_0_0_4px_rgba(255,49,88,0.12)] focus-visible:outline-none"
                 />
               </label>
 
@@ -397,13 +401,14 @@ export function LoginPage() {
                     onChange={(event) => setPassword(event.target.value)}
                     required
                     minLength={6}
-                    className="h-12 w-full rounded-[16px] border border-[#e5e8ed] bg-[#f8f9fb] px-4 pr-12 text-sm outline-none focus:border-[#ff3158] focus:bg-white"
+                    placeholder="请输入密码"
+                    className="h-12 w-full rounded-[16px] border border-[#e5e8ed] bg-[#f8f9fb] px-4 pr-12 text-sm text-[#121720] placeholder:text-[#a3acb9] outline-none focus:border-[#ff3158] focus:bg-white focus:shadow-[0_0_0_4px_rgba(255,49,88,0.12)] focus-visible:outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((current) => !current)}
                     aria-label={showPassword ? '隐藏密码' : '显示密码'}
-                    className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl text-[#69717d] hover:bg-white hover:text-[#171b22]"
+                    className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-[12px] text-[#69717d] transition-colors hover:bg-white hover:text-[#171b22] focus-visible:outline-none"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -412,17 +417,18 @@ export function LoginPage() {
 
               <div>
                 <div className="mb-2 text-sm font-bold text-[#3e4652]">图形验证码</div>
-                <div className="flex gap-2">
+                <div className="flex gap-3">
                   <input
                     value={captchaCode}
                     onChange={(event) => setCaptchaCode(event.target.value)}
                     required
-                    className="h-12 min-w-0 flex-1 rounded-[16px] border border-[#e5e8ed] bg-[#f8f9fb] px-4 text-sm uppercase outline-none focus:border-[#ff3158] focus:bg-white"
+                    placeholder="请输入验证码"
+                    className="h-12 min-w-0 flex-1 rounded-[16px] border border-[#e5e8ed] bg-[#f8f9fb] px-4 text-sm text-[#121720] placeholder:text-[#a3acb9] uppercase outline-none focus:border-[#ff3158] focus:bg-white focus:shadow-[0_0_0_4px_rgba(255,49,88,0.12)] focus-visible:outline-none"
                   />
                   <button
                     type="button"
                     onClick={refreshCaptcha}
-                    className="flex h-12 w-[150px] items-center justify-center gap-2 rounded-[16px] border border-[#e5e8ed] bg-white px-2"
+                    className="flex h-12 w-[150px] items-center justify-center gap-2 rounded-[16px] border border-[#e5e8ed] bg-[#f8f9fb] px-2 text-[#69717d] outline-none transition-colors hover:border-[#d9dde4] hover:bg-white focus:border-[#ff3158] focus:shadow-[0_0_0_4px_rgba(255,49,88,0.12)] focus-visible:outline-none"
                   >
                     {captcha ? (
                       <span
@@ -436,12 +442,12 @@ export function LoginPage() {
                 </div>
               </div>
 
-              {error ? <div className="rounded-[16px] bg-[#fff1f4] px-4 py-3 text-sm text-[#d81239]">{error}</div> : null}
+              {error ? <div className="rounded-[16px] bg-[#fff1f4] px-4 py-3.5 text-sm leading-6 text-[#d81239]">{error}</div> : null}
 
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="h-12 w-full rounded-full bg-[#ff3158] px-4 text-sm font-bold text-white shadow-[0_16px_34px_rgba(255,49,88,0.24)] disabled:opacity-50"
+                className="h-12 w-full rounded-[16px] bg-[#ff3158] px-4 text-sm font-bold text-white shadow-[0_16px_34px_rgba(255,49,88,0.24)] outline-none transition-all hover:bg-[#f2274d] hover:shadow-[0_18px_38px_rgba(255,49,88,0.28)] focus:shadow-[0_0_0_4px_rgba(255,49,88,0.16),0_16px_34px_rgba(255,49,88,0.24)] focus-visible:outline-none disabled:opacity-50"
               >
                 {isSubmitting ? '处理中...' : mode === 'login' ? '登录' : '注册并登录'}
               </button>
