@@ -672,13 +672,13 @@ export function WorkspacePage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-[var(--background)] text-[var(--text-primary)]">
+    <div className="flex h-dvh overflow-hidden bg-[var(--background)] text-[var(--text-primary)]">
       <LibrarySidebar />
 
-      <main className="flex min-w-0 flex-1 flex-col">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col">
         <TopToolbar title="SeenSpace (见间)" rightAction="workspace" />
 
-        <section className="flex flex-1 flex-col p-4 md:p-6">
+        <section className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 md:p-6">
           <div className="mb-4 rounded-[24px] border border-[var(--border)] bg-[var(--panel)] px-4 py-4 shadow-[var(--shadow-sm)]">
           <div className="flex flex-wrap items-center justify-between gap-3 px-1">
             <div className="flex items-center gap-3">
@@ -840,7 +840,7 @@ export function WorkspacePage() {
           </div>
 
           <div className="flex min-h-0 flex-1 gap-4">
-            <div className="min-w-0 flex-1">
+            <div className="min-h-0 min-w-0 flex-1">
               <CanvasStage
                 key={`${projectId ?? 'workspace'}-${canvasStageVersion}`}
                 snapshot={snapshot}

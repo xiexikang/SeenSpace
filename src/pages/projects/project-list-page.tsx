@@ -154,10 +154,10 @@ export function ProjectListPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-[var(--background)] text-[var(--text-primary)]">
+    <div className="flex h-dvh overflow-hidden bg-[var(--background)] text-[var(--text-primary)]">
       <LibrarySidebar />
 
-      <main className="flex min-w-0 flex-1 flex-col">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col">
         <TopToolbar
           title="SeenSpace (见间)"
           searchPlaceholder="搜索项目..."
@@ -168,7 +168,7 @@ export function ProjectListPage() {
           onNewProject={handleCreateProject}
         />
 
-        <section className="px-4 py-6 md:px-6 md:py-7">
+        <section className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-6 md:py-7">
           <div className="mb-6 overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--panel)] shadow-[var(--shadow-sm)]">
             <div className="grid gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1.1fr)_280px] lg:items-end">
               <div>

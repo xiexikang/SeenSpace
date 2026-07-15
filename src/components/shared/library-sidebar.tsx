@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FolderOpen, Globe, Image, LogOut, NotebookPen, Star } from 'lucide-react'
+import { FolderOpen, LogOut, NotebookPen, Star } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { getCurrentUser, logout, type AuthUser } from '../../features/auth/services/auth-service'
 
 const primaryItems = [
-  { label: '全部笔记', icon: NotebookPen, active: true },
-  { label: '图片', icon: Image },
-  { label: '网页', icon: Globe },
-  { label: '收藏', icon: Star },
+  { label: '全部空间', icon: NotebookPen, active: true },
+  { label: '我的收藏', icon: Star },
 ]
 
 export function LibrarySidebar() {
