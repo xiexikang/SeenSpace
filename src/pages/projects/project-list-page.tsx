@@ -108,13 +108,13 @@ export function ProjectListPage() {
       if (editingProject) {
         const project = await updateProjectMetadata(editingProject.id, input)
         setProjects((current) => current.map((item) => (item.id === project.id ? project : item)))
-        setToastMessage('目录已更新')
+        setToastMessage('空间已更新')
       } else {
         const project = await createProject(input)
         setProjects((current) => [project, ...current])
         navigate(`/workspace/${project.id}`, {
           state: {
-            actionMessage: '目录已创建',
+            actionMessage: '空间已创建',
           },
         })
       }
@@ -147,7 +147,7 @@ export function ProjectListPage() {
       setProjects((current) => current.filter((project) => project.id !== deletingProject.id))
       setIsDeleteDialogOpen(false)
       setDeletingProject(null)
-      setToastMessage('目录已删除')
+      setToastMessage('空间已删除')
     } finally {
       setIsDeletingProject(false)
     }
@@ -159,8 +159,7 @@ export function ProjectListPage() {
 
       <main className="flex min-h-0 min-w-0 flex-1 flex-col">
         <TopToolbar
-          title="SeenSpace (见间)"
-          searchPlaceholder="搜索项目..."
+          searchPlaceholder="搜索空间..."
           searchValue={search}
           onSearchChange={setSearch}
           viewMode={viewMode}
@@ -168,39 +167,7 @@ export function ProjectListPage() {
           onNewProject={handleCreateProject}
         />
 
-        <section className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-6 md:py-7">
-          <div className="mb-6 overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--panel)] shadow-[var(--shadow-sm)]">
-            <div className="grid gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1.1fr)_280px] lg:items-end">
-              <div>
-                <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--accent)]">
-                  Pinboard Workspace
-                </div>
-                <div className="mb-2 flex items-center gap-2">
-                  <h1 className="text-[32px] font-semibold tracking-tight text-[var(--text-primary)]">全部项目</h1>
-                  <span className="rounded-full border border-[var(--border)] bg-[var(--panel-soft)] px-2 py-1 text-xs text-[var(--text-secondary)]">
-                  {filteredProjects.length}
-                  </span>
-                </div>
-                <p className="max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
-                  用更像内容平台的方式浏览你的工作区。每个项目都保留原有数据、搜索、编辑和删除能力，只更新界面语言。
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-[20px] border border-[var(--border)] bg-[var(--panel-soft)] px-4 py-4">
-                  <div className="text-[11px] uppercase tracking-[0.14em] text-[var(--text-muted)]">已收录</div>
-                  <div className="mt-1 text-2xl font-semibold text-[var(--text-primary)]">{projects.length}</div>
-                  <div className="mt-1 text-xs text-[var(--text-secondary)]">项目目录</div>
-                </div>
-                <div className="rounded-[20px] border border-[var(--border)] bg-[linear-gradient(180deg,rgba(255,40,75,0.98),rgba(205,0,35,0.98))] px-4 py-4 text-white">
-                  <div className="text-[11px] uppercase tracking-[0.14em] text-white/72">状态</div>
-                  <div className="mt-1 text-2xl font-semibold">可继续</div>
-                  <div className="mt-1 text-xs text-white/72">不影响现有功能</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
+        <section className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-6 md:px-6 md:py-7">
           <div
             className={
               viewMode === 'grid'
@@ -216,7 +183,6 @@ export function ProjectListPage() {
                 summary={project.summary}
                 updatedAt={formatUpdatedAt(project.updatedAt)}
                 nodes={project.nodeCount}
-                initials={project.initials}
                 variant={project.thumbnailVariant}
                 viewMode={viewMode}
                 onEdit={() => openEditDialog(project)}
@@ -226,21 +192,23 @@ export function ProjectListPage() {
           </div>
 
           {isEmptyState ? (
-            <div className="mt-10 rounded-[28px] border border-dashed border-[var(--border)] bg-[var(--panel)] px-6 py-12 text-center shadow-[var(--shadow-sm)]">
-              <div className="mb-2 text-lg font-semibold text-[var(--text-primary)]">
-                {hasSearchQuery ? '没有匹配的项目' : '还没有项目'}
-              </div>
-              <p className="text-sm text-[var(--text-secondary)]">
-                {hasSearchQuery ? '换个关键词试试，或新建一个工作区。' : '先创建一个项目，开始整理你的灵感和画布。'}
-              </p>
-              <div className="mt-5 flex justify-center">
-                <button
-                  type="button"
-                  onClick={handleCreateProject}
-                  className="h-11 rounded-full bg-[var(--accent)] px-5 text-sm font-semibold text-white hover:bg-[var(--accent-strong)]"
-                >
-                  新建项目
-                </button>
+            <div className="flex min-h-0 flex-1 items-center justify-center rounded-[28px] border border-dashed border-[var(--border)] bg-[var(--panel)] px-6 py-12 text-center shadow-[var(--shadow-sm)]">
+              <div>
+                <div className="mb-2 text-lg font-semibold text-[var(--text-primary)]">
+                  {hasSearchQuery ? '没有匹配的空间' : '还没有空间'}
+                </div>
+                <p className="text-sm text-[var(--text-secondary)]">
+                  {hasSearchQuery ? '换个关键词试试，或新建一个空间。' : '先创建一个空间，开始整理你的灵感和画布。'}
+                </p>
+                <div className="mt-5 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={handleCreateProject}
+                    className="h-11 rounded-full bg-[var(--accent)] px-5 text-sm font-semibold text-white hover:bg-[var(--accent-strong)]"
+                  >
+                    新建空间
+                  </button>
+                </div>
               </div>
             </div>
           ) : null}
@@ -254,7 +222,7 @@ export function ProjectListPage() {
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <Dialog.Title className="text-lg font-semibold">
-                  {editingProject ? '修改目录' : '新增目录'}
+                  {editingProject ? '修改空间' : '新建空间'}
                 </Dialog.Title>
               </div>
               <Dialog.Close asChild>
@@ -270,10 +238,11 @@ export function ProjectListPage() {
 
             <form onSubmit={handleProjectSubmit} className="space-y-4">
               <label className="block">
-                <div className="mb-2 text-sm font-medium text-[var(--text-secondary)]">目录名称</div>
+                <div className="mb-2 text-sm font-medium text-[var(--text-secondary)]">空间名称</div>
                 <input
                   value={projectName}
                   onChange={(event) => setProjectName(event.target.value)}
+                  placeholder="请输入空间名称"
                   required
                   maxLength={160}
                   autoFocus
@@ -282,10 +251,11 @@ export function ProjectListPage() {
               </label>
 
               <label className="block">
-                <div className="mb-2 text-sm font-medium text-[var(--text-secondary)]">目录说明</div>
+                <div className="mb-2 text-sm font-medium text-[var(--text-secondary)]">空间说明</div>
                 <textarea
                   value={projectSummary}
                   onChange={(event) => setProjectSummary(event.target.value)}
+                  placeholder="请输入空间说明"
                   required
                   maxLength={500}
                   rows={4}
@@ -307,7 +277,7 @@ export function ProjectListPage() {
                   disabled={isSavingProject}
                   className="h-10 rounded-full bg-[var(--accent)] px-4 text-sm font-semibold text-white disabled:opacity-50"
                 >
-                  {isSavingProject ? '保存中...' : editingProject ? '保存修改' : '创建目录'}
+                  {isSavingProject ? '保存中...' : editingProject ? '保存修改' : '新建空间'}
                 </button>
               </div>
             </form>
@@ -321,9 +291,9 @@ export function ProjectListPage() {
           <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(420px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 rounded-[28px] border border-[var(--border)] bg-[var(--panel)] p-6 text-[var(--text-primary)] shadow-[var(--shadow-lg)]">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <Dialog.Title className="text-lg font-semibold">删除目录</Dialog.Title>
+                <Dialog.Title className="text-lg font-semibold">删除空间</Dialog.Title>
                 <Dialog.Description className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-                  确认删除“{deletingProject?.name ?? '当前目录'}”吗？删除后不可恢复。
+                  确认删除“{deletingProject?.name ?? '当前空间'}”吗？删除后不可恢复。
                 </Dialog.Description>
               </div>
               <Dialog.Close asChild>

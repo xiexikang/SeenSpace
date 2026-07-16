@@ -10,7 +10,6 @@ type ProjectCardProps = {
   summary: string
   updatedAt: string
   nodes: number
-  initials: string
   variant?: 'sand' | 'steel' | 'mist' | 'mint'
   viewMode?: ProjectViewMode
   onEdit?: () => void
@@ -31,48 +30,40 @@ export function ProjectCard({
   summary,
   updatedAt,
   nodes,
-  initials,
   variant = 'mist',
   viewMode = 'grid',
   onEdit,
   onDelete,
 }: ProjectCardProps) {
   return (
-    <div className="group relative">
+    <div className="group relative h-full">
       <Link
         to={`/workspace/${id}`}
         className={cn(
           'group block overflow-hidden rounded-[20px] border border-[var(--border)] bg-[var(--panel)] p-3 shadow-[var(--shadow-sm)] transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-lg)]',
-          viewMode === 'list' && 'flex items-center gap-4',
+          viewMode === 'grid' ? 'flex h-full flex-col' : 'flex items-center gap-4',
         )}
       >
         <div
           className={cn(
-            'relative flex items-start justify-between overflow-hidden rounded-[16px] p-4',
+            'relative flex items-start overflow-hidden rounded-[16px] p-4',
             viewMode === 'grid' ? 'mb-3 aspect-[16/9]' : 'aspect-[4/3] w-[180px] shrink-0',
           )}
           style={{ background: accentMap[variant] }}
         >
           <div className="absolute inset-x-0 top-0 h-[1px] bg-white/80" />
-          <span className="rounded-full border border-[var(--border-strong)] bg-[var(--background)] px-2.5 py-1 text-xs text-[var(--text-secondary)]">
-            {nodes} 个节点
-          </span>
-          <span className="rounded-full border border-white/70 bg-white/80 px-2.5 py-1 text-[10px] font-semibold tracking-[0.12em] text-[var(--text-secondary)] backdrop-blur-sm">
-            {initials}
-          </span>
           <div className="absolute bottom-0 left-0 right-0 px-4 pb-4">
-            <div className="inline-flex rounded-full bg-[var(--accent)] px-3 py-1 text-[10px] font-semibold tracking-[0.14em] text-white">
-              PROJECT
+            <div className="inline-flex rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-semibold text-[var(--accent-strong)]">
+              {nodes} 个节点
             </div>
           </div>
         </div>
 
-        <div className="space-y-1.5 px-1 pb-1 pr-10">
+        <div className={cn('px-1 pb-1', viewMode === 'grid' && 'flex flex-1 flex-col')}>
           <div className="truncate text-base font-semibold text-[var(--text-primary)]">{title}</div>
-          <p className="line-clamp-2 text-sm leading-6 text-[var(--text-secondary)]">{summary}</p>
-          <div className="flex items-center justify-between gap-3 pt-1 text-xs text-[var(--text-muted)]">
+          <p className={cn('mt-1.5 line-clamp-2 text-sm leading-6 text-[var(--text-secondary)]', viewMode === 'grid' && 'min-h-12')}>{summary}</p>
+          <div className={cn('pt-1 text-xs text-[var(--text-muted)]', viewMode === 'grid' && 'mt-auto')}>
             <span>更新于 {updatedAt}</span>
-            <span className="rounded-full bg-[var(--panel-soft)] px-2 py-1">内容画布</span>
           </div>
         </div>
       </Link>
@@ -82,7 +73,7 @@ export function ProjectCard({
             type="button"
             aria-label="更多操作"
             onClick={(event) => event.preventDefault()}
-            className="absolute bottom-4 right-4 flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--panel)] text-[var(--text-secondary)] opacity-0 shadow-[var(--shadow-sm)] transition-all group-hover:opacity-100 hover:bg-[var(--panel-elevated)] hover:text-[var(--text-primary)] focus-visible:opacity-100 data-[state=open]:opacity-100"
+            className="absolute right-7 top-7 flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--panel)] text-[var(--text-secondary)] opacity-0 shadow-[var(--shadow-sm)] transition-all group-hover:opacity-100 hover:bg-[var(--panel-elevated)] hover:text-[var(--text-primary)] focus-visible:opacity-100 data-[state=open]:opacity-100"
           >
             <Ellipsis className="h-4 w-4" />
           </button>
