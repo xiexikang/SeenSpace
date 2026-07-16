@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, Copy, FolderInput, FolderOpen, Info, Layers3, Maximize2, Minimize2, Redo2, Sparkles, Trash2, Undo2, X } from 'lucide-react'
+import { ArrowLeft, Copy, FolderInput, FolderOpen, Info, Layers3, Maximize2, Minimize2, Redo2, Sparkles, Trash2, Undo2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { LibrarySidebar } from '../../components/shared/library-sidebar'
@@ -86,7 +86,6 @@ export function WorkspacePage() {
   const { projectId } = useParams()
   const [projectName, setProjectName] = useState('未命名项目')
   const [snapshot, setSnapshot] = useState<WorkspaceSnapshot>(emptySnapshot)
-  const [saveState, setSaveState] = useState<'saved' | 'saving'>('saved')
   const [actionMessage, setActionMessage] = useState<string | null>(null)
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([])
   const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([])
@@ -181,13 +180,10 @@ export function WorkspacePage() {
     }
 
     setSnapshot(cleanSnapshot)
-    setSaveState('saving')
 
     if (projectId) {
       await updateProjectCanvas(projectId, cleanSnapshot)
     }
-
-    setSaveState('saved')
   }
 
   function showActionMessage(message: string) {
@@ -676,7 +672,7 @@ export function WorkspacePage() {
       <LibrarySidebar />
 
       <main className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <TopToolbar title="SeenSpace (见间)" rightAction="workspace" />
+        <TopToolbar rightAction="workspace" />
 
         <section className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 md:p-6">
           <div className="mb-4 rounded-[24px] border border-[var(--border)] bg-[var(--panel)] px-4 py-4 shadow-[var(--shadow-sm)]">
@@ -689,13 +685,8 @@ export function WorkspacePage() {
                 <ArrowLeft className="h-4 w-4" />
               </Link>
               <div>
-                <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--accent)]">Workspace</div>
                 <h1 className="text-base font-semibold text-[var(--text-primary)]">{projectName}</h1>
                 <div className="mt-1 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-                  <span className="inline-flex items-center gap-1">
-                    <Check className="h-3.5 w-3.5" />
-                    {saveState === 'saving' ? '保存中...' : '已保存到本地'}
-                  </span>
                   {actionMessage ? (
                     <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--panel-soft)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)]">
                       {actionMessage}
@@ -830,11 +821,7 @@ export function WorkspacePage() {
                     清除
                   </button>
                 </>
-              ) : (
-                <div className="rounded-full border border-[var(--border)] bg-[var(--panel-soft)] px-4 py-2 text-xs font-medium text-[var(--text-secondary)]">
-                  {selectionSummary}
-                </div>
-              )}
+              ) : null}
             </div>
           </div>
           </div>
@@ -856,8 +843,8 @@ export function WorkspacePage() {
                 }}
               />
             </div>
-            <aside className="hidden min-h-0 w-[340px] shrink-0 flex-col rounded-[28px] border border-[var(--border)] bg-[var(--panel)] p-4 shadow-[var(--shadow-sm)] xl:flex">
-              <div className="mb-4 grid grid-cols-2 gap-2 rounded-[18px] border border-[var(--border)] bg-[var(--panel-soft)] p-1.5">
+            <aside className="hidden min-h-0 w-[340px] shrink-0 flex-col rounded-[24px] border border-[var(--border)] bg-[var(--panel)] p-3 shadow-[var(--shadow-sm)] xl:flex">
+              <div className="mb-3 grid grid-cols-2 gap-1.5 rounded-[16px] border border-[var(--border)] bg-[var(--panel-soft)] p-1">
                 {[
                   { id: 'inspector' as const, label: '检查器', icon: Info },
                   { id: 'analysis' as const, label: 'AI 分析', icon: Sparkles },
@@ -869,7 +856,7 @@ export function WorkspacePage() {
                       key={item.id}
                       type="button"
                       onClick={() => setRightPanel(item.id)}
-                      className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-colors ${
+                      className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-xl text-[13px] font-semibold transition-colors ${
                         rightPanel === item.id
                           ? 'bg-[var(--accent)] text-white shadow-[var(--shadow-sm)]'
                           : 'text-[var(--text-secondary)] hover:bg-[var(--panel)] hover:text-[var(--text-primary)]'
@@ -882,7 +869,7 @@ export function WorkspacePage() {
                 })}
               </div>
 
-              <div className="min-h-0 flex-1 overflow-y-auto">
+              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
                 {rightPanel === 'inspector' ? (
                   <WorkspaceInspector
                     node={selectedNode}

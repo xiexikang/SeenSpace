@@ -98,13 +98,13 @@ export function AnalysisSidebar({ snapshot, selectedNodeIds, onInsertInsight }: 
       </div>
 
       <label className="mb-4 block">
-        <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">补充问题</div>
+        <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">提示词</div>
         <textarea
           value={question}
           onChange={(event) => setQuestion(event.target.value)}
           rows={3}
           placeholder="例如：这组素材适合什么视觉方向？"
-          className="w-full resize-none rounded-[18px] border border-[var(--border)] bg-[var(--panel-elevated)] px-3 py-2.5 text-sm leading-6 text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+          className="analysis-prompt-input w-full resize-none rounded-[18px] border border-[var(--border)] bg-[var(--panel-elevated)] px-3 py-2.5 text-sm leading-6 text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
         />
       </label>
 

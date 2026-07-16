@@ -44,21 +44,21 @@ const nodeTypeLabels: Record<WorkspaceNode['type'], string> = {
 }
 
 const fieldClassName =
-  'w-full rounded-[18px] border border-[var(--border)] bg-[var(--panel-elevated)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]'
+  'workspace-inspector-field w-full rounded-[14px] border border-[var(--border)] bg-[var(--panel-elevated)] px-3 py-2 text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)]'
 
-const textareaClassName = `${fieldClassName} resize-none leading-6`
+const textareaClassName = `${fieldClassName} resize-none leading-5`
 
 const secondaryButtonClassName =
-  'inline-flex h-10 items-center justify-center gap-2 rounded-[18px] border border-[var(--border)] bg-[var(--panel)] px-4 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]'
+  'inline-flex h-9 items-center justify-center gap-1.5 rounded-[14px] border border-[var(--border)] bg-[var(--panel)] px-3 text-[13px] font-medium text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]'
 
 const primaryButtonClassName =
-  'inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[var(--accent)] px-4 text-sm font-semibold text-white hover:bg-[var(--accent-strong)]'
+  'inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-[var(--accent)] px-3 text-[13px] font-semibold text-white hover:bg-[var(--accent-strong)]'
 
 const statCardClassName =
-  'rounded-[20px] border border-[var(--border)] bg-[var(--panel-elevated)] px-3 py-3'
+  'rounded-[16px] border border-[var(--border)] bg-[var(--panel-elevated)] px-3 py-2.5'
 
 const sectionCardClassName =
-  'mb-4 rounded-[22px] border border-[var(--border)] bg-[var(--panel-elevated)] p-4'
+  'mb-3 rounded-[18px] border border-[var(--border)] bg-[var(--panel-elevated)] p-3'
 
 type WorkspaceInspectorProps = {
   node?: WorkspaceNode
@@ -307,10 +307,10 @@ export function WorkspaceInspector({
   }, [edge?.id, isEdgeSingleSelect])
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="mb-4 flex items-center justify-between gap-2">
+    <div className="workspace-inspector flex min-h-0 flex-1 flex-col">
+      <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-[16px] bg-[var(--accent-soft)] text-[var(--accent)]">
+          <div className="flex h-9 w-9 items-center justify-center rounded-[14px] bg-[var(--accent-soft)] text-[var(--accent)]">
             {isNodeMultiSelect || isEdgeMultiSelect ? (
               <Layers3 className="h-4 w-4" />
             ) : (
@@ -333,7 +333,7 @@ export function WorkspaceInspector({
           <button
             type="button"
             onClick={onClearSelection}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--panel)] text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--panel)] text-[var(--text-secondary)] hover:bg-[var(--panel-elevated)]"
           >
             <X className="h-4 w-4" />
           </button>
@@ -357,7 +357,7 @@ export function WorkspaceInspector({
             </label>
           ) : null}
 
-          <div className="mb-4 rounded-[24px] border border-dashed border-[var(--border)] bg-[var(--panel-elevated)] p-4">
+          <div className="mb-3 rounded-[18px] border border-dashed border-[var(--border)] bg-[var(--panel-elevated)] p-3">
             <p className="text-sm leading-6 text-[var(--text-secondary)]">
               批量元信息可以把笔记、图片和链接归到同一条线索里，无需逐个打开卡片。
             </p>
@@ -429,7 +429,7 @@ export function WorkspaceInspector({
                   type="button"
                   onClick={() => onApplyLayout(id)}
                   title={label}
-                  className="inline-flex h-10 items-center justify-center rounded-[16px] border border-[var(--border)] bg-[var(--panel)] text-[var(--text-secondary)] hover:bg-[var(--panel)] hover:text-[var(--text-primary)]"
+                  className="inline-flex h-9 items-center justify-center rounded-[14px] border border-[var(--border)] bg-[var(--panel)] text-[var(--text-secondary)] hover:bg-[var(--panel)] hover:text-[var(--text-primary)]"
                 >
                   <Icon className="h-4 w-4" />
                 </button>
@@ -477,39 +477,29 @@ export function WorkspaceInspector({
             />
           </label>
 
-          <button
-            type="button"
-            onClick={onApplyBatchTags}
-            className={`mb-3 ${primaryButtonClassName}`}
-          >
-            合并标签
-          </button>
+          <div className="mt-auto grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={onApplyBatchTags}
+              className="inline-flex h-9 items-center justify-center rounded-[14px] border border-[var(--accent-soft)] bg-[var(--accent-soft)] px-3 text-[13px] font-semibold text-[var(--accent-strong)] hover:bg-[color:color-mix(in_srgb,var(--accent-soft)_78%,var(--accent)_22%)]"
+            >
+              合并标签
+            </button>
 
-          <button
-            type="button"
-            onClick={onClearBatchTags}
-            className={`mb-3 ${secondaryButtonClassName}`}
-          >
-            清空标签
-          </button>
+            <button type="button" onClick={onClearBatchTags} className={secondaryButtonClassName}>
+              清空标签
+            </button>
 
-          <button
-            type="button"
-            onClick={onDuplicateMany}
-            className={`mb-3 ${secondaryButtonClassName}`}
-          >
-            <Copy className="h-4 w-4" />
-            复制选中项
-          </button>
+            <button type="button" onClick={onDuplicateMany} className={secondaryButtonClassName}>
+              <Copy className="h-4 w-4" />
+              复制选中项
+            </button>
 
-          <button
-            type="button"
-            onClick={onDeleteMany}
-            className={`mt-auto ${secondaryButtonClassName}`}
-          >
-            <Trash2 className="h-4 w-4" />
-            删除选中项
-          </button>
+            <button type="button" onClick={onDeleteMany} className={secondaryButtonClassName}>
+              <Trash2 className="h-4 w-4" />
+              删除选中项
+            </button>
+          </div>
         </div>
       ) : isEdgeMultiSelect ? (
         <div className="flex flex-1 flex-col">
@@ -517,7 +507,7 @@ export function WorkspaceInspector({
             已选中 {selectedEdgeCount} 条连接
           </div>
 
-          <div className="mb-4 rounded-[24px] border border-dashed border-[var(--border)] bg-[var(--panel-elevated)] p-4">
+          <div className="mb-3 rounded-[18px] border border-dashed border-[var(--border)] bg-[var(--panel-elevated)] p-3">
             <p className="text-sm leading-6 text-[var(--text-secondary)]">
               这些连接定义了笔记、图片和参考资料在画布中的关系。
             </p>
@@ -684,7 +674,7 @@ export function WorkspaceInspector({
             </div>
           </div>
 
-          <div className="mb-3 rounded-[24px] border border-[var(--border)] bg-[var(--panel-elevated)] p-4">
+          <div className="mb-3 rounded-[18px] border border-[var(--border)] bg-[var(--panel-elevated)] p-3">
             <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
               <span>来源</span>
               <ArrowRight className="h-3.5 w-3.5" />
@@ -692,7 +682,7 @@ export function WorkspaceInspector({
             <div className="text-sm text-[var(--text-primary)]">{edgeSourceTitle ?? edge.source}</div>
           </div>
 
-          <div className="mb-6 rounded-[24px] border border-[var(--border)] bg-[var(--panel-soft)] p-4">
+          <div className="mb-4 rounded-[18px] border border-[var(--border)] bg-[var(--panel-soft)] p-3">
             <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
               <span>目标</span>
               <ArrowRight className="h-3.5 w-3.5" />
@@ -784,7 +774,7 @@ export function WorkspaceInspector({
           </button>
         </div>
       ) : (
-        <div className="flex flex-1 items-center justify-center rounded-[24px] border border-dashed border-[var(--border)] bg-[var(--panel-elevated)] p-6 text-center">
+        <div className="flex flex-1 items-center justify-center rounded-[20px] border border-dashed border-[var(--border)] bg-[var(--panel-elevated)] p-5 text-center">
           <p className="text-sm leading-6 text-[var(--text-secondary)]">
             选择一个或多个节点/连接，即可编辑详情或批量移除。
           </p>
