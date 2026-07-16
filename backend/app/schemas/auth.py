@@ -30,3 +30,12 @@ class RegisterRequest(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     captchaId: str
     captchaCode: str
+
+
+class UpdateNameRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+
+
+class UpdatePasswordRequest(BaseModel):
+    currentPassword: str = Field(min_length=6, max_length=128)
+    newPassword: str = Field(min_length=6, max_length=128)

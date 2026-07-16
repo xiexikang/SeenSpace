@@ -57,3 +57,50 @@ def test_login_rejects_wrong_captcha(monkeypatch: MonkeyPatch) -> None:
     )
 
     assert response.status_code == 400
+
+
+def test_update_name_and_password(monkeypatch: MonkeyPatch) -> None:
+    fixed_captcha(monkeypatch)
+    captcha = client.get("/api/auth/captcha").json()
+    registered = client.post(
+        "/api/auth/register",
+        json={
+            "username": "profileuser",
+            "name": "原昵称",
+            "password": "seenspace123",
+            "captchaId": captcha["captchaId"],
+            "captchaCode": "AAAAA",
+        },
+    )
+    assert registered.status_code == 200
+    headers = {"Authorization": f"Bearer {registered.json()['token']}"}
+
+    renamed = client.patch("/api/auth/me/name", headers=headers, json={"name": "新昵称"})
+    assert renamed.status_code == 200
+    assert renamed.json()["name"] == "新昵称"
+
+    wrong_password = client.patch(
+        "/api/auth/me/password",
+        headers=headers,
+        json={"currentPassword": "wrong-password", "newPassword": "updated-password"},
+    )
+    assert wrong_password.status_code == 400
+
+    updated_password = client.patch(
+        "/api/auth/me/password",
+        headers=headers,
+        json={"currentPassword": "seenspace123", "newPassword": "updated-password"},
+    )
+    assert updated_password.status_code == 200
+
+    captcha = client.get("/api/auth/captcha").json()
+    login_with_new_password = client.post(
+        "/api/auth/login",
+        json={
+            "username": "profileuser",
+            "password": "updated-password",
+            "captchaId": captcha["captchaId"],
+            "captchaCode": "AAAAA",
+        },
+    )
+    assert login_with_new_password.status_code == 200

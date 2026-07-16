@@ -1,4 +1,4 @@
-import { apiGet, apiPost, clearAuthToken, setAuthToken } from '../../../lib/api-client'
+import { apiGet, apiPatch, apiPost, clearAuthToken, setAuthToken } from '../../../lib/api-client'
 
 export type AuthUser = {
   id: string
@@ -45,6 +45,14 @@ export async function register(input: {
 
 export function getCurrentUser() {
   return apiGet<AuthUser>('/api/auth/me')
+}
+
+export function updateUserName(name: string) {
+  return apiPatch<AuthUser>('/api/auth/me/name', { name })
+}
+
+export function updateUserPassword(currentPassword: string, newPassword: string) {
+  return apiPatch<{ ok: boolean }>('/api/auth/me/password', { currentPassword, newPassword })
 }
 
 export async function logout() {

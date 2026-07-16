@@ -156,6 +156,29 @@ def login_user(
     return create_session(db, user)
 
 
+def update_user_name(db: Session, user: User, name: str) -> AuthUser:
+    normalized_name = name.strip()
+    if not normalized_name:
+        raise ValueError("昵称不能为空。")
+
+    user.name = normalized_name
+    user.updated_at = now_utc()
+    db.commit()
+    db.refresh(user)
+    return to_auth_user(user)
+
+
+def update_user_password(db: Session, user: User, current_password: str, new_password: str) -> None:
+    if not verify_password(current_password, user.password_hash):
+        raise ValueError("当前密码不正确。")
+    if current_password == new_password:
+        raise ValueError("新密码不能与当前密码相同。")
+
+    user.password_hash = hash_password(new_password)
+    user.updated_at = now_utc()
+    db.commit()
+
+
 def get_user_by_token(db: Session, token: str) -> User | None:
     session = db.get(AuthSession, token)
     if session is None:
