@@ -16,6 +16,7 @@ export function sanitizeSnapshot(snapshot: WorkspaceSnapshot): WorkspaceSnapshot
       data: {
         ...node.data,
         edgeFocusRole: undefined,
+        externallySelected: undefined,
         collapsedGroupSummary: undefined,
       },
     })),

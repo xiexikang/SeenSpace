@@ -80,12 +80,39 @@ function getInsightNodePosition(nodes: WorkspaceNode[], sourceNodeIds: string[])
   }
 }
 
+function getNodeSearchText(node: WorkspaceNode) {
+  const values: string[] = [node.type]
+
+  function collect(value: unknown) {
+    if (typeof value === 'string') {
+      if (!value.startsWith('data:')) values.push(value)
+      return
+    }
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      values.push(String(value))
+      return
+    }
+    if (Array.isArray(value)) {
+      value.forEach(collect)
+      return
+    }
+    if (value && typeof value === 'object') {
+      Object.values(value).forEach(collect)
+    }
+  }
+
+  collect(node.data)
+  return values.join(' ').toLocaleLowerCase()
+}
+
 export function WorkspacePage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { projectId } = useParams()
   const [projectName, setProjectName] = useState('未命名项目')
   const [snapshot, setSnapshot] = useState<WorkspaceSnapshot>(emptySnapshot)
+  const [workspaceSearch, setWorkspaceSearch] = useState('')
+  const [searchMatchIds, setSearchMatchIds] = useState<string[]>([])
   const [actionMessage, setActionMessage] = useState<string | null>(null)
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([])
   const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([])
@@ -141,6 +168,25 @@ export function WorkspacePage() {
   const batchEdgeState = deriveWorkspaceBatchEdgeState(
     snapshot.edges.filter((edge) => selectedEdgeIds.includes(edge.id)),
   )
+
+  function handleWorkspaceSearchChange(value: string) {
+    setWorkspaceSearch(value)
+    const query = value.trim().toLocaleLowerCase()
+    if (query) {
+      const matchingIds = snapshot.nodes
+        .filter((node) => getNodeSearchText(node).includes(query))
+        .map((node) => node.id)
+
+      setSearchMatchIds(matchingIds)
+      setSelectedNodeIds(matchingIds)
+      setSelectedEdgeIds([])
+      return
+    }
+
+    setSearchMatchIds([])
+    setSelectedNodeIds([])
+    setSelectedEdgeIds([])
+  }
 
   useEffect(() => {
     if (selectedNodeIds.length > 1) {
@@ -672,7 +718,11 @@ export function WorkspacePage() {
       <LibrarySidebar />
 
       <main className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <TopToolbar rightAction="workspace" />
+        <TopToolbar
+          rightAction="workspace"
+          searchValue={workspaceSearch}
+          onSearchChange={handleWorkspaceSearchChange}
+        />
 
         <section className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 md:p-6">
           <div className="mb-4 rounded-[24px] border border-[var(--border)] bg-[var(--panel)] px-4 py-4 shadow-[var(--shadow-sm)]">
@@ -832,6 +882,7 @@ export function WorkspacePage() {
                 key={`${projectId ?? 'workspace'}-${canvasStageVersion}`}
                 snapshot={snapshot}
                 selectedNodeIds={selectedNodeIds}
+                focusNodeIds={searchMatchIds}
                 focusedEdgeIds={selectedEdgeIds}
                 onEdgeCreate={handleEdgeCreate}
                 onSelectGroup={handleSelectGroupById}

@@ -7,7 +7,7 @@ export function ImageNodeCard({ data, selected }: NodeProps<ImageNode>) {
     <NodeFrame
       typeLabel="图片"
       accentClassName="bg-[rgba(125,170,151,0.18)] text-[var(--text-secondary)]"
-      selected={selected}
+      selected={selected || data.externallySelected}
       edgeFocusRole={data.edgeFocusRole}
       groupLabel={data.groupCollapsed ? data.groupLabel : undefined}
       collapsedGroupSummary={data.groupCollapsed ? data.collapsedGroupSummary : undefined}

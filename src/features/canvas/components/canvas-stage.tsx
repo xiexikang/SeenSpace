@@ -51,6 +51,7 @@ import { ZoomControls } from './zoom-controls'
 type CanvasStageProps = {
   snapshot: WorkspaceSnapshot
   selectedNodeIds?: string[]
+  focusNodeIds?: string[]
   focusedEdgeIds?: string[]
   onEdgeCreate?: (edge: WorkspaceEdge) => void
   onSelectGroup?: (groupId: string) => void
@@ -76,6 +77,8 @@ const defaultEdgeOptions = {
     color: 'var(--text-muted)',
   },
 } as const
+
+const emptyNodeIds: string[] = []
 
 function isEditablePasteTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false
@@ -123,15 +126,20 @@ function edgeListsEqual(left: WorkspaceEdge[], right: WorkspaceEdge[]) {
 
 export function CanvasStage({
   snapshot,
-  selectedNodeIds = [],
-  focusedEdgeIds = [],
+  selectedNodeIds = emptyNodeIds,
+  focusNodeIds = emptyNodeIds,
+  focusedEdgeIds = emptyNodeIds,
   onEdgeCreate,
   onSelectGroup,
   onToggleGroupCollapse,
   onSnapshotChange,
   onSelectionChange,
 }: CanvasStageProps) {
-  const initialStageState = buildCanvasStageState(snapshot, focusedEdgeIds.length === 1 ? snapshot.edges.find((edge) => edge.id === focusedEdgeIds[0]) : undefined)
+  const initialStageState = buildCanvasStageState(
+    snapshot,
+    focusedEdgeIds.length === 1 ? snapshot.edges.find((edge) => edge.id === focusedEdgeIds[0]) : undefined,
+    selectedNodeIds,
+  )
   const [nodes, setNodes, onNodesChangeBase] = useNodesState<WorkspaceNode>(initialStageState.nodes)
   const [edges, setEdges, onEdgesChangeBase] = useEdgesState<WorkspaceEdge>(initialStageState.edges)
   const [zoomLabel, setZoomLabel] = useState(`${Math.round(snapshot.viewport.zoom * 100)}%`)
@@ -152,7 +160,11 @@ export function CanvasStage({
   const focusedEdge = focusedEdgeIds.length === 1 ? snapshot.edges.find((edge) => edge.id === focusedEdgeIds[0]) : undefined
 
   useEffect(() => {
-    const { nodes: nextNodes, edges: nextEdges } = buildCanvasStageState(snapshot, focusedEdge)
+    const { nodes: nextNodes, edges: nextEdges } = buildCanvasStageState(
+      snapshot,
+      focusedEdge,
+      selectedNodeIds,
+    )
     const frameId = window.requestAnimationFrame(() => {
       setZoomLabel(`${Math.round(snapshot.viewport.zoom * 100)}%`)
       setViewport(snapshot.viewport)
@@ -163,7 +175,22 @@ export function CanvasStage({
     setEdges((currentEdges) => (edgeListsEqual(currentEdges, nextEdges) ? currentEdges : nextEdges))
 
     return () => window.cancelAnimationFrame(frameId)
-  }, [focusedEdge, setEdges, setNodes, snapshot])
+  }, [focusedEdge, focusedEdgeIds, selectedNodeIds, setEdges, setNodes, snapshot])
+
+  useEffect(() => {
+    if (focusNodeIds.length === 0) return
+
+    const frameId = window.requestAnimationFrame(() => {
+      void flowRef.current?.fitView({
+        nodes: focusNodeIds.map((id) => ({ id })),
+        padding: 0.35,
+        maxZoom: 1.15,
+        duration: 240,
+      })
+    })
+
+    return () => window.cancelAnimationFrame(frameId)
+  }, [focusNodeIds])
 
   const groupOverlays = useMemo(() => buildCanvasGroupOverlays(nodes, selectedNodeIds), [nodes, selectedNodeIds])
 
@@ -449,7 +476,15 @@ export function CanvasStage({
         onNodeDrag={onNodeDrag}
         onMoveEnd={handleMoveEnd}
         onNodeDragStop={handleNodeDragStop}
+        onPaneClick={() => onSelectionChange?.({ nodeIds: [], edgeIds: [] })}
         onSelectionChange={({ nodes: selectedNodes, edges: selectedEdges }) => {
+          if (
+            selectedNodes.length === 0 &&
+            selectedEdges.length === 0 &&
+            (selectedNodeIds.length > 0 || focusedEdgeIds.length > 0)
+          ) {
+            return
+          }
           const currentNodes = ((flowRef.current?.getNodes() as WorkspaceNode[] | undefined) ?? [])
           const expandedNodeIds = expandSelectedNodeIdsByGroup(
             currentNodes,

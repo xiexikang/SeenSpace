@@ -16,7 +16,12 @@ export function getEdgeFocusRole(nodeId: string, focusedEdge?: WorkspaceEdge): '
   return undefined
 }
 
-export function buildCanvasStageState(snapshot: WorkspaceSnapshot, focusedEdge?: WorkspaceEdge) {
+export function buildCanvasStageState(
+  snapshot: WorkspaceSnapshot,
+  focusedEdge?: WorkspaceEdge,
+  selectedNodeIds: string[] = [],
+) {
+  const selectedNodeIdSet = new Set(selectedNodeIds)
   const renderState = buildRenderableNodes(snapshot.nodes, [])
 
   return {
@@ -25,10 +30,12 @@ export function buildCanvasStageState(snapshot: WorkspaceSnapshot, focusedEdge?:
       data: {
         ...node.data,
         edgeFocusRole: getEdgeFocusRole(node.id, focusedEdge),
+        externallySelected: selectedNodeIdSet.has(node.id),
       },
     })),
     edges: snapshot.edges.map((edge) => ({
       ...edge,
+      selected: false,
       hidden: renderState.hiddenNodeIds.has(edge.source) || renderState.hiddenNodeIds.has(edge.target),
     })),
   }

@@ -7,7 +7,7 @@ export function NoteNodeCard({ data, selected }: NodeProps<NoteNode>) {
     <NodeFrame
       typeLabel="笔记"
       accentClassName="bg-[rgba(182,163,122,0.16)] text-[var(--text-secondary)]"
-      selected={selected}
+      selected={selected || data.externallySelected}
       edgeFocusRole={data.edgeFocusRole}
       groupLabel={data.groupCollapsed ? data.groupLabel : undefined}
       collapsedGroupSummary={data.groupCollapsed ? data.collapsedGroupSummary : undefined}

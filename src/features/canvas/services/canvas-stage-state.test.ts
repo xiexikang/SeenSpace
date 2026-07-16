@@ -97,4 +97,22 @@ describe('canvas stage state', () => {
     expect(result.nodes.find((node) => node.id === 'source-1')?.data.edgeFocusRole).toBe('source')
     expect(result.nodes.find((node) => node.id === 'target-1')?.data.edgeFocusRole).toBe('target')
   })
+
+  it('preserves external node selection without controlling React Flow selection', () => {
+    const snapshot = createSnapshot(
+      [
+        createNode({ id: 'node-1' }),
+        createNode({ id: 'node-2' }),
+      ],
+      [createEdge({ id: 'edge-1', source: 'node-1', target: 'node-2' })],
+    )
+
+    const result = buildCanvasStageState(snapshot, undefined, ['node-2'])
+
+    expect(result.nodes.map((node) => [node.id, node.selected, node.data.externallySelected])).toEqual([
+      ['node-1', false, false],
+      ['node-2', false, true],
+    ])
+    expect(result.edges[0]?.selected).toBe(false)
+  })
 })

@@ -7,7 +7,7 @@ export function AiInsightNodeCard({ data, selected }: NodeProps<AiInsightNode>) 
     <NodeFrame
       typeLabel="AI 洞察"
       accentClassName="bg-[rgba(141,122,182,0.16)] text-[var(--text-secondary)]"
-      selected={selected}
+      selected={selected || data.externallySelected}
       edgeFocusRole={data.edgeFocusRole}
       groupLabel={data.groupCollapsed ? data.groupLabel : undefined}
       collapsedGroupSummary={data.groupCollapsed ? data.collapsedGroupSummary : undefined}

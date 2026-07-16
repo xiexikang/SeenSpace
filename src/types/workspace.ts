@@ -31,6 +31,7 @@ type WorkspaceNodeDataBase = {
   scope?: 'canvas' | 'selection'
   question?: string
   edgeFocusRole?: 'source' | 'target'
+  externallySelected?: boolean
   groupId?: string
   groupLabel?: string
   groupLeadId?: string

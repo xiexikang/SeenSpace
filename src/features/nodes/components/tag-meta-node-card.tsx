@@ -7,7 +7,7 @@ export function TagMetaNodeCard({ data, selected }: NodeProps<TagMetaNode>) {
     <NodeFrame
       typeLabel="标签 / 元信息"
       accentClassName="bg-[rgba(171,145,194,0.16)] text-[var(--text-secondary)]"
-      selected={selected}
+      selected={selected || data.externallySelected}
       edgeFocusRole={data.edgeFocusRole}
       groupLabel={data.groupCollapsed ? data.groupLabel : undefined}
       collapsedGroupSummary={data.groupCollapsed ? data.collapsedGroupSummary : undefined}
