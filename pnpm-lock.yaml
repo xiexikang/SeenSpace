@@ -35,9 +35,6 @@ dependencies:
   clsx:
     specifier: ^2.1.1
     version: 2.1.1
-  dexie:
-    specifier: ^4.4.2
-    version: 4.4.2
   lucide-react:
     specifier: ^1.14.0
     version: 1.14.0(react@19.2.6)
@@ -2144,10 +2141,6 @@ packages:
 
   /detect-node-es@1.1.0:
     resolution: {integrity: sha512-ypdmJU/TbBby2Dxibuv7ZLW3Bs1QEmM7nHjEANfohJLvE0XVujisn1qPJcZxg+qDucsr+bP6fLD1rPS3AhJ7EQ==}
-    dev: false
-
-  /dexie@4.4.2:
-    resolution: {integrity: sha512-zMtV8q79EFE5U8FKZvt0Y/77PCU/Hr/RDxv1EDeo228L+m/HTbeN2AjoQm674rhQCX8n3ljK87lajt7UQuZfvw==}
     dev: false
 
   /dom-accessibility-api@0.5.16:
