@@ -81,7 +81,7 @@ export function NodeFrame({
       <Handle
         type="target"
         position={Position.Left}
-        className="!h-2.5 !w-2.5 !border-0 !bg-[var(--text-muted)]"
+        className="!z-20 !h-4 !w-4 !border-2 !border-[var(--panel)] !bg-[var(--text-muted)] transition-colors hover:!bg-[var(--accent)]"
       />
 
       <div className="relative mb-3 flex items-center justify-between gap-2">
@@ -208,7 +208,7 @@ export function NodeFrame({
       <Handle
         type="source"
         position={Position.Right}
-        className="!h-2.5 !w-2.5 !border-0 !bg-[var(--text-muted)]"
+        className="!z-20 !h-4 !w-4 !border-2 !border-[var(--panel)] !bg-[var(--text-muted)] transition-colors hover:!bg-[var(--accent)]"
       />
       </div>
     </div>

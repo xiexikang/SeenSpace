@@ -259,6 +259,10 @@ describe('CanvasStage', () => {
     const onSnapshotChange = vi.fn()
     const onSelectionChange = vi.fn()
     const onEdgeCreate = vi.fn()
+    const eventOrder: string[] = []
+    onSnapshotChange.mockImplementation(() => eventOrder.push('snapshot'))
+    onSelectionChange.mockImplementation(() => eventOrder.push('selection'))
+    onEdgeCreate.mockImplementation(() => eventOrder.push('edge'))
     const snapshot = createSnapshot([
       createNode({ id: 'source-1', data: { title: 'Source' } }),
       createNode({ id: 'target-1', position: { x: 220, y: 0 }, data: { title: 'Target' } }),
@@ -274,6 +278,8 @@ describe('CanvasStage', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Trigger Connect' }))
+
+    expect(eventOrder.slice(0, 3)).toEqual(['snapshot', 'selection', 'edge'])
     await act(async () => {
       await vi.runAllTimersAsync()
     })

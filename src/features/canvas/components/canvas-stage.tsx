@@ -239,6 +239,8 @@ export function CanvasStage({
   const onConnect = useCallback((connection: Connection) => {
     if (!connection.source || !connection.target) return
 
+    const currentNodes = (flowRef.current?.getNodes() as WorkspaceNode[] | undefined) ?? nodes
+    const currentEdges = (flowRef.current?.getEdges() as WorkspaceEdge[] | undefined) ?? edges
     const nextEdge = createConnectionEdge(
       {
         source: connection.source,
@@ -246,14 +248,15 @@ export function CanvasStage({
         sourceHandle: connection.sourceHandle,
         targetHandle: connection.targetHandle,
       },
-      nodes,
+      currentNodes,
     )
+    const nextEdges = addEdge(nextEdge, currentEdges)
 
-    setEdges((current) => addEdge(nextEdge, current))
+    setEdges(nextEdges)
+    emitSnapshotWith(currentNodes, nextEdges)
     onSelectionChange?.({ nodeIds: [], edgeIds: [nextEdge.id] })
     onEdgeCreate?.(nextEdge)
-    scheduleSnapshotSave()
-  }, [nodes, onEdgeCreate, onSelectionChange, scheduleSnapshotSave, setEdges])
+  }, [edges, emitSnapshotWith, nodes, onEdgeCreate, onSelectionChange, setEdges])
 
   function addNode(type: WorkspaceNodeType) {
     setNodes((current) => [...current, createWorkspaceNode(type, current.length)])
@@ -509,6 +512,7 @@ export function CanvasStage({
         proOptions={{ hideAttribution: true }}
         minZoom={0.5}
         maxZoom={1.8}
+        connectionRadius={28}
         className="bg-transparent"
       >
         <Background
