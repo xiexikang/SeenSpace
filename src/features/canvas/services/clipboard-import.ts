@@ -5,6 +5,7 @@ import type {
   WorkspaceNode,
   WorkspaceNodeType,
 } from '../../../types/workspace'
+import { apiPost } from '../../../lib/api-client'
 import { randomId } from '../../../shared/utils/random-id'
 
 export type ClipboardImportPayload =
@@ -18,6 +19,8 @@ export type ClipboardImportPayload =
       kind: 'link'
       url: string
       domain: string
+      title?: string
+      description?: string
     }
   | {
       kind: 'text'
@@ -36,6 +39,52 @@ function getDomain(value: string) {
   } catch {
     return 'website'
   }
+}
+
+function getClipboardUri(clipboardData: DataTransfer) {
+  const uriList = clipboardData.getData('text/uri-list') ?? ''
+  return uriList
+    .split(/\r?\n/)
+    .map((value) => value.trim())
+    .find((value) => value && !value.startsWith('#')) ?? ''
+}
+
+function normalizeUrl(value: string) {
+  try {
+    return new URL(value).href
+  } catch {
+    return value
+  }
+}
+
+function getClipboardLinkMetadata(clipboardData: DataTransfer, url: string, plainText: string) {
+  const html = clipboardData.getData('text/html') ?? ''
+  let title: string | undefined
+  let description: string | undefined
+
+  if (html) {
+    const document = new DOMParser().parseFromString(html, 'text/html')
+    const metadataTitle =
+      document.querySelector('meta[property="og:title"]')?.getAttribute('content') ??
+      document.querySelector('meta[name="twitter:title"]')?.getAttribute('content') ??
+      document.querySelector('title')?.textContent
+    const matchingAnchor = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href]')).find(
+      (anchor) => normalizeUrl(anchor.href) === normalizeUrl(url),
+    )
+    const htmlTitle = trimText(metadataTitle || matchingAnchor?.textContent || '')
+    if (htmlTitle && !urlPattern.test(htmlTitle)) title = htmlTitle.slice(0, 200)
+
+    const metadataDescription =
+      document.querySelector('meta[property="og:description"]')?.getAttribute('content') ??
+      document.querySelector('meta[name="twitter:description"]')?.getAttribute('content') ??
+      document.querySelector('meta[name="description"]')?.getAttribute('content')
+    const htmlDescription = trimText(metadataDescription ?? '')
+    if (htmlDescription) description = htmlDescription.slice(0, 500)
+  }
+
+  const plainTitle = trimText(plainText)
+  if (!title && plainTitle && !urlPattern.test(plainTitle)) title = plainTitle.slice(0, 200)
+  return { title, description }
 }
 
 function readFileAsDataUrl(file: File) {
@@ -67,20 +116,46 @@ export async function parseClipboardImport(clipboardData: DataTransfer): Promise
     }
   }
 
-  const text = trimText(clipboardData.getData('text/plain') ?? '')
+  const plainText = trimText(clipboardData.getData('text/plain') ?? '')
+  const clipboardUri = trimText(getClipboardUri(clipboardData))
+  const text = urlPattern.test(plainText) ? plainText : clipboardUri || plainText
   if (!text) return null
 
   if (urlPattern.test(text)) {
+    const metadata = getClipboardLinkMetadata(clipboardData, text, plainText)
     return {
       kind: 'link',
       url: text,
       domain: getDomain(text),
+      ...(metadata.title ? { title: metadata.title } : {}),
+      ...(metadata.description ? { description: metadata.description } : {}),
     }
   }
 
   return {
     kind: 'text',
     text,
+  }
+}
+
+export async function resolveClipboardLinkMetadata(
+  payload: ClipboardImportPayload,
+): Promise<ClipboardImportPayload> {
+  if (payload.kind !== 'link' || (payload.title && payload.description)) return payload
+
+  try {
+    const metadata = await apiPost<{ title: string | null; description: string | null }>('/api/web/metadata', {
+      url: payload.url,
+    })
+    const title = trimText(metadata.title ?? '').slice(0, 200)
+    const description = trimText(metadata.description ?? '').slice(0, 500)
+    return {
+      ...payload,
+      ...(!payload.title && title ? { title } : {}),
+      ...(!payload.description && description ? { description } : {}),
+    }
+  } catch {
+    return payload
   }
 }
 
@@ -123,8 +198,8 @@ export function createNodeFromClipboardPayload(
       type: 'web',
       position,
       data: {
-        title: payload.domain,
-        description: '从剪贴板粘贴。',
+        title: payload.title || payload.domain,
+        description: payload.description || '从剪贴板粘贴。',
         meta: '网页',
         url: payload.url,
         domain: payload.domain,
@@ -170,6 +245,8 @@ export function applyClipboardPayloadToNode(
       data: {
         ...node.data,
         meta: '网页',
+        title: payload.title || node.data.title,
+        description: payload.description || node.data.description,
         url: payload.url,
         domain: payload.domain,
       },

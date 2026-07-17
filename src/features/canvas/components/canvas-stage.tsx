@@ -43,6 +43,7 @@ import {
   createNodeFromClipboardPayload,
   getPasteConflictTarget,
   parseClipboardImport,
+  resolveClipboardLinkMetadata,
   type ClipboardImportPayload,
 } from '../services/clipboard-import'
 import { CanvasEmptyState } from './canvas-empty-state'
@@ -317,7 +318,10 @@ export function CanvasStage({
     if (isEditablePasteTarget(event.target)) return
     if (!event.clipboardData) return
 
-    const payload = await parseClipboardImport(event.clipboardData)
+    const parsedPayload = await parseClipboardImport(event.clipboardData)
+    if (!parsedPayload) return
+
+    const payload = await resolveClipboardLinkMetadata(parsedPayload)
     if (!payload) return
 
     event.preventDefault()
