@@ -14,7 +14,9 @@ type AnalysisSidebarProps = {
 }
 
 export function AnalysisSidebar({ snapshot, selectedNodeIds, onInsertInsight }: AnalysisSidebarProps) {
-  const [scope, setScope] = useState<AnalysisScope>('canvas')
+  const hasSelection = selectedNodeIds.length > 0
+  const [scope, setScope] = useState<AnalysisScope>(hasSelection ? 'selection' : 'canvas')
+  const [previousHasSelection, setPreviousHasSelection] = useState(hasSelection)
   const [question, setQuestion] = useState('')
   const [result, setResult] = useState<AnalysisResult | null>(null)
   const [status, setStatus] = useState<'idle' | 'analyzing' | 'ready' | 'error'>('idle')
@@ -22,6 +24,12 @@ export function AnalysisSidebar({ snapshot, selectedNodeIds, onInsertInsight }: 
   const sourceCount = scope === 'selection' ? selectedCount : snapshot.nodes.length
   const canAnalyze = scope === 'canvas' ? snapshot.nodes.length > 0 : selectedCount > 0
   const scopeLabel = scope === 'selection' ? `选中 ${selectedCount} 个节点` : `${snapshot.nodes.length} 个画布节点`
+
+  if (hasSelection !== previousHasSelection) {
+    setPreviousHasSelection(hasSelection)
+    setScope(hasSelection ? 'selection' : 'canvas')
+  }
+
   const typeSummary = useMemo(() => {
     const sourceSet = new Set(selectedNodeIds)
     const nodes =
@@ -78,6 +86,7 @@ export function AnalysisSidebar({ snapshot, selectedNodeIds, onInsertInsight }: 
             key={item.id}
             type="button"
             onClick={() => setScope(item.id)}
+            aria-pressed={scope === item.id}
             className={`rounded-full px-3 py-2 text-xs font-medium transition-colors ${
               scope === item.id
                 ? 'bg-[var(--panel)] text-[var(--text-primary)] shadow-[var(--shadow-sm)]'
