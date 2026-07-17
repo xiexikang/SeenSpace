@@ -6,6 +6,7 @@ export type ProjectRecord = {
   id: string
   name: string
   summary: string
+  coverImage: string | null
   updatedAt: string
   createdAt: string
   nodeCount: number

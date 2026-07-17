@@ -44,7 +44,7 @@ def create_project_record(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ProjectRecord:
-    return create_project(db, current_user.id, request.name, request.summary)
+    return create_project(db, current_user.id, request.name, request.summary, request.coverImage)
 
 
 @router.patch("/{project_id}", response_model=ProjectRecord)
@@ -54,7 +54,14 @@ def update_project_record(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ProjectRecord:
-    project = update_project_metadata(db, current_user.id, project_id, request.name, request.summary)
+    project = update_project_metadata(
+        db,
+        current_user.id,
+        project_id,
+        request.name,
+        request.summary,
+        request.coverImage,
+    )
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found.")
     return project

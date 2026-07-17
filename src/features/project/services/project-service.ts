@@ -9,6 +9,7 @@ const projectByIdRequests = new Map<string, Promise<ProjectRecord | undefined>>(
 export type ProjectMetadataInput = {
   name: string
   summary: string
+  coverImage: string | null
 }
 
 function dedupeRequest<T>(

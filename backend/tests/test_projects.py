@@ -29,6 +29,7 @@ def test_list_projects_returns_seeded_projects() -> None:
     projects = response.json()
     assert len(projects) >= 4
     assert all("canvas" in project for project in projects)
+    assert all("coverImage" in project for project in projects)
     assert any(project["id"] == "brand-identity" for project in projects)
 
 
@@ -36,7 +37,11 @@ def test_create_and_update_project_canvas() -> None:
     headers = auth_headers()
     created = client.post(
         "/api/projects",
-        json={"name": "后端保存目录", "summary": "用于测试新增目录表单。"},
+        json={
+            "name": "后端保存目录",
+            "summary": "用于测试新增目录表单。",
+            "coverImage": "data:image/jpeg;base64,Y292ZXI=",
+        },
         headers=headers,
     )
 
@@ -44,15 +49,21 @@ def test_create_and_update_project_canvas() -> None:
     project = created.json()
     project_id = project["id"]
     assert project["name"] == "后端保存目录"
+    assert project["coverImage"] == "data:image/jpeg;base64,Y292ZXI="
 
     renamed = client.patch(
         f"/api/projects/{project_id}",
-        json={"name": "重命名目录", "summary": "用于测试修改目录表单。"},
+        json={
+            "name": "重命名目录",
+            "summary": "用于测试修改目录表单。",
+            "coverImage": "data:image/jpeg;base64,Y292ZXI=",
+        },
         headers=headers,
     )
     assert renamed.status_code == 200
     assert renamed.json()["name"] == "重命名目录"
     assert renamed.json()["summary"] == "用于测试修改目录表单。"
+    assert renamed.json()["coverImage"] == "data:image/jpeg;base64,Y292ZXI="
 
     canvas = {
         "nodes": [
@@ -82,7 +93,11 @@ def test_delete_project() -> None:
     headers = auth_headers()
     created = client.post(
         "/api/projects",
-        json={"name": "待删除目录", "summary": "用于测试删除目录接口。"},
+        json={
+            "name": "待删除目录",
+            "summary": "用于测试删除目录接口。",
+            "coverImage": "data:image/png;base64,Y292ZXI=",
+        },
         headers=headers,
     )
 
@@ -95,3 +110,24 @@ def test_delete_project() -> None:
 
     fetched = client.get(f"/api/projects/{project_id}", headers=headers)
     assert fetched.status_code == 404
+
+
+def test_project_cover_is_required_and_must_be_base64() -> None:
+    headers = auth_headers()
+    missing = client.post(
+        "/api/projects",
+        json={"name": "缺少封面", "summary": "封面字段必填。"},
+        headers=headers,
+    )
+    invalid = client.post(
+        "/api/projects",
+        json={
+            "name": "无效封面",
+            "summary": "封面字段必须是 Base64。",
+            "coverImage": "data:image/jpeg;base64,not-base64",
+        },
+        headers=headers,
+    )
+
+    assert missing.status_code == 422
+    assert invalid.status_code == 422

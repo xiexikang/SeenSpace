@@ -65,11 +65,14 @@ def migrate_existing_schema() -> None:
 
     ensure_demo_user_for_migration()
     columns = {column["name"] for column in inspector.get_columns("projects")}
-    if "owner_id" in columns:
-        return
+    if "owner_id" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE projects ADD COLUMN owner_id VARCHAR(64) NULL"))
+            connection.execute(text("UPDATE projects SET owner_id = 'demo-user' WHERE owner_id IS NULL"))
+            if engine.dialect.name == "mysql":
+                connection.execute(text("ALTER TABLE projects MODIFY owner_id VARCHAR(64) NOT NULL"))
 
-    with engine.begin() as connection:
-        connection.execute(text("ALTER TABLE projects ADD COLUMN owner_id VARCHAR(64) NULL"))
-        connection.execute(text("UPDATE projects SET owner_id = 'demo-user' WHERE owner_id IS NULL"))
-        if engine.dialect.name == "mysql":
-            connection.execute(text("ALTER TABLE projects MODIFY owner_id VARCHAR(64) NOT NULL"))
+    if "cover_image" not in columns:
+        cover_column_type = "LONGTEXT" if engine.dialect.name == "mysql" else "TEXT"
+        with engine.begin() as connection:
+            connection.execute(text(f"ALTER TABLE projects ADD COLUMN cover_image {cover_column_type} NULL"))

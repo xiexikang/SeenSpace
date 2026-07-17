@@ -24,6 +24,7 @@ def to_project_record(project: Project) -> ProjectRecord:
         id=project.id,
         name=project.name,
         summary=project.summary,
+        coverImage=project.cover_image,
         updatedAt=isoformat(project.updated_at),
         createdAt=isoformat(project.created_at),
         nodeCount=project.node_count,
@@ -50,7 +51,9 @@ def get_project(db: Session, owner_id: str, project_id: str) -> ProjectRecord | 
     return to_project_record(project) if project else None
 
 
-def create_project(db: Session, owner_id: str, name: str, summary: str) -> ProjectRecord:
+def create_project(
+    db: Session, owner_id: str, name: str, summary: str, cover_image: str
+) -> ProjectRecord:
     timestamp = now_utc()
     normalized_name = name.strip()
     normalized_summary = summary.strip()
@@ -59,6 +62,7 @@ def create_project(db: Session, owner_id: str, name: str, summary: str) -> Proje
         owner_id=owner_id,
         name=normalized_name,
         summary=normalized_summary,
+        cover_image=cover_image,
         created_at=timestamp,
         updated_at=timestamp,
         node_count=0,
@@ -78,6 +82,7 @@ def update_project_metadata(
     project_id: str,
     name: str,
     summary: str,
+    cover_image: str,
 ) -> ProjectRecord | None:
     project = db.scalar(select(Project).where(Project.id == project_id, Project.owner_id == owner_id))
     if project is None:
@@ -86,6 +91,7 @@ def update_project_metadata(
     normalized_name = name.strip()
     project.name = normalized_name
     project.summary = summary.strip()
+    project.cover_image = cover_image
     project.initials = make_initials(normalized_name)
     project.updated_at = now_utc()
     db.commit()

@@ -8,6 +8,7 @@ type ProjectCardProps = {
   id: string
   title: string
   summary: string
+  coverImage?: string | null
   updatedAt: string
   nodes: number
   variant?: 'sand' | 'steel' | 'mist' | 'mint'
@@ -28,6 +29,7 @@ export function ProjectCard({
   id,
   title,
   summary,
+  coverImage,
   updatedAt,
   nodes,
   variant = 'mist',
@@ -51,9 +53,24 @@ export function ProjectCard({
           )}
           style={{ background: accentMap[variant] }}
         >
+          {coverImage ? (
+            <img
+              src={coverImage}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            />
+          ) : null}
           <div className="absolute inset-x-0 top-0 h-[1px] bg-white/80" />
+          {coverImage ? <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/5" /> : null}
           <div className="absolute bottom-0 left-0 right-0 px-4 pb-4">
-            <div className="inline-flex rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[11px] font-semibold text-[var(--accent-strong)]">
+            <div
+              className={cn(
+                'inline-flex rounded-full px-3 py-1 text-[11px] font-semibold',
+                coverImage
+                  ? 'bg-black/45 text-white backdrop-blur-sm'
+                  : 'bg-[var(--accent-soft)] text-[var(--accent-strong)]',
+              )}
+            >
               {nodes} 个节点
             </div>
           </div>
