@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, type ReactNode } from 'react'
-import { Handle, Position } from '@xyflow/react'
+import { Handle, NodeResizer, Position } from '@xyflow/react'
 import { Globe, Image as ImageIcon, NotebookText, Sparkles, Tags } from 'lucide-react'
 import type { CollapsedGroupSummary } from '../../../types/workspace'
 
@@ -7,6 +7,9 @@ type NodeFrameProps = {
   typeLabel: string
   accentClassName: string
   selected?: boolean
+  resizable?: boolean
+  width?: number
+  height?: number
   edgeFocusRole?: 'source' | 'target'
   groupLabel?: string
   collapsedGroupSummary?: CollapsedGroupSummary
@@ -17,6 +20,9 @@ export function NodeFrame({
   typeLabel,
   accentClassName,
   selected,
+  resizable,
+  width,
+  height,
   edgeFocusRole,
   groupLabel,
   collapsedGroupSummary,
@@ -57,7 +63,18 @@ export function NodeFrame({
   }, [])
 
   return (
-    <div className="group/node relative">
+    <div
+      className="group/node relative h-full min-h-[120px] w-full min-w-[236px]"
+      style={{ width: width || 280, height: height || undefined }}
+    >
+      <NodeResizer
+        isVisible={resizable}
+        minWidth={236}
+        minHeight={120}
+        lineClassName="workspace-node-resize-line"
+        lineStyle={{ borderColor: 'transparent' }}
+        handleStyle={{ display: 'none' }}
+      />
       {isCollapsedGroupCard ? (
         <>
           <div className="pointer-events-none absolute inset-x-3 bottom-0 top-2 rounded-[20px] border border-[rgba(24,24,27,0.08)] bg-[rgba(255,255,255,0.58)] shadow-[0_12px_26px_rgba(24,24,27,0.05)]" />
@@ -67,7 +84,7 @@ export function NodeFrame({
 
       <div
         ref={frameRef}
-        className={`relative min-w-[236px] max-w-[308px] rounded-[22px] border bg-[var(--panel)] p-3 transition-all ${
+        className={`relative flex h-full min-h-[120px] w-full min-w-[236px] flex-col rounded-[22px] border bg-[var(--panel)] p-3 transition-[border-color,box-shadow] ${
           selected
             ? 'border-[var(--accent)] shadow-[0_0_0_2px_rgba(255,40,75,0.14),0_18px_42px_rgba(24,24,27,0.14)]'
             : edgeFocusAccent
@@ -81,7 +98,7 @@ export function NodeFrame({
       <Handle
         type="target"
         position={Position.Left}
-        className="!z-20 !h-4 !w-4 !border-2 !border-[var(--panel)] !bg-[var(--text-muted)] transition-colors hover:!bg-[var(--accent)]"
+        className="!z-40 !h-4 !w-4 !border-2 !border-[var(--panel)] !bg-[var(--text-muted)] transition-colors hover:!bg-[var(--accent)]"
       />
 
       <div className="relative mb-3 flex items-center justify-between gap-2">
@@ -203,12 +220,12 @@ export function NodeFrame({
         </div>
       ) : null}
 
-      <div className="relative">{children}</div>
+      <div className="relative min-h-0 flex-1 overflow-auto">{children}</div>
 
       <Handle
         type="source"
         position={Position.Right}
-        className="!z-20 !h-4 !w-4 !border-2 !border-[var(--panel)] !bg-[var(--text-muted)] transition-colors hover:!bg-[var(--accent)]"
+        className="!z-40 !h-4 !w-4 !border-2 !border-[var(--panel)] !bg-[var(--text-muted)] transition-colors hover:!bg-[var(--accent)]"
       />
       </div>
     </div>

@@ -2,12 +2,15 @@ import type { NodeProps } from '@xyflow/react'
 import type { TagMetaNode } from '../../../types/workspace'
 import { NodeFrame } from './node-frame'
 
-export function TagMetaNodeCard({ data, selected }: NodeProps<TagMetaNode>) {
+export function TagMetaNodeCard({ data, selected, width, height }: NodeProps<TagMetaNode>) {
   return (
     <NodeFrame
       typeLabel="标签 / 元信息"
       accentClassName="bg-[rgba(171,145,194,0.16)] text-[var(--text-secondary)]"
       selected={selected || data.externallySelected}
+      resizable={data.externallyResizable}
+      width={width}
+      height={height}
       edgeFocusRole={data.edgeFocusRole}
       groupLabel={data.groupCollapsed ? data.groupLabel : undefined}
       collapsedGroupSummary={data.groupCollapsed ? data.collapsedGroupSummary : undefined}

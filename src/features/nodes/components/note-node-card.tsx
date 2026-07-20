@@ -2,12 +2,15 @@ import type { NodeProps } from '@xyflow/react'
 import type { NoteNode } from '../../../types/workspace'
 import { NodeFrame } from './node-frame'
 
-export function NoteNodeCard({ data, selected }: NodeProps<NoteNode>) {
+export function NoteNodeCard({ data, selected, width, height }: NodeProps<NoteNode>) {
   return (
     <NodeFrame
       typeLabel="笔记"
       accentClassName="bg-[rgba(182,163,122,0.16)] text-[var(--text-secondary)]"
       selected={selected || data.externallySelected}
+      resizable={data.externallyResizable}
+      width={width}
+      height={height}
       edgeFocusRole={data.edgeFocusRole}
       groupLabel={data.groupCollapsed ? data.groupLabel : undefined}
       collapsedGroupSummary={data.groupCollapsed ? data.collapsedGroupSummary : undefined}

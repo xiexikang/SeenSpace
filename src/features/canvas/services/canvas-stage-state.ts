@@ -3,7 +3,13 @@ import type { WorkspaceEdge, WorkspaceNode, WorkspaceSnapshot } from '../../../t
 import { buildRenderableNodes } from '../../workspace/services/group-operations'
 
 export function shouldPersistNodeChanges(changes: NodeChange<WorkspaceNode>[]) {
-  return changes.some((change) => change.type === 'remove' || change.type === 'add' || change.type === 'replace')
+  return changes.some(
+    (change) =>
+      change.type === 'remove' ||
+      change.type === 'add' ||
+      change.type === 'replace' ||
+      (change.type === 'dimensions' && change.resizing === false),
+  )
 }
 
 export function shouldPersistEdgeChanges(changes: EdgeChange<WorkspaceEdge>[]) {
@@ -31,6 +37,7 @@ export function buildCanvasStageState(
         ...node.data,
         edgeFocusRole: getEdgeFocusRole(node.id, focusedEdge),
         externallySelected: selectedNodeIdSet.has(node.id),
+        externallyResizable: selectedNodeIds.length === 1 && selectedNodeIdSet.has(node.id),
       },
     })),
     edges: snapshot.edges.map((edge) => ({

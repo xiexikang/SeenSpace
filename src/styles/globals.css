@@ -130,6 +130,20 @@ a:focus-visible {
   margin-bottom: 0.375rem;
 }
 
+.workspace-node-resize-line {
+  z-index: 25 !important;
+}
+
+.workspace-node-resize-line.left,
+.workspace-node-resize-line.right {
+  width: 12px !important;
+}
+
+.workspace-node-resize-line.top,
+.workspace-node-resize-line.bottom {
+  height: 12px !important;
+}
+
 button,
 [role="button"],
 [role="menuitem"],

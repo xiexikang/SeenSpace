@@ -32,6 +32,7 @@ type WorkspaceNodeDataBase = {
   question?: string
   edgeFocusRole?: 'source' | 'target'
   externallySelected?: boolean
+  externallyResizable?: boolean
   groupId?: string
   groupLabel?: string
   groupLeadId?: string

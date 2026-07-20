@@ -10,7 +10,7 @@ import {
 } from './canvas-stage-state'
 
 describe('canvas stage state', () => {
-  it('persists only structural node changes', () => {
+  it('persists structural changes and completed node resizes', () => {
     const selectChange: NodeChange<WorkspaceNode> = { id: 'n1', type: 'select', selected: true }
     const positionChange: NodeChange<WorkspaceNode> = {
       id: 'n1',
@@ -23,9 +23,20 @@ describe('canvas stage state', () => {
       type: 'add',
       index: 0,
     }
+    const activeResizeChange: NodeChange<WorkspaceNode> = {
+      id: 'n1',
+      type: 'dimensions',
+      dimensions: { width: 320, height: 240 },
+      resizing: true,
+    }
+    const completedResizeChange: NodeChange<WorkspaceNode> = {
+      ...activeResizeChange,
+      resizing: false,
+    }
 
-    expect(shouldPersistNodeChanges([selectChange, positionChange])).toBe(false)
+    expect(shouldPersistNodeChanges([selectChange, positionChange, activeResizeChange])).toBe(false)
     expect(shouldPersistNodeChanges([positionChange, addChange])).toBe(true)
+    expect(shouldPersistNodeChanges([completedResizeChange])).toBe(true)
   })
 
   it('persists only structural edge changes', () => {
@@ -109,9 +120,14 @@ describe('canvas stage state', () => {
 
     const result = buildCanvasStageState(snapshot, undefined, ['node-2'])
 
-    expect(result.nodes.map((node) => [node.id, node.selected, node.data.externallySelected])).toEqual([
-      ['node-1', false, false],
-      ['node-2', false, true],
+    expect(result.nodes.map((node) => [
+      node.id,
+      node.selected,
+      node.data.externallySelected,
+      node.data.externallyResizable,
+    ])).toEqual([
+      ['node-1', false, false, false],
+      ['node-2', false, true, true],
     ])
     expect(result.edges[0]?.selected).toBe(false)
   })

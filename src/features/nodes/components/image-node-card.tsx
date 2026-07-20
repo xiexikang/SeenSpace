@@ -2,12 +2,15 @@ import type { NodeProps } from '@xyflow/react'
 import type { ImageNode } from '../../../types/workspace'
 import { NodeFrame } from './node-frame'
 
-export function ImageNodeCard({ data, selected }: NodeProps<ImageNode>) {
+export function ImageNodeCard({ data, selected, width, height }: NodeProps<ImageNode>) {
   return (
     <NodeFrame
       typeLabel="图片"
       accentClassName="bg-[rgba(125,170,151,0.18)] text-[var(--text-secondary)]"
       selected={selected || data.externallySelected}
+      resizable={data.externallyResizable}
+      width={width}
+      height={height}
       edgeFocusRole={data.edgeFocusRole}
       groupLabel={data.groupCollapsed ? data.groupLabel : undefined}
       collapsedGroupSummary={data.groupCollapsed ? data.collapsedGroupSummary : undefined}
