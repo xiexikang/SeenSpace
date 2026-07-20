@@ -29,4 +29,25 @@ describe('buildAnalysisRequestPayload', () => {
     expect(payload.edges).toEqual([{ source: 'note-1', target: 'web-1', label: '参考' }])
     expect(payload.question).toBe('适合什么方向？')
   })
+
+  it('includes supported image URLs for at most four image nodes', () => {
+    const nodes = Array.from({ length: 5 }, (_, index) =>
+      createNode({
+        id: `image-${index + 1}`,
+        type: 'image',
+        data: { title: `图片 ${index + 1}`, imageUrl: `https://example.com/${index + 1}.jpg` },
+      }),
+    )
+
+    const payload = buildAnalysisRequestPayload({
+      snapshot: createSnapshot(nodes),
+      selectedNodeIds: [],
+      scope: 'canvas',
+      question: '',
+    })
+
+    expect(payload.nodes.filter((node) => node.imageUrl)).toHaveLength(4)
+    expect(payload.nodes[0].imageUrl).toBe('https://example.com/1.jpg')
+    expect(payload.nodes[4].imageUrl).toBeUndefined()
+  })
 })

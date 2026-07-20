@@ -58,7 +58,7 @@ python -m uvicorn app.main:app --app-dir backend --reload --port 8787
 
 ### AI 分析服务
 
-AI 分析侧栏会请求 Python 后端的 `/api/ai/analyze`，后端再调用 OpenAI-compatible Chat Completions 接口。请不要把模型 API Key 放进 Vite 前端环境变量。
+AI 分析侧栏会请求 Python 后端的 `/api/ai/analyze`，后端再调用 OpenAI-compatible Chat Completions 或 Responses 接口。支持视觉的模型会同时收到画布中的图片（最多 4 张）。请不要把模型 API Key 放进 Vite 前端环境变量。
 
 Windows PowerShell 可以用当前终端环境变量：
 
@@ -76,6 +76,17 @@ LLM_BASE_URL=https://api.deepseek.com/v1
 LLM_MODEL=deepseek-chat
 ```
 
+使用支持 OpenAI Responses API 的中转站和视觉模型时，可以在 `.env.local` 中配置：
+
+```text
+LLM_API_KEY=你的中转站 API Key
+LLM_BASE_URL=https://api.aijws.com/v1
+LLM_API_STYLE=responses
+LLM_MODEL=中转站提供的视觉模型 ID
+```
+
+如果中转站提供的是 `/v1/chat/completions`，将 `LLM_API_STYLE` 改为 `chat_completions`。也兼容 `OPENAI_API_KEY`，但同时存在时优先使用 `LLM_API_KEY`。
+
 修改配置后需要重启 Python 后端。
 
 可选配置：
@@ -86,6 +97,7 @@ CORS_ORIGINS=["http://localhost:7788","http://127.0.0.1:7788"]
 LLM_API_KEY=你的 API Key
 LLM_BASE_URL=https://api.openai.com/v1
 LLM_MODEL=gpt-4o-mini
+LLM_API_STYLE=chat_completions
 LLM_TIMEOUT_SECONDS=45
 ```
 

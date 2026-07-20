@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -27,9 +27,19 @@ class Settings(BaseSettings):
         "mysql+pymysql://seenspace:seenspace@127.0.0.1:3306/seenspace?charset=utf8mb4"
     )
     cors_origins: list[str] = ["http://localhost:7788", "http://127.0.0.1:7788"]
-    llm_api_key: str | None = None
-    llm_base_url: str = "https://api.openai.com/v1"
-    llm_model: str = "gpt-4o-mini"
+    llm_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("LLM_API_KEY", "OPENAI_API_KEY"),
+    )
+    llm_base_url: str = Field(
+        default="https://api.openai.com/v1",
+        validation_alias=AliasChoices("LLM_BASE_URL", "OPENAI_BASE_URL"),
+    )
+    llm_model: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices("LLM_MODEL", "OPENAI_MODEL"),
+    )
+    llm_api_style: str = "chat_completions"
     llm_timeout_seconds: float = 45.0
 
 

@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 AnalysisScope = Literal["canvas", "selection"]
@@ -18,6 +18,7 @@ class AnalysisPayloadNode(BaseModel):
     tags: list[str] | None = None
     category: str | None = None
     summary: str | None = None
+    imageUrl: str | None = Field(default=None, max_length=6_000_000)
 
 
 class AnalysisPayloadEdge(BaseModel):

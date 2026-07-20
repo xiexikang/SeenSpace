@@ -13,6 +13,7 @@ export type AnalysisPayloadNode = {
   tags?: string[]
   category?: string
   summary?: string
+  imageUrl?: string
 }
 
 export type AnalysisPayloadEdge = {
@@ -35,7 +36,28 @@ function compactText(value: string | undefined, maxLength: number) {
   return normalized.length > maxLength ? `${normalized.slice(0, maxLength)}...` : normalized
 }
 
-function compactNode(node: WorkspaceNode): AnalysisPayloadNode {
+const MAX_ANALYSIS_IMAGES = 4
+const MAX_IMAGE_DATA_URL_LENGTH = 6_000_000
+
+function getAnalysisImageUrl(value: string | undefined) {
+  const normalized = value?.trim()
+  if (!normalized) return undefined
+
+  if (/^https?:\/\//i.test(normalized)) {
+    return normalized.slice(0, 2048)
+  }
+
+  if (
+    /^data:image\/(?:jpeg|png|webp|gif);base64,/i.test(normalized) &&
+    normalized.length <= MAX_IMAGE_DATA_URL_LENGTH
+  ) {
+    return normalized
+  }
+
+  return undefined
+}
+
+function compactNode(node: WorkspaceNode, includeImage: boolean): AnalysisPayloadNode {
   return {
     id: node.id,
     type: node.type,
@@ -48,6 +70,7 @@ function compactNode(node: WorkspaceNode): AnalysisPayloadNode {
     tags: node.data.tags?.slice(0, 12),
     category: compactText(node.data.category, 80),
     summary: compactText(node.data.summary, 600),
+    imageUrl: includeImage && node.type === 'image' ? getAnalysisImageUrl(node.data.imageUrl) : undefined,
   }
 }
 
@@ -78,13 +101,19 @@ export function buildAnalysisRequestPayload({
   const visibleNodes = sourceNodes.filter((node) => !node.hidden)
   const sourceNodeIds = visibleNodes.map((node) => node.id)
   const sourceNodeIdSet = new Set(sourceNodeIds)
+  const imageNodeIds = new Set(
+    visibleNodes
+      .filter((node) => node.type === 'image' && getAnalysisImageUrl(node.data.imageUrl))
+      .slice(0, MAX_ANALYSIS_IMAGES)
+      .map((node) => node.id),
+  )
   const edges = snapshot.edges.filter((edge) => sourceNodeIdSet.has(edge.source) && sourceNodeIdSet.has(edge.target))
 
   return {
     scope,
     question: compactText(question, 500),
     sourceNodeIds,
-    nodes: visibleNodes.map(compactNode),
+    nodes: visibleNodes.map((node) => compactNode(node, imageNodeIds.has(node.id))),
     edges: edges.map(compactEdge),
   }
 }
