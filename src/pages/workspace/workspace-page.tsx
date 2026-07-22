@@ -6,6 +6,7 @@ import { TopToolbar } from '../../components/shared/top-toolbar'
 import { WorkspaceInspector } from '../../components/workspace/workspace-inspector'
 import { AnalysisSidebar } from '../../features/ai/components/analysis-sidebar'
 import type { AnalysisResult } from '../../features/ai/services/analysis-service'
+import { CanvasLoadingState } from '../../features/canvas/components/canvas-loading-state'
 import { CanvasStage } from '../../features/canvas/components/canvas-stage'
 import { getProjectById, updateProjectCanvas } from '../../features/project/services/project-service'
 import {
@@ -111,6 +112,7 @@ export function WorkspacePage() {
   const { projectId } = useParams()
   const [projectName, setProjectName] = useState('未命名项目')
   const [snapshot, setSnapshot] = useState<WorkspaceSnapshot>(emptySnapshot)
+  const [loadedProjectId, setLoadedProjectId] = useState<string | null>(null)
   const [workspaceSearch, setWorkspaceSearch] = useState('')
   const [searchMatchIds, setSearchMatchIds] = useState<string[]>([])
   const [actionMessage, setActionMessage] = useState<string | null>(null)
@@ -126,9 +128,13 @@ export function WorkspacePage() {
   const actionMessageTimeoutRef = useRef<number | null>(null)
 
   useEffect(() => {
+    let isActive = true
+
     async function loadProject() {
       if (!projectId) return
       const project = await getProjectById(projectId)
+      if (!isActive) return
+
       if (project) {
         const initialSnapshot = sanitizeSnapshot(project.canvas)
         setProjectName(project.name)
@@ -136,9 +142,14 @@ export function WorkspacePage() {
         historyRef.current = [initialSnapshot]
         setHistoryIndex(0)
       }
+      setLoadedProjectId(projectId)
     }
 
     void loadProject()
+
+    return () => {
+      isActive = false
+    }
   }, [projectId])
 
   useEffect(() => {
@@ -164,6 +175,7 @@ export function WorkspacePage() {
   } = deriveWorkspaceSelectionState(snapshot, selectedNodeIds, selectedEdgeIds)
   const canUndo = historyIndex > 0
   const canRedo = historyIndex < historyRef.current.length - 1
+  const isLoadingProject = loadedProjectId !== projectId
   const batchMetadataState = deriveWorkspaceBatchMetadataState(selectedNodes)
   const batchEdgeState = deriveWorkspaceBatchEdgeState(
     snapshot.edges.filter((edge) => selectedEdgeIds.includes(edge.id)),
@@ -735,15 +747,31 @@ export function WorkspacePage() {
                 <ArrowLeft className="h-4 w-4" />
               </Link>
               <div>
-                <h1 className="text-base font-semibold text-[var(--text-primary)]">{projectName}</h1>
+                {isLoadingProject ? (
+                  <div
+                    aria-hidden="true"
+                    className="workspace-loading-shimmer h-5 w-36 rounded-full bg-[var(--panel-soft)]"
+                  />
+                ) : (
+                  <h1 className="text-base font-semibold text-[var(--text-primary)]">{projectName}</h1>
+                )}
                 <div className="mt-1 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
                   {actionMessage ? (
                     <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--panel-soft)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)]">
                       {actionMessage}
                     </span>
                   ) : null}
-                  <span>{snapshot.nodes.length} 个节点</span>
-                  <span>{snapshot.edges.length} 条连接</span>
+                  {isLoadingProject ? (
+                    <div
+                      aria-hidden="true"
+                      className="workspace-loading-shimmer h-3 w-32 rounded-full bg-[var(--panel-soft)]"
+                    />
+                  ) : (
+                    <>
+                      <span>{snapshot.nodes.length} 个节点</span>
+                      <span>{snapshot.edges.length} 条连接</span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -878,21 +906,25 @@ export function WorkspacePage() {
 
           <div className="flex min-h-0 flex-1 gap-4">
             <div className="min-h-0 min-w-0 flex-1">
-              <CanvasStage
-                key={`${projectId ?? 'workspace'}-${canvasStageVersion}`}
-                snapshot={snapshot}
-                selectedNodeIds={selectedNodeIds}
-                focusNodeIds={searchMatchIds}
-                focusedEdgeIds={selectedEdgeIds}
-                onEdgeCreate={handleEdgeCreate}
-                onSelectGroup={handleSelectGroupById}
-                onToggleGroupCollapse={handleToggleGroupCollapse}
-                onSnapshotChange={handleSnapshotChange}
-                onSelectionChange={({ nodeIds, edgeIds }) => {
-                  setSelectedNodeIds((current) => (sameIds(current, nodeIds) ? current : nodeIds))
-                  setSelectedEdgeIds((current) => (sameIds(current, edgeIds) ? current : edgeIds))
-                }}
-              />
+              {isLoadingProject ? (
+                <CanvasLoadingState />
+              ) : (
+                <CanvasStage
+                  key={`${projectId ?? 'workspace'}-${canvasStageVersion}`}
+                  snapshot={snapshot}
+                  selectedNodeIds={selectedNodeIds}
+                  focusNodeIds={searchMatchIds}
+                  focusedEdgeIds={selectedEdgeIds}
+                  onEdgeCreate={handleEdgeCreate}
+                  onSelectGroup={handleSelectGroupById}
+                  onToggleGroupCollapse={handleToggleGroupCollapse}
+                  onSnapshotChange={handleSnapshotChange}
+                  onSelectionChange={({ nodeIds, edgeIds }) => {
+                    setSelectedNodeIds((current) => (sameIds(current, nodeIds) ? current : nodeIds))
+                    setSelectedEdgeIds((current) => (sameIds(current, edgeIds) ? current : edgeIds))
+                  }}
+                />
+              )}
             </div>
             <aside className="hidden min-h-0 w-[340px] shrink-0 flex-col rounded-[24px] border border-[var(--border)] bg-[var(--panel)] p-3 shadow-[var(--shadow-sm)] xl:flex">
               <div className="mb-3 grid grid-cols-2 gap-1.5 rounded-[16px] border border-[var(--border)] bg-[var(--panel-soft)] p-1">

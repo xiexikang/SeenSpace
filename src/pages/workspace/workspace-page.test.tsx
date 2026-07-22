@@ -9,6 +9,8 @@ const updateProjectCanvasMock = vi.fn()
 
 vi.mock('react-router-dom', () => ({
   Link: ({ children }: { children: React.ReactNode }) => <a href="/">{children}</a>,
+  useLocation: () => ({ pathname: '/workspace/project-1', state: null }),
+  useNavigate: () => vi.fn(),
   useParams: () => ({ projectId: 'project-1' }),
 }))
 
@@ -216,6 +218,29 @@ describe('WorkspacePage', () => {
       canvas,
     })
   }
+
+  it('keeps the canvas in a loading state until project data is ready', async () => {
+    let resolveProject!: (project: { id: string; name: string; canvas: WorkspaceSnapshot }) => void
+    getProjectByIdMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveProject = resolve
+      }),
+    )
+
+    render(<WorkspacePage />)
+
+    expect(screen.getByRole('status', { name: '正在加载画板' })).toBeTruthy()
+    expect(screen.queryByText('Canvas Nodes: 0')).toBeNull()
+
+    resolveProject({
+      id: 'project-1',
+      name: 'Loaded Project',
+      canvas: createSnapshot([createNode({ id: 'node-1', data: { title: 'Node 1' } })]),
+    })
+
+    await waitFor(() => expect(screen.getByText('Canvas Nodes: 1')).toBeTruthy())
+    expect(screen.queryByRole('status', { name: '正在加载画板' })).toBeNull()
+  })
 
   it('supports undo and redo across persisted canvas snapshots', async () => {
     loadProject(createSnapshot([]))
