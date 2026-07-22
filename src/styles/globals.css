@@ -172,3 +172,32 @@ a {
 ::selection {
   background: var(--accent-soft);
 }
+
+@keyframes project-skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.project-skeleton-shimmer,
+.workspace-loading-shimmer {
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in srgb, var(--panel-elevated) 78%, white 22%) 50%,
+    transparent 70%
+  );
+  background-size: 220% 100%;
+  animation: project-skeleton-shimmer 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .project-skeleton-shimmer,
+  .workspace-loading-shimmer {
+    animation: none;
+    background-image: none;
+  }
+}

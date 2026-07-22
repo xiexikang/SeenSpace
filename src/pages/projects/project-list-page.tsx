@@ -6,12 +6,15 @@ import { LibrarySidebar } from '../../components/shared/library-sidebar'
 import { LightToast } from '../../components/shared/light-toast'
 import { TopToolbar } from '../../components/shared/top-toolbar'
 import { ProjectCard } from '../../features/project/components/project-card'
+import { ProjectCardSkeleton } from '../../features/project/components/project-card-skeleton'
 import { createProjectCoverDataUrl } from '../../features/project/services/project-cover'
 import {
   createProject,
   deleteProject,
   ensureProjectSeed,
+  listFavoriteProjects,
   listProjects,
+  toggleProjectFavorite,
   updateProjectMetadata,
 } from '../../features/project/services/project-service'
 import type { ProjectRecord, ProjectViewMode } from '../../types/project'
@@ -28,9 +31,14 @@ function formatUpdatedAt(value: string) {
   return new Date(value).toLocaleDateString('zh-CN')
 }
 
-export function ProjectListPage() {
+type ProjectListPageProps = {
+  favoriteOnly?: boolean
+}
+
+export function ProjectListPage({ favoriteOnly = false }: ProjectListPageProps) {
   const navigate = useNavigate()
   const [projects, setProjects] = useState<ProjectRecord[]>([])
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true)
   const [search, setSearch] = useState('')
   const [viewMode, setViewMode] = useState<ProjectViewMode>('grid')
   const [editingProject, setEditingProject] = useState<ProjectRecord | null>(null)
@@ -44,18 +52,30 @@ export function ProjectListPage() {
   const [isProcessingCover, setIsProcessingCover] = useState(false)
   const [isSavingProject, setIsSavingProject] = useState(false)
   const [isDeletingProject, setIsDeletingProject] = useState(false)
+  const [updatingFavoriteIds, setUpdatingFavoriteIds] = useState<Set<string>>(() => new Set())
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const coverInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
+    let isActive = true
+
     async function loadProjects() {
-      await ensureProjectSeed()
-      const records = await listProjects()
-      setProjects(records)
+      setIsLoadingProjects(true)
+      try {
+        await ensureProjectSeed()
+        const records = await (favoriteOnly ? listFavoriteProjects() : listProjects())
+        if (isActive) setProjects(records)
+      } finally {
+        if (isActive) setIsLoadingProjects(false)
+      }
     }
 
     void loadProjects()
-  }, [])
+
+    return () => {
+      isActive = false
+    }
+  }, [favoriteOnly])
 
   useEffect(() => {
     if (!toastMessage) return
@@ -71,15 +91,17 @@ export function ProjectListPage() {
 
   const filteredProjects = useMemo(() => {
     const query = search.trim().toLowerCase()
-    if (!query) return projects
+    const visibleProjects = favoriteOnly ? projects.filter((project) => project.isFavorite) : projects
+    if (!query) return visibleProjects
 
-    return projects.filter((project) => {
+    return visibleProjects.filter((project) => {
       const haystack = `${project.name} ${project.summary}`.toLowerCase()
       return haystack.includes(query)
     })
-  }, [projects, search])
+  }, [favoriteOnly, projects, search])
   const hasSearchQuery = search.trim().length > 0
-  const isEmptyState = filteredProjects.length === 0
+  const isEmptyState = !isLoadingProjects && filteredProjects.length === 0
+  const skeletonCount = viewMode === 'grid' ? 4 : 3
 
   function openCreateDialog() {
     setEditingProject(null)
@@ -190,13 +212,40 @@ export function ProjectListPage() {
     }
   }
 
+  async function handleToggleFavorite(project: ProjectRecord) {
+    if (updatingFavoriteIds.has(project.id)) return
+
+    const nextIsFavorite = !project.isFavorite
+    setUpdatingFavoriteIds((current) => new Set(current).add(project.id))
+    setProjects((current) =>
+      current.map((item) => (item.id === project.id ? { ...item, isFavorite: nextIsFavorite } : item)),
+    )
+
+    try {
+      const updatedProject = await toggleProjectFavorite(project.id, nextIsFavorite)
+      setProjects((current) => current.map((item) => (item.id === project.id ? updatedProject : item)))
+      setToastMessage(nextIsFavorite ? '已收藏空间' : '已取消收藏')
+    } catch {
+      setProjects((current) =>
+        current.map((item) => (item.id === project.id ? { ...item, isFavorite: project.isFavorite } : item)),
+      )
+      setToastMessage('收藏状态更新失败，请重试')
+    } finally {
+      setUpdatingFavoriteIds((current) => {
+        const next = new Set(current)
+        next.delete(project.id)
+        return next
+      })
+    }
+  }
+
   return (
     <div className="flex h-dvh overflow-hidden bg-[var(--background)] text-[var(--text-primary)]">
       <LibrarySidebar />
 
       <main className="flex min-h-0 min-w-0 flex-1 flex-col">
         <TopToolbar
-          searchPlaceholder="搜索空间..."
+          searchPlaceholder={favoriteOnly ? '搜索收藏...' : '搜索空间...'}
           searchValue={search}
           onSearchChange={setSearch}
           viewMode={viewMode}
@@ -206,45 +255,60 @@ export function ProjectListPage() {
 
         <section className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-6 md:px-6 md:py-7">
           <div
+            aria-busy={isLoadingProjects}
+            aria-label={isLoadingProjects ? '正在加载空间列表' : undefined}
+            role={isLoadingProjects ? 'status' : undefined}
             className={
               viewMode === 'grid'
                 ? 'grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'
                 : 'flex flex-col gap-4'
             }
           >
-            {filteredProjects.map((project) => (
-              <ProjectCard
-                key={project.id}
-                id={project.id}
-                title={project.name}
-                summary={project.summary}
-                coverImage={project.coverImage}
-                updatedAt={formatUpdatedAt(project.updatedAt)}
-                nodes={project.nodeCount}
-                variant={project.thumbnailVariant}
-                viewMode={viewMode}
-                onEdit={() => openEditDialog(project)}
-                onDelete={() => openDeleteDialog(project)}
-              />
-            ))}
+            {isLoadingProjects
+              ? Array.from({ length: skeletonCount }, (_, index) => (
+                  <ProjectCardSkeleton key={index} viewMode={viewMode} />
+                ))
+              : filteredProjects.map((project) => (
+                  <ProjectCard
+                    key={project.id}
+                    id={project.id}
+                    title={project.name}
+                    summary={project.summary}
+                    coverImage={project.coverImage}
+                    isFavorite={project.isFavorite}
+                    isUpdatingFavorite={updatingFavoriteIds.has(project.id)}
+                    fromFavorites={favoriteOnly}
+                    updatedAt={formatUpdatedAt(project.updatedAt)}
+                    nodes={project.nodeCount}
+                    variant={project.thumbnailVariant}
+                    viewMode={viewMode}
+                    onEdit={() => openEditDialog(project)}
+                    onDelete={() => openDeleteDialog(project)}
+                    onToggleFavorite={() => void handleToggleFavorite(project)}
+                  />
+                ))}
           </div>
 
           {isEmptyState ? (
             <div className="flex min-h-0 flex-1 items-center justify-center rounded-[28px] border border-dashed border-[var(--border)] bg-[var(--panel)] px-6 py-12 text-center shadow-[var(--shadow-sm)]">
               <div>
                 <div className="mb-2 text-lg font-semibold text-[var(--text-primary)]">
-                  {hasSearchQuery ? '没有匹配的空间' : '还没有空间'}
+                  {hasSearchQuery ? '没有匹配的空间' : favoriteOnly ? '还没有收藏' : '还没有空间'}
                 </div>
                 <p className="text-sm text-[var(--text-secondary)]">
-                  {hasSearchQuery ? '换个关键词试试，或新建一个空间。' : '先创建一个空间，开始整理你的灵感和画布。'}
+                  {hasSearchQuery
+                    ? '换个关键词试试。'
+                    : favoriteOnly
+                      ? '在全部空间中点亮星标，常用空间会集中显示在这里。'
+                      : '先创建一个空间，开始整理你的灵感和画布。'}
                 </p>
                 <div className="mt-5 flex justify-center">
                   <button
                     type="button"
-                    onClick={handleCreateProject}
+                    onClick={favoriteOnly ? () => navigate('/') : handleCreateProject}
                     className="h-11 rounded-full bg-[var(--accent)] px-5 text-sm font-semibold text-white hover:bg-[var(--accent-strong)]"
                   >
-                    新建空间
+                    {favoriteOnly ? '浏览全部空间' : '新建空间'}
                   </button>
                 </div>
               </div>

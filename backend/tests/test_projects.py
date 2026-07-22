@@ -30,6 +30,7 @@ def test_list_projects_returns_seeded_projects() -> None:
     assert len(projects) >= 4
     assert all("canvas" in project for project in projects)
     assert all("coverImage" in project for project in projects)
+    assert all("isFavorite" in project for project in projects)
     assert any(project["id"] == "brand-identity" for project in projects)
 
 
@@ -110,6 +111,54 @@ def test_delete_project() -> None:
 
     fetched = client.get(f"/api/projects/{project_id}", headers=headers)
     assert fetched.status_code == 404
+
+
+def test_update_project_favorite() -> None:
+    headers = auth_headers()
+    created = client.post(
+        "/api/projects",
+        json={
+            "name": "待收藏空间",
+            "summary": "用于测试收藏状态持久化。",
+            "coverImage": "data:image/png;base64,Y292ZXI=",
+        },
+        headers=headers,
+    )
+
+    assert created.status_code == 200
+    project = created.json()
+    project_id = project["id"]
+    assert project["isFavorite"] is False
+
+    favorited = client.patch(
+        f"/api/projects/{project_id}/favorite",
+        json={"isFavorite": True},
+        headers=headers,
+    )
+    assert favorited.status_code == 200
+    assert favorited.json()["isFavorite"] is True
+
+    favorites = client.get("/api/projects/favorites", headers=headers)
+    assert favorites.status_code == 200
+    assert [item["id"] for item in favorites.json()].count(project_id) == 1
+
+    fetched = client.get(f"/api/projects/{project_id}", headers=headers)
+    assert fetched.status_code == 200
+    assert fetched.json()["isFavorite"] is True
+
+    unfavorited = client.patch(
+        f"/api/projects/{project_id}/favorite",
+        json={"isFavorite": False},
+        headers=headers,
+    )
+    assert unfavorited.status_code == 200
+    assert unfavorited.json()["isFavorite"] is False
+
+    favorites = client.get("/api/projects/favorites", headers=headers)
+    assert favorites.status_code == 200
+    assert project_id not in {item["id"] for item in favorites.json()}
+
+    client.delete(f"/api/projects/{project_id}", headers=headers)
 
 
 def test_project_cover_is_required_and_must_be_base64() -> None:

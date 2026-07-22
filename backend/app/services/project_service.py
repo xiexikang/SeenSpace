@@ -30,6 +30,7 @@ def to_project_record(project: Project) -> ProjectRecord:
         nodeCount=project.node_count,
         initials=project.initials,
         thumbnailVariant=project.thumbnail_variant,
+        isFavorite=project.is_favorite,
         canvas=WorkspaceSnapshot.model_validate(project.canvas_json),
     )
 
@@ -42,6 +43,15 @@ def make_initials(name: str) -> str:
 def list_projects(db: Session, owner_id: str) -> list[ProjectRecord]:
     projects = db.scalars(
         select(Project).where(Project.owner_id == owner_id).order_by(Project.updated_at.desc())
+    ).all()
+    return [to_project_record(project) for project in projects]
+
+
+def list_favorite_projects(db: Session, owner_id: str) -> list[ProjectRecord]:
+    projects = db.scalars(
+        select(Project)
+        .where(Project.owner_id == owner_id, Project.is_favorite.is_(True))
+        .order_by(Project.updated_at.desc())
     ).all()
     return [to_project_record(project) for project in projects]
 
@@ -112,6 +122,19 @@ def update_project_canvas(
     project.canvas_json = canvas.model_dump()
     project.node_count = len(canvas.nodes)
     project.updated_at = now_utc()
+    db.commit()
+    db.refresh(project)
+    return to_project_record(project)
+
+
+def update_project_favorite(
+    db: Session, owner_id: str, project_id: str, is_favorite: bool
+) -> ProjectRecord | None:
+    project = db.scalar(select(Project).where(Project.id == project_id, Project.owner_id == owner_id))
+    if project is None:
+        return None
+
+    project.is_favorite = is_favorite
     db.commit()
     db.refresh(project)
     return to_project_record(project)

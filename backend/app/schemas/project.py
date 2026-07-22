@@ -17,11 +17,16 @@ class ProjectRecord(BaseModel):
     nodeCount: int
     initials: str
     thumbnailVariant: Literal["sand", "steel", "mist", "mint"]
+    isFavorite: bool
     canvas: WorkspaceSnapshot
 
 
 class UpdateProjectCanvasRequest(BaseModel):
     canvas: WorkspaceSnapshot
+
+
+class UpdateProjectFavoriteRequest(BaseModel):
+    isFavorite: bool
 
 
 class ProjectMetadataRequest(BaseModel):

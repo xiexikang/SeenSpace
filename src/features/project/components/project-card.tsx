@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { Ellipsis, Pencil, Trash2 } from 'lucide-react'
+import { Ellipsis, Pencil, Star, Trash2 } from 'lucide-react'
 import { cn } from '../../../lib/utils'
 import type { ProjectViewMode } from '../../../types/project'
 
@@ -12,9 +12,13 @@ type ProjectCardProps = {
   updatedAt: string
   nodes: number
   variant?: 'sand' | 'steel' | 'mist' | 'mint'
+  isFavorite?: boolean
+  isUpdatingFavorite?: boolean
+  fromFavorites?: boolean
   viewMode?: ProjectViewMode
   onEdit?: () => void
   onDelete?: () => void
+  onToggleFavorite?: () => void
 }
 
 const accentMap = {
@@ -33,19 +37,27 @@ export function ProjectCard({
   updatedAt,
   nodes,
   variant = 'mist',
+  isFavorite = false,
+  isUpdatingFavorite = false,
+  fromFavorites = false,
   viewMode = 'grid',
   onEdit,
   onDelete,
+  onToggleFavorite,
 }: ProjectCardProps) {
   return (
     <div className="group relative h-full">
-      <Link
-        to={`/workspace/${id}`}
+      <div
         className={cn(
-          'group block overflow-hidden rounded-[20px] border border-[var(--border)] bg-[var(--panel)] p-3 shadow-[var(--shadow-sm)] transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-lg)]',
+          'relative overflow-hidden rounded-[20px] border border-[var(--border)] bg-[var(--panel)] p-3 shadow-[var(--shadow-sm)] transition-all group-hover:-translate-y-1 group-hover:shadow-[var(--shadow-lg)]',
           viewMode === 'grid' ? 'flex h-full flex-col' : 'flex items-center gap-4',
         )}
       >
+        <Link
+          to={`/workspace/${id}${fromFavorites ? '?from=favorites' : ''}`}
+          aria-label={`打开空间：${title}`}
+          className="absolute inset-0 z-10 rounded-[20px]"
+        />
         <div
           className={cn(
             'relative flex items-start overflow-hidden rounded-[16px] p-4',
@@ -79,18 +91,33 @@ export function ProjectCard({
         <div className={cn('px-1 pb-1', viewMode === 'grid' && 'flex flex-1 flex-col')}>
           <div className="truncate text-base font-semibold text-[var(--text-primary)]">{title}</div>
           <p className={cn('mt-1.5 line-clamp-2 text-sm leading-6 text-[var(--text-secondary)]', viewMode === 'grid' && 'min-h-12')}>{summary}</p>
-          <div className={cn('pt-1 text-xs text-[var(--text-muted)]', viewMode === 'grid' && 'mt-auto')}>
+          <div className={cn('relative z-20 flex h-7 items-center justify-between gap-2 pt-1 text-xs text-[var(--text-muted)]', viewMode === 'grid' && 'mt-auto')}>
             <span>更新于 {updatedAt}</span>
+            <button
+              type="button"
+              aria-label={isFavorite ? '取消收藏空间' : '收藏空间'}
+              title={isFavorite ? '取消收藏' : '收藏'}
+              disabled={isUpdatingFavorite}
+              onClick={onToggleFavorite}
+              className={cn(
+                'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-60',
+                isFavorite
+                  ? 'text-[var(--accent)] hover:bg-[var(--accent-soft)]'
+                  : 'text-[var(--text-muted)] hover:bg-[var(--panel-elevated)] hover:text-[var(--accent)]',
+              )}
+            >
+              <Star className="h-4 w-4" fill={isFavorite ? 'currentColor' : 'none'} />
+            </button>
           </div>
         </div>
-      </Link>
+      </div>
       <DropdownMenu.Root>
         <DropdownMenu.Trigger asChild>
           <button
             type="button"
             aria-label="更多操作"
             onClick={(event) => event.preventDefault()}
-            className="absolute right-7 top-7 flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--panel)] text-[var(--text-secondary)] opacity-0 shadow-[var(--shadow-sm)] transition-all group-hover:opacity-100 hover:bg-[var(--panel-elevated)] hover:text-[var(--text-primary)] focus-visible:opacity-100 data-[state=open]:opacity-100"
+            className="absolute right-7 top-7 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--panel)] text-[var(--text-secondary)] opacity-0 shadow-[var(--shadow-sm)] transition-all group-hover:opacity-100 hover:bg-[var(--panel-elevated)] hover:text-[var(--text-primary)] focus-visible:opacity-100 data-[state=open]:opacity-100"
           >
             <Ellipsis className="h-4 w-4" />
           </button>

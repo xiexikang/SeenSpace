@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -22,4 +22,5 @@ class Project(Base):
     node_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     initials: Mapped[str] = mapped_column(String(24), nullable=False)
     thumbnail_variant: Mapped[str] = mapped_column(String(24), nullable=False)
+    is_favorite: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
     canvas_json: Mapped[dict] = mapped_column(JSON, nullable=False)

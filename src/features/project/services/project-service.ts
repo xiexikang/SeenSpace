@@ -4,6 +4,7 @@ import type { WorkspaceSnapshot } from '../../../types/workspace'
 
 let healthRequest: Promise<unknown> | undefined
 let projectsRequest: Promise<ProjectRecord[]> | undefined
+let favoriteProjectsRequest: Promise<ProjectRecord[]> | undefined
 const projectByIdRequests = new Map<string, Promise<ProjectRecord | undefined>>()
 
 export type ProjectMetadataInput = {
@@ -45,6 +46,16 @@ export async function listProjects() {
   )
 }
 
+export async function listFavoriteProjects() {
+  return dedupeRequest(
+    () => favoriteProjectsRequest,
+    (request) => {
+      favoriteProjectsRequest = request
+    },
+    () => apiGet<ProjectRecord[]>('/api/projects/favorites'),
+  )
+}
+
 export async function getProjectById(id: string) {
   const current = projectByIdRequests.get(id)
   if (current) return current
@@ -61,6 +72,7 @@ export async function getProjectById(id: string) {
 
 function invalidateProjectRequests(id?: string) {
   projectsRequest = undefined
+  favoriteProjectsRequest = undefined
   if (id) {
     projectByIdRequests.delete(id)
     return
@@ -76,6 +88,12 @@ export async function createProject(input: ProjectMetadataInput) {
 
 export async function updateProjectMetadata(id: string, input: ProjectMetadataInput) {
   const project = await apiPatch<ProjectRecord>(`/api/projects/${id}`, input)
+  invalidateProjectRequests(id)
+  return project
+}
+
+export async function toggleProjectFavorite(id: string, isFavorite: boolean) {
+  const project = await apiPatch<ProjectRecord>(`/api/projects/${id}/favorite`, { isFavorite })
   invalidateProjectRequests(id)
   return project
 }

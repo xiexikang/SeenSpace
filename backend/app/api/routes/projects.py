@@ -4,14 +4,21 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import get_current_user
 from app.core.database import get_db
 from app.models.user import User
-from app.schemas.project import ProjectMetadataRequest, ProjectRecord, UpdateProjectCanvasRequest
+from app.schemas.project import (
+    ProjectMetadataRequest,
+    ProjectRecord,
+    UpdateProjectCanvasRequest,
+    UpdateProjectFavoriteRequest,
+)
 from app.services.project_service import (
     create_project,
     delete_project,
     get_project,
+    list_favorite_projects,
     list_projects,
     update_project_metadata,
     update_project_canvas,
+    update_project_favorite,
 )
 
 
@@ -24,6 +31,14 @@ def list_project_records(
     current_user: User = Depends(get_current_user),
 ) -> list[ProjectRecord]:
     return list_projects(db, current_user.id)
+
+
+@router.get("/favorites", response_model=list[ProjectRecord])
+def list_favorite_project_records(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[ProjectRecord]:
+    return list_favorite_projects(db, current_user.id)
 
 
 @router.get("/{project_id}", response_model=ProjectRecord)
@@ -75,6 +90,19 @@ def update_project_canvas_record(
     current_user: User = Depends(get_current_user),
 ) -> ProjectRecord:
     project = update_project_canvas(db, current_user.id, project_id, request.canvas)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found.")
+    return project
+
+
+@router.patch("/{project_id}/favorite", response_model=ProjectRecord)
+def update_project_favorite_record(
+    project_id: str,
+    request: UpdateProjectFavoriteRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ProjectRecord:
+    project = update_project_favorite(db, current_user.id, project_id, request.isFavorite)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found.")
     return project

@@ -76,3 +76,7 @@ def migrate_existing_schema() -> None:
         cover_column_type = "LONGTEXT" if engine.dialect.name == "mysql" else "TEXT"
         with engine.begin() as connection:
             connection.execute(text(f"ALTER TABLE projects ADD COLUMN cover_image {cover_column_type} NULL"))
+
+    if "is_favorite" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE projects ADD COLUMN is_favorite BOOLEAN NOT NULL DEFAULT 0"))

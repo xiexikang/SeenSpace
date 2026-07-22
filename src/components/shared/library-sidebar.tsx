@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import * as Dialog from '@radix-ui/react-dialog'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { Check, ChevronRight, KeyRound, LogOut, NotebookPen, Palette, PanelLeftClose, PanelLeftOpen, Pencil, Star, X } from 'lucide-react'
@@ -15,14 +15,17 @@ import { useTheme } from '../../hooks/use-theme'
 import logoUrl from '../../assets/logo.png'
 
 const primaryItems = [
-  { label: '全部空间', icon: NotebookPen, active: true },
-  { label: '我的收藏', icon: Star },
+  { label: '全部空间', icon: NotebookPen, to: '/', end: true },
+  { label: '我的收藏', icon: Star, to: '/favorites', end: false },
 ]
 
 const sidebarCollapsedStorageKey = 'seenspace-sidebar-collapsed'
 
 export function LibrarySidebar() {
   const navigate = useNavigate()
+  const { pathname, search } = useLocation()
+  const isWorkspaceFromFavorites =
+    pathname.startsWith('/workspace') && new URLSearchParams(search).get('from') === 'favorites'
   const { resolvedTheme, setTheme } = useTheme()
   const [user, setUser] = useState<AuthUser | null>(null)
   const [isNameDialogOpen, setIsNameDialogOpen] = useState(false)
@@ -169,23 +172,30 @@ export function LibrarySidebar() {
           内容分区
         </div>
         <div className={cn(isCollapsed ? 'flex flex-col items-center gap-1' : 'space-y-2')}>
-          {primaryItems.map(({ label, icon: Icon, active }) => (
-            <button
+          {primaryItems.map(({ label, icon: Icon, to, end }) => (
+            <NavLink
               key={label}
-              type="button"
+              to={to}
+              end={end}
               title={isCollapsed ? label : undefined}
-              className={cn(
-                'flex w-full items-center gap-3 rounded-[16px] border px-3 py-3 text-sm transition-colors',
-                isCollapsed && 'h-10 w-10 justify-center gap-0 rounded-full p-0',
-                active
-                  ? 'border-transparent bg-[color:color-mix(in_srgb,var(--accent)_88%,var(--panel)_12%)] text-white shadow-[var(--shadow-sm)]'
-                  : 'border-transparent bg-transparent text-[var(--text-secondary)] hover:border-[var(--border)] hover:bg-[var(--panel)] hover:text-[var(--text-primary)]',
-                isCollapsed && active && 'shadow-none',
-              )}
+              className={({ isActive }) => {
+                const isItemActive =
+                  isActive ||
+                  (to === '/' && pathname.startsWith('/workspace') && !isWorkspaceFromFavorites) ||
+                  (to === '/favorites' && isWorkspaceFromFavorites)
+                return cn(
+                  'flex w-full items-center gap-3 rounded-[16px] border px-3 py-3 text-sm transition-colors',
+                  isCollapsed && 'h-10 w-10 justify-center gap-0 rounded-full p-0',
+                  isItemActive
+                    ? 'border-transparent bg-[color:color-mix(in_srgb,var(--accent)_88%,var(--panel)_12%)] !text-white shadow-[var(--shadow-sm)] [&_span]:!text-white [&_svg]:!text-white'
+                    : 'border-transparent bg-transparent text-[var(--text-secondary)] hover:border-[var(--border)] hover:bg-[var(--panel)] hover:text-[var(--text-primary)]',
+                  isCollapsed && isItemActive && 'shadow-none',
+                )
+              }}
             >
               <Icon className="h-4 w-4" />
               <span className={cn(isCollapsed && 'sr-only')}>{label}</span>
-            </button>
+            </NavLink>
           ))}
         </div>
       </nav>

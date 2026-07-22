@@ -12,5 +12,6 @@ export type ProjectRecord = {
   nodeCount: number
   initials: string
   thumbnailVariant: 'sand' | 'steel' | 'mist' | 'mint'
+  isFavorite: boolean
   canvas: WorkspaceSnapshot
 }

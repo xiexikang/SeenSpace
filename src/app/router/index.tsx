@@ -29,6 +29,14 @@ export function AppRouter() {
           }
         />
         <Route
+          path="/favorites"
+          element={
+            <ProtectedRoute>
+              <ProjectListPage favoriteOnly />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/workspace/:projectId"
           element={
             <ProtectedRoute>
