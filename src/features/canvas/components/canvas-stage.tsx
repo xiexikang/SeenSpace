@@ -65,7 +65,7 @@ const addableNodeTypes: Array<{ type: WorkspaceNodeType; label: string }> = [
   { type: 'note', label: '添加笔记' },
   { type: 'image', label: '添加图片' },
   { type: 'web', label: '添加网页' },
-  { type: 'tag_meta', label: '添加标签 / 元信息' },
+  { type: 'tag_meta', label: '添加标签' },
 ]
 
 const defaultEdgeOptions = {

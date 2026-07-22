@@ -7,7 +7,7 @@ const nodeTypeLabels: Record<WorkspaceNodeType, string> = {
   note: '笔记',
   image: '图片',
   web: '网页',
-  tag_meta: '标签 / 元信息',
+  tag_meta: '标签',
   ai_insight: 'AI 洞察',
 }
 

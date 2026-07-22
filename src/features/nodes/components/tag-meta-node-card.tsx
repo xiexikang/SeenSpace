@@ -5,7 +5,7 @@ import { NodeFrame } from './node-frame'
 export function TagMetaNodeCard({ data, selected, width, height }: NodeProps<TagMetaNode>) {
   return (
     <NodeFrame
-      typeLabel="标签 / 元信息"
+      typeLabel="标签"
       accentClassName="bg-[rgba(171,145,194,0.16)] text-[var(--text-secondary)]"
       selected={selected || data.externallySelected}
       resizable={data.externallyResizable}

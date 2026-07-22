@@ -197,7 +197,7 @@ export function LoginPage() {
             SeenSpace 灵感工作台
           </div>
           <h1 className="text-[42px] font-black leading-[1.16] tracking-normal text-[#121720] sm:text-[56px]">
-            设计师在这里
+            你可以在这里
             <br />
             发现&收集灵感
           </h1>
