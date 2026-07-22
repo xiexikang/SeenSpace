@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { LibrarySidebar } from '../../components/shared/library-sidebar'
 import { TopToolbar } from '../../components/shared/top-toolbar'
 import { WorkspaceInspector } from '../../components/workspace/workspace-inspector'
+import { ShortcutGuideDialog } from '../../components/workspace/shortcut-guide-dialog'
 import { AnalysisSidebar } from '../../features/ai/components/analysis-sidebar'
 import type { AnalysisResult } from '../../features/ai/services/analysis-service'
 import { CanvasLoadingState } from '../../features/canvas/components/canvas-loading-state'
@@ -122,6 +123,7 @@ export function WorkspacePage() {
   const [batchTagsText, setBatchTagsText] = useState('')
   const [batchEdgeLabel, setBatchEdgeLabel] = useState('')
   const [rightPanel, setRightPanel] = useState<RightPanel>('inspector')
+  const [isShortcutGuideOpen, setIsShortcutGuideOpen] = useState(false)
   const [historyIndex, setHistoryIndex] = useState(0)
   const [canvasStageVersion, setCanvasStageVersion] = useState(0)
   const historyRef = useRef<WorkspaceSnapshot[]>([emptySnapshot])
@@ -734,6 +736,8 @@ export function WorkspacePage() {
           rightAction="workspace"
           searchValue={workspaceSearch}
           onSearchChange={handleWorkspaceSearchChange}
+          onQuickHelpClick={() => setIsShortcutGuideOpen(true)}
+          quickHelpActive={isShortcutGuideOpen}
         />
 
         <section className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 md:p-6">
@@ -779,6 +783,7 @@ export function WorkspacePage() {
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
+                aria-label="撤销"
                 onClick={handleUndo}
                 disabled={!canUndo}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-[14px] border border-[var(--border)] bg-[var(--panel)] text-[var(--text-secondary)] disabled:opacity-40"
@@ -787,6 +792,7 @@ export function WorkspacePage() {
               </button>
               <button
                 type="button"
+                aria-label="重做"
                 onClick={handleRedo}
                 disabled={!canRedo}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-[14px] border border-[var(--border)] bg-[var(--panel)] text-[var(--text-secondary)] disabled:opacity-40"
@@ -1013,6 +1019,8 @@ export function WorkspacePage() {
           </div>
         </section>
       </main>
+
+      <ShortcutGuideDialog open={isShortcutGuideOpen} onOpenChange={setIsShortcutGuideOpen} />
     </div>
   )
 }

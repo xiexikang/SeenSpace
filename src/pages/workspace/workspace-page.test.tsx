@@ -19,7 +19,11 @@ vi.mock('../../components/shared/library-sidebar', () => ({
 }))
 
 vi.mock('../../components/shared/top-toolbar', () => ({
-  TopToolbar: ({ title }: { title: string }) => <div data-testid="top-toolbar">{title}</div>,
+  TopToolbar: ({ onQuickHelpClick }: { onQuickHelpClick?: () => void }) => (
+    <div data-testid="top-toolbar">
+      <button type="button" onClick={onQuickHelpClick}>快捷操作</button>
+    </div>
+  ),
 }))
 
 vi.mock('../../components/workspace/workspace-inspector', () => ({
@@ -281,9 +285,8 @@ describe('WorkspacePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Push Two Node Snapshot' }))
     await waitFor(() => expect(screen.getByText(/2\s*个节点/)).toBeTruthy())
 
-    const toolbarButtons = screen.getAllByRole('button')
-    const undoButton = toolbarButtons[0]
-    const redoButton = toolbarButtons[1]
+    const undoButton = screen.getByRole('button', { name: '撤销' })
+    const redoButton = screen.getByRole('button', { name: '重做' })
 
     fireEvent.click(undoButton)
     await waitFor(() => expect(screen.getByText(/1\s*个节点/)).toBeTruthy())
@@ -438,5 +441,17 @@ describe('WorkspacePage', () => {
         ['source-2', insightNode?.id, '提炼为'],
       ])
     })
+  })
+
+  it('opens the shortcut guide from the top toolbar', async () => {
+    loadProject(createSnapshot([]))
+    render(<WorkspacePage />)
+
+    await waitFor(() => expect(screen.getByText('Undo Test Project')).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: '快捷操作' }))
+
+    expect(screen.getByRole('dialog', { name: '快捷操作' })).toBeTruthy()
+    expect(screen.getByText('复制选中节点')).toBeTruthy()
+    expect(screen.getByTestId('workspace-inspector')).toBeTruthy()
   })
 })

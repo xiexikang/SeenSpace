@@ -1,4 +1,4 @@
-import { Plus, Search } from 'lucide-react'
+import { Keyboard, Plus, Search } from 'lucide-react'
 import { ProjectListToggle } from '../../features/project/components/project-list-toggle'
 import type { ProjectViewMode } from '../../types/project'
 
@@ -10,6 +10,8 @@ type TopToolbarProps = {
   viewMode?: ProjectViewMode
   onViewModeChange?: (mode: ProjectViewMode) => void
   onNewProject?: () => void
+  onQuickHelpClick?: () => void
+  quickHelpActive?: boolean
 }
 
 export function TopToolbar({
@@ -20,6 +22,8 @@ export function TopToolbar({
   viewMode = 'grid',
   onViewModeChange,
   onNewProject,
+  onQuickHelpClick,
+  quickHelpActive = false,
 }: TopToolbarProps) {
   return (
     <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[color:color-mix(in_srgb,var(--background-elevated)_82%,transparent)] px-4 py-3 backdrop-blur-xl md:px-6">
@@ -28,7 +32,7 @@ export function TopToolbar({
           把灵感收进空间，让想法自然连接。
         </div>
         <div className="flex flex-1 flex-col gap-3 lg:max-w-[720px] lg:flex-row lg:items-center lg:justify-end">
-          <label className="flex h-11 w-full items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 text-[var(--text-secondary)] shadow-[var(--shadow-sm)] focus-within:border-[var(--border-strong)] lg:max-w-[320px]">
+          <label className="flex h-11 w-full items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 text-[var(--text-secondary)] shadow-[var(--shadow-sm)] focus-within:border-[var(--border-strong)] lg:max-w-[400px]">
             <Search className="h-4 w-4" />
             <input
               aria-label="搜索"
@@ -55,9 +59,13 @@ export function TopToolbar({
             ) : (
               <button
                 type="button"
-                className="inline-flex h-11 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 text-sm font-medium text-[var(--text-primary)] shadow-[var(--shadow-sm)] hover:bg-[var(--panel-elevated)]"
+                onClick={onQuickHelpClick}
+                aria-haspopup="dialog"
+                aria-expanded={quickHelpActive}
+                className="inline-flex h-11 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--panel)] px-4 text-sm font-medium text-[var(--text-primary)] shadow-[var(--shadow-sm)] transition-colors hover:bg-[var(--panel-elevated)]"
               >
-                助手
+                <Keyboard className="h-4 w-4" />
+                快捷操作
               </button>
             )}
           </div>
