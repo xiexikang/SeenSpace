@@ -124,8 +124,10 @@ export function WorkspacePage() {
   const [batchEdgeLabel, setBatchEdgeLabel] = useState('')
   const [rightPanel, setRightPanel] = useState<RightPanel>('inspector')
   const [isShortcutGuideOpen, setIsShortcutGuideOpen] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const [historyIndex, setHistoryIndex] = useState(0)
   const [canvasStageVersion, setCanvasStageVersion] = useState(0)
+  const workspaceFullscreenRef = useRef<HTMLElement | null>(null)
   const historyRef = useRef<WorkspaceSnapshot[]>([emptySnapshot])
   const actionMessageTimeoutRef = useRef<number | null>(null)
 
@@ -161,6 +163,16 @@ export function WorkspacePage() {
     showActionMessage(state.actionMessage)
     navigate(location.pathname, { replace: true, state: null })
   }, [location.pathname, location.state, navigate])
+
+  useEffect(() => {
+    function handleFullscreenChange() {
+      setIsFullscreen(document.fullscreenElement === workspaceFullscreenRef.current)
+    }
+
+    handleFullscreenChange()
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
 
   const {
     selectedNodes,
@@ -727,6 +739,18 @@ export function WorkspacePage() {
     deleteEdges(selectedEdgeIds)
   }
 
+  async function handleToggleFullscreen() {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen()
+      } else {
+        await workspaceFullscreenRef.current?.requestFullscreen()
+      }
+    } catch {
+      showActionMessage('无法切换全屏模式')
+    }
+  }
+
   return (
     <div className="flex h-dvh overflow-hidden bg-[var(--background)] text-[var(--text-primary)]">
       <LibrarySidebar />
@@ -740,7 +764,10 @@ export function WorkspacePage() {
           quickHelpActive={isShortcutGuideOpen}
         />
 
-        <section className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 md:p-6">
+        <section
+          ref={workspaceFullscreenRef}
+          className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--background)] p-4 md:p-6"
+        >
           <div className="mb-4 rounded-[24px] border border-[var(--border)] bg-[var(--panel)] px-4 py-4 shadow-[var(--shadow-sm)]">
           <div className="flex flex-wrap items-center justify-between gap-3 px-1">
             <div className="flex items-center gap-3">
@@ -781,6 +808,15 @@ export function WorkspacePage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                aria-label={isFullscreen ? '退出全屏' : '全屏'}
+                title={isFullscreen ? '退出全屏（Esc）' : '进入全屏'}
+                onClick={() => void handleToggleFullscreen()}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-[14px] border border-[var(--border)] bg-[var(--panel)] text-[var(--text-secondary)]"
+              >
+                {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              </button>
               <button
                 type="button"
                 aria-label="撤销"

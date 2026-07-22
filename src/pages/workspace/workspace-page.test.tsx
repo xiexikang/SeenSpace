@@ -6,6 +6,9 @@ import { WorkspacePage } from './workspace-page'
 
 const getProjectByIdMock = vi.fn()
 const updateProjectCanvasMock = vi.fn()
+let fullscreenElement: Element | null = null
+const requestFullscreenMock = vi.fn()
+const exitFullscreenMock = vi.fn()
 
 vi.mock('react-router-dom', () => ({
   Link: ({ children }: { children: React.ReactNode }) => <a href="/">{children}</a>,
@@ -208,6 +211,27 @@ vi.mock('../../features/canvas/components/canvas-stage', () => ({
 describe('WorkspacePage', () => {
   beforeEach(() => {
     updateProjectCanvasMock.mockResolvedValue(undefined)
+    fullscreenElement = null
+    requestFullscreenMock.mockImplementation(async () => {
+      fullscreenElement = document.querySelector('section')
+      document.dispatchEvent(new Event('fullscreenchange'))
+    })
+    exitFullscreenMock.mockImplementation(async () => {
+      fullscreenElement = null
+      document.dispatchEvent(new Event('fullscreenchange'))
+    })
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => fullscreenElement,
+    })
+    Object.defineProperty(HTMLElement.prototype, 'requestFullscreen', {
+      configurable: true,
+      value: requestFullscreenMock,
+    })
+    Object.defineProperty(document, 'exitFullscreen', {
+      configurable: true,
+      value: exitFullscreenMock,
+    })
   })
 
   afterEach(() => {
@@ -293,6 +317,29 @@ describe('WorkspacePage', () => {
 
     fireEvent.click(redoButton)
     await waitFor(() => expect(screen.getByText(/2\s*个节点/)).toBeTruthy())
+  })
+
+  it('toggles fullscreen from the button before undo', async () => {
+    loadProject(createSnapshot([]))
+    render(<WorkspacePage />)
+
+    await waitFor(() => expect(screen.getByText('Undo Test Project')).toBeTruthy())
+
+    const fullscreenButton = screen.getByRole('button', { name: '全屏' })
+    const undoButton = screen.getByRole('button', { name: '撤销' })
+    expect(fullscreenButton.nextElementSibling).toBe(undoButton)
+
+    fireEvent.click(fullscreenButton)
+    await waitFor(() => expect(requestFullscreenMock).toHaveBeenCalledTimes(1))
+    expect(fullscreenElement).not.toBe(document.documentElement)
+    expect(fullscreenElement?.contains(screen.getByText('Canvas Nodes: 0'))).toBe(true)
+
+    const exitFullscreenButton = await screen.findByRole('button', { name: '退出全屏' })
+    expect(exitFullscreenButton.getAttribute('title')).toContain('Esc')
+
+    fireEvent.click(exitFullscreenButton)
+    await waitFor(() => expect(exitFullscreenMock).toHaveBeenCalledTimes(1))
+    expect(screen.getByRole('button', { name: '全屏' })).toBeTruthy()
   })
 
   it('groups and ungroups a multi-node selection', async () => {
