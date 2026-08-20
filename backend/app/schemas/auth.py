@@ -39,3 +39,23 @@ class UpdateNameRequest(BaseModel):
 class UpdatePasswordRequest(BaseModel):
     currentPassword: str = Field(min_length=6, max_length=128)
     newPassword: str = Field(min_length=6, max_length=128)
+
+
+class AgentAuthorizeRequest(BaseModel):
+    clientId: str = Field(min_length=1)
+    clientSecret: str = Field(min_length=1)
+
+
+class AgentAuthorizeData(BaseModel):
+    authorizeUrl: str
+    state: str
+
+
+class AgentAuthorizeResponse(BaseModel):
+    code: int
+    msg: str
+    data: AgentAuthorizeData
+
+
+class AgentLoginRequest(BaseModel):
+    code: str = Field(min_length=1)

@@ -96,16 +96,43 @@ def consume_captcha(db: Session, captcha_id: str, code: str) -> bool:
     return verify_code(code.strip(), challenge.code_hash)
 
 
-def create_session(db: Session, user: User) -> AuthResponse:
+def create_session(db: Session, user: User, agent_access_token: str | None = None) -> AuthResponse:
     session = AuthSession(
         token=token_urlsafe(48),
         user_id=user.id,
         created_at=now_utc(),
         expires_at=now_utc() + SESSION_TTL,
+        agent_access_token=agent_access_token,
     )
     db.add(session)
     db.commit()
     return AuthResponse(token=session.token, user=to_auth_user(user))
+
+
+def upsert_agent_user(
+    db: Session, user_id: int, username: str, full_name: str | None, agent_access_token: str
+) -> AuthResponse:
+    local_id = f"agent-{user_id}"
+    user = db.get(User, local_id)
+    normalized_username = f"agent_{user_id}"
+    normalized_name = (full_name or username or normalized_username).strip()[:80]
+    timestamp = now_utc()
+    if user is None:
+        user = User(
+            id=local_id,
+            username=normalized_username,
+            name=normalized_name,
+            password_hash=hash_password(token_urlsafe(32)),
+            created_at=timestamp,
+            updated_at=timestamp,
+        )
+        db.add(user)
+    else:
+        user.name = normalized_name
+        user.updated_at = timestamp
+    db.commit()
+    db.refresh(user)
+    return create_session(db, user, agent_access_token)
 
 
 def register_user(

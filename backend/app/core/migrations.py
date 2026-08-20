@@ -60,6 +60,11 @@ def migrate_users_table() -> None:
 def migrate_existing_schema() -> None:
     migrate_users_table()
     inspector = inspect(engine)
+    if inspector.has_table("auth_sessions"):
+        session_columns = {column["name"] for column in inspector.get_columns("auth_sessions")}
+        if "agent_access_token" not in session_columns:
+            with engine.begin() as connection:
+                connection.execute(text("ALTER TABLE auth_sessions ADD COLUMN agent_access_token VARCHAR(512) NULL"))
     if not inspector.has_table("projects"):
         return
 

@@ -24,6 +24,7 @@ class AuthSession(Base):
     user_id: Mapped[str] = mapped_column(String(64), ForeignKey("users.id"), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    agent_access_token: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
 
 class CaptchaChallenge(Base):

@@ -3,7 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { ArrowUpRight, Eye, EyeOff, Image, Palette, RefreshCw, Sparkles, X } from 'lucide-react'
 import logoUrl from '../../assets/logo.png'
 import { getAuthToken } from '../../lib/api-client'
-import { getCaptcha, login, register, type CaptchaResponse } from '../../features/auth/services/auth-service'
+import { getAgentAuthorizeUrl, getCaptcha, login, register, type CaptchaResponse } from '../../features/auth/services/auth-service'
 
 type AuthMode = 'login' | 'register'
 
@@ -115,6 +115,7 @@ export function LoginPage() {
   const [captcha, setCaptcha] = useState<CaptchaResponse | null>(null)
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isAgentSubmitting, setIsAgentSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
   async function refreshCaptcha() {
@@ -170,6 +171,24 @@ export function LoginPage() {
     }
   }
 
+  async function handleAgentLogin() {
+    setError('')
+    setIsAgentSubmitting(true)
+    try {
+      const response = await getAgentAuthorizeUrl()
+      if (response.code !== 0 || !response.data?.authorizeUrl || !response.data?.state) {
+        throw new Error('Invalid agent authorization response')
+      }
+      window.sessionStorage.setItem('seenspace-agent-oauth-state', response.data.state)
+      window.location.assign(response.data.authorizeUrl)
+    } catch {
+      setError('智能体统一登录暂不可用，请稍后重试。')
+      setMode('login')
+      setIsAuthOpen(true)
+      setIsAgentSubmitting(false)
+    }
+  }
+
   return (
     <main className="min-h-screen overflow-x-hidden bg-white text-[#171b22]">
       <header className="fixed left-0 right-0 top-0 z-30 flex h-20 items-center gap-6 border-b border-transparent bg-white/92 px-7 backdrop-blur-xl">
@@ -180,7 +199,14 @@ export function LoginPage() {
           </a>
         </div>
         <div className="min-w-0 flex-1" />
-
+        <button
+          type="button"
+          onClick={() => void handleAgentLogin()}
+          disabled={isAgentSubmitting}
+          className="h-11 shrink-0 rounded-full border border-[#ffd1da] bg-[#fff5f7] px-5 text-sm font-semibold text-[#e3264d] shadow-[0_12px_28px_rgba(255,49,88,0.1)] hover:-translate-y-0.5 hover:bg-[#ffedf1] disabled:cursor-wait disabled:opacity-60"
+        >
+          智能体统一登录
+        </button>
         <button
           type="button"
           onClick={() => openAuth('login')}
@@ -188,6 +214,7 @@ export function LoginPage() {
         >
           登录/注册
         </button>
+
       </header>
 
       <section className="relative mx-auto grid min-h-[640px] w-full max-w-[1280px] grid-cols-1 items-center gap-10 px-7 pb-16 pt-36 lg:grid-cols-[0.82fr_1.18fr] lg:px-12">

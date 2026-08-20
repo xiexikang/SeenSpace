@@ -41,6 +41,13 @@ class Settings(BaseSettings):
     )
     llm_api_style: str = "chat_completions"
     llm_timeout_seconds: float = 45.0
+    agent_authorize_url: str = "http://10.30.1.53:9090/auth/agent/oauth2/authorize-url"
+    agent_client_id: str = "ag85af50c6357b4baf"
+    agent_client_secret: str = "866b740d443c44bf9a47a1ad9fbfac2c"
+    agent_token_url: str = "http://10.30.1.53:9090/auth/agent/oauth2/token"
+    agent_userinfo_url: str = "http://10.30.1.53:9090/auth/agent/oauth2/userinfo"
+    agent_logout_url: str = "http://10.30.1.53:9090/auth/agent/oauth2/logout"
+    agent_redirect_uri: str = "http://10.30.1.53:7788"
 
 
 @lru_cache
