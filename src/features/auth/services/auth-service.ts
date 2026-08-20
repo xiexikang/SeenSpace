@@ -17,12 +17,8 @@ type AuthResponse = {
 }
 
 export type AgentAuthorizeResponse = {
-  code: number
-  msg: string
-  data: {
-    authorizeUrl: string
-    state: string
-  }
+  authorizeUrl: string
+  state: string
 }
 
 let agentLoginRequest: { code: string; promise: Promise<AuthUser> } | null = null

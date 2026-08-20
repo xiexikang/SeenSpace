@@ -51,11 +51,5 @@ class AgentAuthorizeData(BaseModel):
     state: str
 
 
-class AgentAuthorizeResponse(BaseModel):
-    code: int
-    msg: str
-    data: AgentAuthorizeData
-
-
 class AgentLoginRequest(BaseModel):
     code: str = Field(min_length=1)

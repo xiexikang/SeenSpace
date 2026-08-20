@@ -108,12 +108,13 @@ def update_project_favorite_record(
     return project
 
 
-@router.delete("/{project_id}", status_code=204)
+@router.delete("/{project_id}")
 def delete_project_record(
     project_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> None:
+) -> dict[str, bool]:
     deleted = delete_project(db, current_user.id, project_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Project not found.")
+    return {"ok": True}

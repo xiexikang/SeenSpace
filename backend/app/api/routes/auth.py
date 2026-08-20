@@ -8,7 +8,7 @@ from app.models.user import AuthSession, User
 from app.schemas.auth import (
     AuthResponse,
     AgentAuthorizeRequest,
-    AgentAuthorizeResponse,
+    AgentAuthorizeData,
     AgentLoginRequest,
     AuthUser,
     CaptchaResponse,
@@ -33,8 +33,8 @@ from app.services.auth_service import (
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/agent/getAuthorizeUrl", response_model=AgentAuthorizeResponse)
-async def get_agent_authorize_url(request: AgentAuthorizeRequest) -> AgentAuthorizeResponse:
+@router.post("/agent/getAuthorizeUrl", response_model=AgentAuthorizeData)
+async def get_agent_authorize_url(request: AgentAuthorizeRequest) -> AgentAuthorizeData:
     if request.clientId != settings.agent_client_id or request.clientSecret != settings.agent_client_secret:
         raise HTTPException(status_code=401, detail="智能体客户端凭据不正确。")
 
@@ -50,7 +50,10 @@ async def get_agent_authorize_url(request: AgentAuthorizeRequest) -> AgentAuthor
         raise HTTPException(status_code=502, detail="获取智能体授权地址失败。") from error
 
     try:
-        return AgentAuthorizeResponse.model_validate(payload)
+        if not isinstance(payload, dict) or payload.get("code") not in (None, 0):
+            message = payload.get("msg") if isinstance(payload, dict) else None
+            raise ValueError(message or "第三方授权地址获取失败")
+        return AgentAuthorizeData.model_validate(payload.get("data"))
     except ValueError as error:
         raise HTTPException(status_code=502, detail="智能体授权响应格式无效。") from error
 
@@ -71,6 +74,8 @@ async def agent_login(request: AgentLoginRequest, db: Session = Depends(get_db))
             )
             token_response.raise_for_status()
             token_payload = token_response.json()
+            if token_payload.get("code") not in (None, 0):
+                raise ValueError(token_payload.get("msg") or "第三方令牌获取失败")
             access_token = token_payload.get("data", {}).get("access_token")
             if not access_token:
                 raise ValueError("第三方未返回 access_token")
@@ -81,6 +86,8 @@ async def agent_login(request: AgentLoginRequest, db: Session = Depends(get_db))
             )
             user_response.raise_for_status()
             user_payload = user_response.json()
+            if user_payload.get("code") not in (None, 0):
+                raise ValueError(user_payload.get("msg") or "第三方用户信息获取失败")
             user_data = user_payload.get("data", {})
             user_id = user_data.get("userId")
             if user_id is None:

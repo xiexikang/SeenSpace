@@ -5,6 +5,28 @@ import { ProjectListPage } from '../../pages/projects/project-list-page'
 import { LoginPage } from '../../pages/auth/login-page'
 import { ProtectedRoute } from './protected-route'
 import { agentLogin } from '../../features/auth/services/auth-service'
+import { LightToast } from '../../components/shared/light-toast'
+
+function ApiErrorToast() {
+  const [message, setMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    const handleError = (event: Event) => {
+      const detail = (event as CustomEvent<string>).detail
+      if (detail) setMessage(detail)
+    }
+    window.addEventListener('seenspace-api-error', handleError)
+    return () => window.removeEventListener('seenspace-api-error', handleError)
+  }, [])
+
+  useEffect(() => {
+    if (!message) return
+    const timer = window.setTimeout(() => setMessage(null), 2200)
+    return () => window.clearTimeout(timer)
+  }, [message])
+
+  return <LightToast message={message} />
+}
 
 function AgentCallbackPage() {
   const navigate = useNavigate()
@@ -84,6 +106,7 @@ export function AppRouter() {
         </div>
       }
     >
+      <ApiErrorToast />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route

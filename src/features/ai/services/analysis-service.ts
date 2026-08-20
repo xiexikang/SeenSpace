@@ -1,5 +1,6 @@
 import type { WorkspaceNode, WorkspaceSnapshot } from '../../../types/workspace'
 import { buildAnalysisRequestPayload } from './analysis-payload'
+import { apiPost } from '../../../lib/api-client'
 
 export type AnalysisScope = 'canvas' | 'selection'
 
@@ -117,26 +118,12 @@ async function analyzeWorkspaceSnapshotRemotely({
   scope: AnalysisScope
   question: string
 }): Promise<AnalysisResult> {
-  const response = await fetch('/api/ai/analyze', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(
-      buildAnalysisRequestPayload({
+  const result: unknown = await apiPost('/api/ai/analyze', buildAnalysisRequestPayload({
         snapshot,
         selectedNodeIds,
         scope,
         question,
-      }),
-    ),
-  })
-
-  if (!response.ok) {
-    throw new Error('AI analysis request failed.')
-  }
-
-  const result: unknown = await response.json()
+      }))
   if (!isAnalysisResult(result)) {
     throw new Error('AI analysis response was invalid.')
   }

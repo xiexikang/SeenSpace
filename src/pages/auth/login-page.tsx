@@ -176,11 +176,11 @@ export function LoginPage() {
     setIsAgentSubmitting(true)
     try {
       const response = await getAgentAuthorizeUrl()
-      if (response.code !== 0 || !response.data?.authorizeUrl || !response.data?.state) {
+      if (!response?.authorizeUrl || !response?.state) {
         throw new Error('Invalid agent authorization response')
       }
-      window.sessionStorage.setItem('seenspace-agent-oauth-state', response.data.state)
-      window.location.assign(response.data.authorizeUrl)
+      window.sessionStorage.setItem('seenspace-agent-oauth-state', response.state)
+      window.location.assign(response.authorizeUrl)
     } catch {
       setError('智能体统一登录暂不可用，请稍后重试。')
       setMode('login')
