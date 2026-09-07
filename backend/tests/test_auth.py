@@ -3,10 +3,43 @@ from pytest import MonkeyPatch
 
 from app.main import app
 from app.core.config import settings
+from app.api.routes.auth import _safe_runtime_data
 from app.services import auth_service
 
 
 client = TestClient(app)
+
+
+def test_runtime_data_returns_only_upstream_access_config(caplog) -> None:
+    caplog.set_level("INFO", logger="app.api.routes.auth")
+    payload = {
+        "data": {
+            "active": True,
+            "access": {
+                "llm": {
+                    "url": "https://llm.example/v1/chat/completions",
+                    "method": "POST",
+                    "headers": {"Authorization": "Bearer secret-token", "Content-Type": "application/json"},
+                    "body": {"model": "", "messages": [{"role": "user", "content": "hello"}]},
+                },
+                "mcp": {"mcpServers": {"search": {"url": "https://mcp.example"}}},
+            },
+        }
+    }
+
+    result = _safe_runtime_data(payload)
+
+    assert result == {
+        "llm": {
+            "url": "https://llm.example/v1/chat/completions",
+            "method": "POST",
+            "headers": {"Authorization": "Bearer secret-token", "Content-Type": "application/json"},
+            "body": {"model": "", "messages": [{"role": "user", "content": "hello"}]},
+        },
+        "mcp": {"mcpServers": {"search": {"url": "https://mcp.example"}}},
+    }
+    assert "secret-token" not in caplog.text
+    assert "access" in caplog.text
 
 
 def fixed_captcha(monkeypatch: MonkeyPatch) -> None:

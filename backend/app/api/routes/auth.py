@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -36,6 +37,7 @@ from app.services.auth_service import (
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/agent/getAuthorizeUrl", response_model=AgentAuthorizeData)
@@ -163,25 +165,35 @@ async def _refresh_agent_token(session: AuthSession, db: Session) -> AgentTokenR
     return result
 
 
+def _runtime_data_shape(value: object) -> object:
+    """Describe response structure without logging runtime credentials or values."""
+    if isinstance(value, dict):
+        return {str(key): _runtime_data_shape(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return {
+            "type": "list",
+            "length": len(value),
+            "item": _runtime_data_shape(value[0]) if value else None,
+        }
+    if value is None:
+        return "null"
+    return type(value).__name__
+
+
 def _safe_runtime_data(payload: dict) -> dict:
-    """Expose only inspectable runtime metadata; gateway credentials stay server-side."""
+    """Expose only the runtime access configuration needed by the client."""
     raw = payload.get("data")
     if not isinstance(raw, dict):
         raise ValueError("第三方运行时配置格式无效")
-    safe: dict = {}
-    llm = raw.get("llm")
-    if isinstance(llm, dict):
-        safe["llm"] = {
-            "url": llm.get("url") if isinstance(llm.get("url"), str) else None,
-            "method": llm.get("method") if isinstance(llm.get("method"), str) else None,
-            "headerNames": sorted(str(key) for key in (llm.get("headers") or {}) if isinstance(llm.get("headers"), dict)),
-            "bodyFields": sorted(str(key) for key in (llm.get("body") or {}) if isinstance(llm.get("body"), dict)),
-        }
-    mcp = raw.get("mcp")
-    if isinstance(mcp, dict):
-        servers = mcp.get("mcpServers")
-        safe["mcp"] = {"serverNames": sorted(str(key) for key in servers) if isinstance(servers, dict) else []}
-    return safe
+    logger.info("Agent runtime upstream data structure: %s", _runtime_data_shape(raw))
+    access = raw.get("access")
+    if not isinstance(access, dict):
+        raise ValueError("第三方运行时配置缺少 access")
+    return {
+        key: access[key]
+        for key in ("llm", "mcp")
+        if key in access
+    }
 
 
 @router.post("/agent/runtime-access", response_model=AgentRuntimeResponse)
