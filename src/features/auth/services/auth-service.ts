@@ -21,7 +21,15 @@ export type AgentAuthorizeResponse = {
   state: string
 }
 export type AgentRefreshResponse = { code: number; msg: string; data: { expires_in: number; token_type: string } }
-export type AgentRuntimeResponse = { code: number; msg: string; data: { llm?: { url: string | null; method: string | null; headerNames: string[]; bodyFields: string[] }; mcp?: { serverNames: string[] } } }
+export type AgentRuntimeResponse = {
+  code: number
+  msg: string
+  data: {
+    llm?: { url: string | null; method: string | null; headers?: Record<string, string>; body?: Record<string, unknown> }
+    mcp?: { mcpServers?: Record<string, unknown> }
+  }
+}
+export type AgentRuntimeChatResponse = { status_code: number; data: unknown }
 
 let agentLoginRequest: { code: string; promise: Promise<AuthUser> } | null = null
 let currentUserRequest: Promise<AuthUser> | null = null
@@ -53,6 +61,9 @@ export function getCaptcha() {
 export function getAgentSessionStatus() { return apiGet<{ connected: boolean; expiresAt: string | null }>('/api/auth/agent/session-status') }
 export function refreshAgentToken() { return apiPost<AgentRefreshResponse>('/api/auth/agent/refresh-token', {}) }
 export function getAgentRuntimeAccess() { return apiPost<AgentRuntimeResponse>('/api/auth/agent/runtime-access', {}) }
+export function sendAgentRuntimeChat(input: { message: string; model?: string; chatContextId?: string; stream?: boolean }) {
+  return apiPost<AgentRuntimeChatResponse>('/api/auth/agent/runtime-chat', input)
+}
 
 export async function login(input: {
   username: string

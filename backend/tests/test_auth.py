@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
 
@@ -109,6 +111,85 @@ def test_agent_authorize_url_surfaces_upstream_business_error(monkeypatch: Monke
 
     assert response.status_code == 502
     assert response.json()["message"] == "智能体授权失败：账号未登录"
+
+
+def test_agent_runtime_chat_uses_upstream_llm_configuration(monkeypatch: MonkeyPatch) -> None:
+    calls: list[dict] = []
+
+    async def fake_runtime_access(_session, _db):
+        return {
+            "llm": {
+                "url": "https://llm.example/v1/chat/completions",
+                "method": "POST",
+                "headers": {
+                    "Authorization": "Bearer upstream-token",
+                    "Accept": "application/json",
+                },
+                "body": {
+                    "model": "upstream-model",
+                    "user": "user_id/user_name",
+                    "chat_context_id": "old-context",
+                    "messages": [{"role": "system", "content": "keep this"}],
+                    "stream": True,
+                },
+            }
+        }
+
+    class FakeResponse:
+        status_code = 200
+        text = ""
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"choices": [{"message": {"role": "assistant", "content": "你好"}}]}
+
+    class FakeClient:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def request(self, method, url, **kwargs):
+            calls.append({"method": method, "url": url, **kwargs})
+            return FakeResponse()
+
+    monkeypatch.setattr("app.api.routes.auth._agent_session", lambda _authorization, _db: SimpleNamespace(user_id="agent-42"))
+    monkeypatch.setattr("app.api.routes.auth._fetch_agent_runtime_access", fake_runtime_access)
+    monkeypatch.setattr("app.api.routes.auth.httpx.AsyncClient", FakeClient)
+
+    response = client.post(
+        "/api/auth/agent/runtime-chat",
+        headers={"Authorization": "Bearer local-session"},
+        json={"message": "请介绍自己", "model": "debug-model", "chatContextId": "debug-context"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "code": 0,
+        "message": "",
+        "data": {
+            "status_code": 200,
+            "data": {"choices": [{"message": {"role": "assistant", "content": "你好"}}]},
+        },
+    }
+    assert calls == [{
+        "method": "POST",
+        "url": "https://llm.example/v1/chat/completions",
+        "headers": {"Authorization": "Bearer upstream-token", "Accept": "application/json", "Content-Type": "application/json"},
+        "json": {
+            "model": "debug-model",
+            "user": "42",
+            "chat_context_id": "debug-context",
+            "messages": [{"role": "user", "content": "请介绍自己"}],
+            "stream": False,
+        },
+    }]
 
 
 def test_register_me_and_logout(monkeypatch: MonkeyPatch) -> None:

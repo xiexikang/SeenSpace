@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -67,6 +69,18 @@ class AgentRuntimeResponse(BaseModel):
     code: int
     msg: str
     data: dict
+
+
+class AgentRuntimeChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=20_000)
+    model: str | None = Field(default=None, max_length=200)
+    chatContextId: str | None = Field(default=None, max_length=200)
+    stream: bool = False
+
+
+class AgentRuntimeChatResponse(BaseModel):
+    status_code: int
+    data: Any
 
 
 class AgentRefreshResponse(BaseModel):

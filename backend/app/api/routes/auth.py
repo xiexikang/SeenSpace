@@ -1,5 +1,6 @@
 import logging
 from datetime import UTC, datetime, timedelta
+from uuid import uuid4
 
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -13,6 +14,8 @@ from app.schemas.auth import (
     AgentAuthorizeData,
     AgentLoginRequest,
     AgentRuntimeResponse,
+    AgentRuntimeChatRequest,
+    AgentRuntimeChatResponse,
     AgentRefreshResponse,
     AgentSessionStatus,
     AgentTokenResponse,
@@ -165,6 +168,27 @@ async def _refresh_agent_token(session: AuthSession, db: Session) -> AgentTokenR
     return result
 
 
+async def _fetch_agent_runtime_access(session: AuthSession, db: Session) -> dict:
+    if session.agent_access_token_expires_at and session.agent_access_token_expires_at <= datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=60):
+        await _refresh_agent_token(session, db)
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.post(
+                settings.agent_runtime_access_url,
+                headers={"Authorization": f"Bearer {session.agent_access_token}"},
+                json={},
+            )
+            response.raise_for_status()
+        payload = response.json()
+        if not isinstance(payload, dict):
+            raise ValueError("第三方运行时配置响应不是 JSON 对象")
+        if payload.get("code") not in (None, 0, "0"):
+            raise ValueError(payload.get("msg") or "第三方运行时配置获取失败")
+        return _safe_runtime_data(payload)
+    except (httpx.HTTPError, ValueError) as error:
+        raise HTTPException(status_code=502, detail="获取智能体运行时配置失败。") from error
+
+
 def _runtime_data_shape(value: object) -> object:
     """Describe response structure without logging runtime credentials or values."""
     if isinstance(value, dict):
@@ -201,18 +225,49 @@ async def agent_runtime_access(
     authorization: str | None = Header(default=None), db: Session = Depends(get_db)
 ) -> AgentRuntimeResponse:
     session = _agent_session(authorization, db)
-    if session.agent_access_token_expires_at and session.agent_access_token_expires_at <= datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=60):
-        await _refresh_agent_token(session, db)
+    return AgentRuntimeResponse(code=0, msg="成功", data=await _fetch_agent_runtime_access(session, db))
+
+
+@router.post("/agent/runtime-chat", response_model=AgentRuntimeChatResponse)
+async def agent_runtime_chat(
+    request: AgentRuntimeChatRequest,
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+) -> AgentRuntimeChatResponse:
+    session = _agent_session(authorization, db)
+    runtime = await _fetch_agent_runtime_access(session, db)
+    llm = runtime.get("llm")
+    if not isinstance(llm, dict) or not isinstance(llm.get("url"), str) or not llm["url"]:
+        raise HTTPException(status_code=502, detail="上游未返回可用的 LLM 配置。")
+
+    upstream_body = llm.get("body") if isinstance(llm.get("body"), dict) else {}
+    body = dict(upstream_body)
+    if request.model is not None and request.model.strip():
+        body["model"] = request.model.strip()
+    body["user"] = body.get("user") if body.get("user") and body.get("user") != "user_id/user_name" else session.user_id.removeprefix("agent-")
+    body["chat_context_id"] = request.chatContextId or str(uuid4())
+    body["messages"] = [{"role": "user", "content": request.message}]
+    body["stream"] = request.stream
+
+    configured_headers = llm.get("headers") if isinstance(llm.get("headers"), dict) else {}
+    headers = {str(key): str(value) for key, value in configured_headers.items() if value is not None}
+    headers.setdefault("Content-Type", "application/json")
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.post(settings.agent_runtime_access_url, headers={"Authorization": f"Bearer {session.agent_access_token}"}, json={})
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.request(
+                str(llm.get("method") or "POST").upper(),
+                llm["url"],
+                headers=headers,
+                json=body,
+            )
             response.raise_for_status()
-        payload = response.json()
-        if payload.get("code") != 0:
-            raise ValueError(payload.get("msg") or "第三方运行时配置获取失败")
-        return AgentRuntimeResponse(code=0, msg=str(payload.get("msg") or "成功"), data=_safe_runtime_data(payload))
+            try:
+                result: object = response.json()
+            except ValueError:
+                result = response.text
     except (httpx.HTTPError, ValueError) as error:
-        raise HTTPException(status_code=502, detail="获取智能体运行时配置失败。") from error
+        raise HTTPException(status_code=502, detail="调用智能体 LLM 网关失败。") from error
+    return AgentRuntimeChatResponse(status_code=response.status_code, data=result)
 
 
 @router.get("/captcha", response_model=CaptchaResponse)
