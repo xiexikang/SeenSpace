@@ -62,9 +62,17 @@ def migrate_existing_schema() -> None:
     inspector = inspect(engine)
     if inspector.has_table("auth_sessions"):
         session_columns = {column["name"] for column in inspector.get_columns("auth_sessions")}
+        missing_columns = []
         if "agent_access_token" not in session_columns:
+            missing_columns.append("agent_access_token VARCHAR(512) NULL")
+        if "agent_refresh_token" not in session_columns:
+            missing_columns.append("agent_refresh_token VARCHAR(512) NULL")
+        if "agent_access_token_expires_at" not in session_columns:
+            missing_columns.append("agent_access_token_expires_at DATETIME NULL")
+        if missing_columns:
             with engine.begin() as connection:
-                connection.execute(text("ALTER TABLE auth_sessions ADD COLUMN agent_access_token VARCHAR(512) NULL"))
+                for column in missing_columns:
+                    connection.execute(text(f"ALTER TABLE auth_sessions ADD COLUMN {column}"))
     if not inspector.has_table("projects"):
         return
 

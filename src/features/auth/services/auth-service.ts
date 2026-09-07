@@ -20,16 +20,15 @@ export type AgentAuthorizeResponse = {
   authorizeUrl: string
   state: string
 }
+export type AgentRefreshResponse = { code: number; msg: string; data: { expires_in: number; token_type: string } }
+export type AgentRuntimeResponse = { code: number; msg: string; data: { llm?: { url: string | null; method: string | null; headerNames: string[]; bodyFields: string[] }; mcp?: { serverNames: string[] } } }
 
 let agentLoginRequest: { code: string; promise: Promise<AuthUser> } | null = null
 let currentUserRequest: Promise<AuthUser> | null = null
 const agentLoginMarkerKey = 'seenspace-agent-login'
 
 export function getAgentAuthorizeUrl() {
-  return apiPost<AgentAuthorizeResponse>('/api/auth/agent/getAuthorizeUrl', {
-    clientId: 'ag85af50c6357b4baf',
-    clientSecret: '866b740d443c44bf9a47a1ad9fbfac2c',
-  })
+  return apiPost<AgentAuthorizeResponse>('/api/auth/agent/getAuthorizeUrl')
 }
 
 export async function agentLogin(code: string) {
@@ -50,6 +49,10 @@ export async function agentLogin(code: string) {
 export function getCaptcha() {
   return apiGet<CaptchaResponse>('/api/auth/captcha')
 }
+
+export function getAgentSessionStatus() { return apiGet<{ connected: boolean; expiresAt: string | null }>('/api/auth/agent/session-status') }
+export function refreshAgentToken() { return apiPost<AgentRefreshResponse>('/api/auth/agent/refresh-token', {}) }
+export function getAgentRuntimeAccess() { return apiPost<AgentRuntimeResponse>('/api/auth/agent/runtime-access', {}) }
 
 export async function login(input: {
   username: string

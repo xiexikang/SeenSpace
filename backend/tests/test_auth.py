@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
 
 from app.main import app
+from app.core.config import settings
 from app.services import auth_service
 
 
@@ -10,6 +11,71 @@ client = TestClient(app)
 
 def fixed_captcha(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(auth_service.random, "choice", lambda alphabet: "A")
+
+
+def test_agent_authorize_url_uses_server_credentials(monkeypatch: MonkeyPatch) -> None:
+    calls: list[dict] = []
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"code": 0, "data": {"authorizeUrl": "https://agent.example/authorize", "state": "state-1"}}
+
+    class FakeClient:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def post(self, url, **kwargs):
+            calls.append({"url": url, **kwargs})
+            return FakeResponse()
+
+    monkeypatch.setattr("app.api.routes.auth.httpx.AsyncClient", FakeClient)
+
+    response = client.post("/api/auth/agent/getAuthorizeUrl")
+
+    assert response.status_code == 200
+    assert response.json()["data"]["authorizeUrl"] == "https://agent.example/authorize"
+    assert calls == [{
+        "url": settings.agent_authorize_url,
+        "json": {"clientId": settings.agent_client_id, "clientSecret": settings.agent_client_secret},
+    }]
+
+
+def test_agent_authorize_url_surfaces_upstream_business_error(monkeypatch: MonkeyPatch) -> None:
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"code": 401, "msg": "账号未登录"}
+
+    class FakeClient:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def post(self, _url, **_kwargs):
+            return FakeResponse()
+
+    monkeypatch.setattr("app.api.routes.auth.httpx.AsyncClient", FakeClient)
+
+    response = client.post("/api/auth/agent/getAuthorizeUrl")
+
+    assert response.status_code == 502
+    assert response.json()["message"] == "智能体授权失败：账号未登录"
 
 
 def test_register_me_and_logout(monkeypatch: MonkeyPatch) -> None:

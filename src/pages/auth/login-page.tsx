@@ -114,6 +114,7 @@ export function LoginPage() {
   const [captchaCode, setCaptchaCode] = useState('')
   const [captcha, setCaptcha] = useState<CaptchaResponse | null>(null)
   const [error, setError] = useState('')
+  const [agentError, setAgentError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isAgentSubmitting, setIsAgentSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -172,7 +173,7 @@ export function LoginPage() {
   }
 
   async function handleAgentLogin() {
-    setError('')
+    setAgentError('')
     setIsAgentSubmitting(true)
     try {
       const response = await getAgentAuthorizeUrl()
@@ -181,10 +182,8 @@ export function LoginPage() {
       }
       window.sessionStorage.setItem('seenspace-agent-oauth-state', response.state)
       window.location.assign(response.authorizeUrl)
-    } catch {
-      setError('智能体统一登录暂不可用，请稍后重试。')
-      setMode('login')
-      setIsAuthOpen(true)
+    } catch (error) {
+      setAgentError(error instanceof Error ? error.message : '智能体统一登录暂不可用，请稍后重试。')
       setIsAgentSubmitting(false)
     }
   }
@@ -199,14 +198,21 @@ export function LoginPage() {
           </a>
         </div>
         <div className="min-w-0 flex-1" />
-        <button
-          type="button"
-          onClick={() => void handleAgentLogin()}
-          disabled={isAgentSubmitting}
-          className="h-11 shrink-0 rounded-full border border-[#ffd1da] bg-[#fff5f7] px-5 text-sm font-semibold text-[#e3264d] shadow-[0_12px_28px_rgba(255,49,88,0.1)] hover:-translate-y-0.5 hover:bg-[#ffedf1] disabled:cursor-wait disabled:opacity-60"
-        >
-          智能体统一登录
-        </button>
+        <div className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => void handleAgentLogin()}
+            disabled={isAgentSubmitting}
+            className="h-11 rounded-full border border-[#ffd1da] bg-[#fff5f7] px-5 text-sm font-semibold text-[#e3264d] shadow-[0_12px_28px_rgba(255,49,88,0.1)] hover:-translate-y-0.5 hover:bg-[#ffedf1] disabled:cursor-wait disabled:opacity-60"
+          >
+            智能体统一登录
+          </button>
+          {agentError ? (
+            <p role="alert" className="absolute right-0 top-full z-40 mt-2 w-max max-w-[min(360px,calc(100vw-32px))] rounded-lg border border-[#ffd1da] bg-white px-3 py-2 text-xs leading-5 text-[#b42345] shadow-[0_12px_28px_rgba(31,37,45,0.12)]">
+              {agentError}
+            </p>
+          ) : null}
+        </div>
         <button
           type="button"
           onClick={() => openAuth('login')}

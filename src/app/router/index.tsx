@@ -6,6 +6,7 @@ import { LoginPage } from '../../pages/auth/login-page'
 import { ProtectedRoute } from './protected-route'
 import { agentLogin } from '../../features/auth/services/auth-service'
 import { LightToast } from '../../components/shared/light-toast'
+import { AgentConnectionPage } from '../../pages/auth/agent-connection-page'
 
 function ApiErrorToast() {
   const [message, setMessage] = useState<string | null>(null)
@@ -109,6 +110,7 @@ export function AppRouter() {
       <ApiErrorToast />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/agent-connection" element={<ProtectedRoute><AgentConnectionPage /></ProtectedRoute>} />
         <Route
           path="/"
           element={

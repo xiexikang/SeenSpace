@@ -41,11 +41,6 @@ class UpdatePasswordRequest(BaseModel):
     newPassword: str = Field(min_length=6, max_length=128)
 
 
-class AgentAuthorizeRequest(BaseModel):
-    clientId: str = Field(min_length=1)
-    clientSecret: str = Field(min_length=1)
-
-
 class AgentAuthorizeData(BaseModel):
     authorizeUrl: str
     state: str
@@ -53,3 +48,33 @@ class AgentAuthorizeData(BaseModel):
 
 class AgentLoginRequest(BaseModel):
     code: str = Field(min_length=1)
+
+
+class AgentTokenData(BaseModel):
+    access_token: str
+    token_type: str = "Bearer"
+    expires_in: int
+    refresh_token: str
+
+
+class AgentTokenResponse(BaseModel):
+    code: int
+    msg: str
+    data: AgentTokenData
+
+
+class AgentRuntimeResponse(BaseModel):
+    code: int
+    msg: str
+    data: dict
+
+
+class AgentRefreshResponse(BaseModel):
+    code: int
+    msg: str
+    data: dict
+
+
+class AgentSessionStatus(BaseModel):
+    connected: bool
+    expiresAt: str | None = None

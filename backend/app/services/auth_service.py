@@ -96,13 +96,22 @@ def consume_captcha(db: Session, captcha_id: str, code: str) -> bool:
     return verify_code(code.strip(), challenge.code_hash)
 
 
-def create_session(db: Session, user: User, agent_access_token: str | None = None) -> AuthResponse:
+def create_session(
+    db: Session,
+    user: User,
+    agent_access_token: str | None = None,
+    agent_refresh_token: str | None = None,
+    agent_expires_in: int | None = None,
+) -> AuthResponse:
+    created_at = now_utc()
     session = AuthSession(
         token=token_urlsafe(48),
         user_id=user.id,
-        created_at=now_utc(),
-        expires_at=now_utc() + SESSION_TTL,
+        created_at=created_at,
+        expires_at=created_at + SESSION_TTL,
         agent_access_token=agent_access_token,
+        agent_refresh_token=agent_refresh_token,
+        agent_access_token_expires_at=(created_at + timedelta(seconds=agent_expires_in) if agent_expires_in else None),
     )
     db.add(session)
     db.commit()
@@ -110,7 +119,8 @@ def create_session(db: Session, user: User, agent_access_token: str | None = Non
 
 
 def upsert_agent_user(
-    db: Session, user_id: int, username: str, full_name: str | None, agent_access_token: str
+    db: Session, user_id: int, username: str, full_name: str | None,
+    agent_access_token: str, agent_refresh_token: str, agent_expires_in: int,
 ) -> AuthResponse:
     local_id = f"agent-{user_id}"
     user = db.get(User, local_id)
@@ -132,7 +142,7 @@ def upsert_agent_user(
         user.updated_at = timestamp
     db.commit()
     db.refresh(user)
-    return create_session(db, user, agent_access_token)
+    return create_session(db, user, agent_access_token, agent_refresh_token, agent_expires_in)
 
 
 def register_user(

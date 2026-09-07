@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import * as Dialog from '@radix-ui/react-dialog'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { Check, ChevronRight, KeyRound, LogOut, NotebookPen, Palette, PanelLeftClose, PanelLeftOpen, Pencil, Star, X } from 'lucide-react'
+import { Bot, Check, ChevronRight, KeyRound, LogOut, NotebookPen, Palette, PanelLeftClose, PanelLeftOpen, Pencil, Star, X } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import {
   getCurrentUser,
@@ -197,6 +197,20 @@ export function LibrarySidebar() {
               <span className={cn(isCollapsed && 'sr-only')}>{label}</span>
             </NavLink>
           ))}
+          <NavLink
+              to="/agent-connection"
+              title={isCollapsed ? '智能体连接' : undefined}
+              className={({ isActive }) => cn(
+                'flex w-full items-center gap-3 rounded-[16px] border px-3 py-3 text-sm transition-colors',
+                isCollapsed && 'h-10 w-10 justify-center gap-0 rounded-full p-0',
+                isActive
+                  ? 'border-transparent bg-[color:color-mix(in_srgb,var(--accent)_88%,var(--panel)_12%)] !text-white shadow-[var(--shadow-sm)] [&_svg]:!text-white'
+                  : 'border-transparent bg-transparent text-[var(--text-secondary)] hover:border-[var(--border)] hover:bg-[var(--panel)] hover:text-[var(--text-primary)]',
+              )}
+            >
+              <Bot className="h-4 w-4" />
+              <span className={cn(isCollapsed && 'sr-only')}>智能体连接</span>
+          </NavLink>
         </div>
       </nav>
 
@@ -247,6 +261,7 @@ export function LibrarySidebar() {
                 <KeyRound className="h-4 w-4 text-[var(--text-secondary)]" />
                 修改密码
               </DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => navigate('/agent-connection')} className="flex h-10 items-center gap-3 rounded-[12px] px-3 text-sm outline-none hover:bg-[var(--panel-soft)] focus:bg-[var(--panel-soft)]"><Bot className="h-4 w-4 text-[var(--text-secondary)]" />智能体连接</DropdownMenu.Item>
 
               <DropdownMenu.Sub>
                 <DropdownMenu.SubTrigger className="flex h-10 items-center gap-3 rounded-[12px] px-3 text-sm outline-none hover:bg-[var(--panel-soft)] focus:bg-[var(--panel-soft)] data-[state=open]:bg-[var(--panel-soft)]">
