@@ -13,7 +13,6 @@ from app.schemas.auth import (
     AuthResponse,
     AgentAuthorizeData,
     AgentLoginRequest,
-    AgentRuntimeResponse,
     AgentRuntimeChatRequest,
     AgentRuntimeChatResponse,
     AgentRefreshResponse,
@@ -26,6 +25,7 @@ from app.schemas.auth import (
     UpdateNameRequest,
     UpdatePasswordRequest,
 )
+from app.core.response import envelope
 from app.core.config import settings
 from app.services.auth_service import (
     create_captcha,
@@ -220,12 +220,12 @@ def _safe_runtime_data(payload: dict) -> dict:
     }
 
 
-@router.post("/agent/runtime-access", response_model=AgentRuntimeResponse)
+@router.post("/agent/runtime-access")
 async def agent_runtime_access(
     authorization: str | None = Header(default=None), db: Session = Depends(get_db)
-) -> AgentRuntimeResponse:
+) -> dict:
     session = _agent_session(authorization, db)
-    return AgentRuntimeResponse(code=0, msg="成功", data=await _fetch_agent_runtime_access(session, db))
+    return envelope(await _fetch_agent_runtime_access(session, db), "成功", 0)
 
 
 @router.post("/agent/runtime-chat", response_model=AgentRuntimeChatResponse)

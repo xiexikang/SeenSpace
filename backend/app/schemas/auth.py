@@ -65,12 +65,6 @@ class AgentTokenResponse(BaseModel):
     data: AgentTokenData
 
 
-class AgentRuntimeResponse(BaseModel):
-    code: int
-    msg: str
-    data: dict
-
-
 class AgentRuntimeChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=20_000)
     model: str | None = Field(default=None, max_length=200)

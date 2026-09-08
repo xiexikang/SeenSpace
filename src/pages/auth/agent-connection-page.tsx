@@ -29,7 +29,7 @@ export function AgentConnectionPage() {
   }
   async function loadRuntime() {
     setLoading(true); setError('')
-    try { const result = await getAgentRuntimeAccess(); setRuntime(result.data); setStatus('运行时配置获取成功') }
+    try { const result = await getAgentRuntimeAccess(); setRuntime(result); setStatus('运行时配置获取成功') }
     catch { setError('运行时配置获取失败。') } finally { setLoading(false) }
   }
   async function sendDebugMessage() {
