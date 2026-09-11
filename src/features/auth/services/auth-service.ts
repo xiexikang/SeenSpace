@@ -83,7 +83,7 @@ export function getAgentSessionStatus() { return apiGet<{ connected: boolean; ex
 export function refreshAgentToken() { return apiPost<AgentRefreshResponse>('/api/auth/agent/refresh-token', {}) }
 export function getAgentRuntimeAccess() { return apiPost<AgentRuntimeAccess>('/api/auth/agent/runtime-access') }
 export function getAgentAccessContext() { return apiGet<AgentAccessContext>('/api/auth/agent/access-context') }
-export function sendAgentRuntimeChat(input: { message: string; model?: string; chatContextId?: string; stream?: boolean }) {
+export function sendAgentRuntimeChat(input: { message: string; model?: string; llmServer?: string; chatContextId?: string; stream?: boolean }) {
   return apiPost<AgentRuntimeChatResponse>('/api/auth/agent/runtime-chat', input)
 }
 

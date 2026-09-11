@@ -464,13 +464,16 @@ def _normalize_runtime_credentials(runtime: dict, agent_access_token: str) -> di
     return normalized_runtime
 
 
-def _select_llm_server(runtime: dict) -> dict | None:
+def _select_llm_server(runtime: dict, server_name: str | None = None) -> dict | None:
     """Select a usable LLM resource from either the current or legacy shape."""
     llm = runtime.get("llm")
     if not isinstance(llm, dict):
         return None
     llm_servers = llm.get("llmServers")
     if isinstance(llm_servers, dict):
+        if server_name is not None:
+            server = llm_servers.get(server_name)
+            return server if isinstance(server, dict) and isinstance(server.get("url"), str) and server["url"] else None
         for server in llm_servers.values():
             if isinstance(server, dict) and isinstance(server.get("url"), str) and server["url"]:
                 return server
@@ -559,16 +562,18 @@ async def agent_runtime_chat(
 ) -> AgentRuntimeChatResponse:
     session = _agent_session(authorization, db)
     logger.info(
-        "Agent runtime-chat params: message=%r model=%r chatContextId=%r stream=%s",
+        "Agent runtime-chat params: message=%r model=%r llmServer=%r chatContextId=%r stream=%s",
         request.message,
         request.model,
+        request.llmServer,
         request.chatContextId,
         request.stream,
     )
     runtime = await _fetch_agent_runtime_access(session, db)
-    llm = _select_llm_server(runtime)
+    llm = _select_llm_server(runtime, request.llmServer)
     if llm is None:
-        raise HTTPException(status_code=502, detail="上游未返回可用的 LLM 配置。")
+        detail = "指定的 LLM Server 不存在或不可用。" if request.llmServer else "上游未返回可用的 LLM 配置。"
+        raise HTTPException(status_code=400 if request.llmServer else 502, detail=detail)
     logger.info("Agent runtime LLM configuration: %s", _safe_log_value(llm))
 
     upstream_body = llm.get("body") if isinstance(llm.get("body"), dict) else {}
