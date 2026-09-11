@@ -42,14 +42,26 @@ class Settings(BaseSettings):
     llm_api_style: str = "chat_completions"
     llm_timeout_seconds: float = 45.0
     agent_authorize_url: str = "http://10.30.1.53:9090/auth/agent/oauth2/authorize-url"
-    agent_client_id: str = "ag82bcc221a4f0499c"
-    agent_client_secret: str = "b70b099d9c33460380b790efcb55b59a"
+    # Credentials must be supplied through the environment; never commit them.
+    agent_client_id: str = Field(default="", validation_alias=AliasChoices("AGENT_CLIENT_ID"))
+    agent_client_secret: str = Field(default="", validation_alias=AliasChoices("AGENT_CLIENT_SECRET"))
     agent_token_url: str = "http://10.30.1.53:9090/auth/agent/oauth2/token"
     agent_userinfo_url: str = "http://10.30.1.53:9090/auth/agent/oauth2/userinfo"
     agent_logout_url: str = "http://10.30.1.53:9090/auth/agent/oauth2/logout"
     agent_refresh_url: str = "http://10.30.1.53:9090/auth/agent/oauth2/token/refresh"
     agent_runtime_access_url: str = "http://10.30.1.53:9090/auth/agent/oauth2/runtime-access"
+    agent_access_context_url: str = "http://10.30.1.53:9090/auth/agent/oauth2/access-context"
     agent_redirect_uri: str = "http://10.30.1.53:7788"
+    agent_debug_log_sensitive: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("AGENT_DEBUG_LOG_SENSITIVE"),
+    )
+    # Development-only escape hatch for inspecting the upstream runtime config.
+    # Keep disabled in shared or production environments.
+    agent_runtime_expose_sensitive: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("AGENT_RUNTIME_EXPOSE_SENSITIVE"),
+    )
 
 
 @lru_cache

@@ -1,4 +1,6 @@
+import json
 import logging
+from hashlib import sha256
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -12,6 +14,7 @@ from app.models.user import AuthSession, User
 from app.schemas.auth import (
     AuthResponse,
     AgentAuthorizeData,
+    AgentAccessContext,
     AgentLoginRequest,
     AgentRuntimeChatRequest,
     AgentRuntimeChatResponse,
@@ -41,6 +44,148 @@ from app.services.auth_service import (
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
+
+
+_SENSITIVE_HEADER_NAMES = {
+    "authorization",
+    "accesstoken",
+    "access-token",
+    "aipaccesstoken",
+    "cookie",
+    "proxy-authorization",
+    "set-cookie",
+}
+
+
+def _safe_request_headers(headers: dict[str, str]) -> dict[str, str]:
+    """Log credential identity safely enough to diagnose token routing."""
+    if settings.agent_debug_log_sensitive:
+        return {str(name): str(value) for name, value in headers.items()}
+    result: dict[str, str] = {}
+    for name, value in headers.items():
+        header_name = str(name)
+        header_value = str(value)
+        if header_name.lower() in _SENSITIVE_HEADER_NAMES:
+            result[header_name] = _credential_diagnostic(header_value)
+        else:
+            result[header_name] = header_value
+    return result
+
+
+def _credential_diagnostic(value: str) -> str:
+    raw = value.strip()
+    scheme = ""
+    token = raw
+    if " " in raw:
+        scheme, token = raw.split(None, 1)
+        scheme = f"scheme={scheme} "
+    token_kind = next((prefix[:-1] for prefix in ("gw_", "at_", "sk_") if token.startswith(prefix)), "unknown")
+    fingerprint = sha256(token.encode("utf-8")).hexdigest()[:16]
+    return f"{scheme}token_kind={token_kind} token_length={len(token)} sha256_16={fingerprint}"
+
+
+def _safe_response_headers(headers: object) -> dict[str, str]:
+    if not hasattr(headers, "items"):
+        return {}
+    return _safe_request_headers({str(name): str(value) for name, value in headers.items()})
+
+
+def _safe_error_text(value: str, max_length: int = 500) -> str:
+    """Keep upstream diagnostics bounded and free of common bearer credentials."""
+    text = value[:max_length]
+    if settings.agent_debug_log_sensitive:
+        return text
+    for marker in ("Bearer ", "sk-", "gw_", "at_"):
+        start = 0
+        while True:
+            index = text.find(marker, start)
+            if index < 0:
+                break
+            token_start = index + len(marker)
+            token_end = token_start
+            while token_end < len(text) and not text[token_end].isspace() and text[token_end] not in '"\',}':
+                token_end += 1
+            text = text[:token_start] + "[REDACTED]" + text[token_end:]
+            start = token_start + len("[REDACTED]")
+    return text
+
+
+def _safe_log_value(value: object, key: str | None = None) -> object:
+    """Log request data for debugging without logging credentials."""
+    if key and key.lower() in _SENSITIVE_HEADER_NAMES | {"token", "access_token", "refresh_token", "client_secret", "api_key", "apikey"}:
+        if settings.agent_debug_log_sensitive:
+            return value
+        return _credential_diagnostic(str(value))
+    if isinstance(value, dict):
+        return {str(item_key): _safe_log_value(item_value, str(item_key)) for item_key, item_value in value.items()}
+    if isinstance(value, list):
+        return [_safe_log_value(item) for item in value]
+    if isinstance(value, str):
+        return _safe_error_text(value, max_length=4000)
+    return value
+
+
+def _prepare_llm_headers(configured_headers: object, agent_access_token: str) -> dict[str, str]:
+    """Build LLM gateway headers with the third-party Agent OAuth token.
+
+    ``Authorization`` is supplied by the LLM configuration as the API key
+    (usually ``sk_``). ``AccessToken`` must be the Agent OAuth access token
+    (usually ``at_``), not an IAM-created gateway ``aipAccessToken`` (``gw_``).
+    """
+    raw = configured_headers if isinstance(configured_headers, dict) else {}
+    headers = {
+        str(key): str(value)
+        for key, value in raw.items()
+        if value is not None and str(key).lower() not in {"accesstoken", "access-token", "aipaccesstoken"}
+    }
+    authorization = next(
+        (value.strip() for key, value in headers.items() if key.lower() == "authorization" and value.strip()),
+        None,
+    )
+    if authorization is None:
+        raise HTTPException(status_code=502, detail="LLM 配置缺少 Authorization 凭证。")
+    # Never send an OAuth user token to the LLM gateway in the API-key slot.
+    authorization_token = authorization.removeprefix("Bearer ").removeprefix("bearer ").strip()
+    if authorization_token.startswith("at_"):
+        raise HTTPException(status_code=502, detail="LLM 配置的 Authorization 不能使用 OAuth 用户令牌。")
+    if not agent_access_token or agent_access_token.startswith(("gw_", "sk_", "sk-")):
+        raise HTTPException(status_code=502, detail="当前智能体没有可用的 OAuth AccessToken。")
+    headers["AccessToken"] = agent_access_token
+    headers.setdefault("Content-Type", "application/json")
+    return headers
+
+
+def _agent_token_is_oauth(token: str | None, session: AuthSession | None = None) -> bool:
+    """Recognize OAuth user tokens so they cannot be sent to gateway-only APIs."""
+    if not token:
+        return False
+    # OAuth providers may use opaque values; the session binding is the source
+    # of truth. Gateway/API-key prefixes are rejected explicitly.
+    return bool(session and token == session.agent_access_token) and not token.startswith(("gw_", "sk_", "sk-"))
+
+
+def _context_from_value(value: object) -> AgentAccessContext | None:
+    if not isinstance(value, dict):
+        return None
+    try:
+        return AgentAccessContext.model_validate(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _save_agent_context(session: AuthSession, context: AgentAccessContext, db: Session) -> None:
+    session.agent_context_json = context.model_dump_json()
+    db.commit()
+
+
+def _cached_agent_context(session: AuthSession) -> AgentAccessContext | None:
+    raw = getattr(session, "agent_context_json", None)
+    if not raw:
+        return None
+    try:
+        return _context_from_value(json.loads(raw))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return None
 
 
 @router.post("/agent/getAuthorizeUrl", response_model=AgentAuthorizeData)
@@ -138,6 +283,10 @@ def agent_session_status(
 async def agent_refresh_token(
     authorization: str | None = Header(default=None), db: Session = Depends(get_db)
 ) -> AgentRefreshResponse:
+    logger.warning(
+        "Agent refresh-token request: headers=%s",
+        _safe_request_headers({"Authorization": authorization or ""}),
+    )
     session = _agent_session(authorization, db)
     if not session.agent_refresh_token:
         raise HTTPException(status_code=409, detail="当前会话没有 refresh_token，请重新登录。")
@@ -150,16 +299,31 @@ async def _refresh_agent_token(session: AuthSession, db: Session) -> AgentTokenR
         raise HTTPException(status_code=409, detail="当前会话没有 refresh_token，请重新登录。")
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(settings.agent_refresh_url, json={
+            request_body = {
                 "grant_type": "refresh_token", "refresh_token": session.agent_refresh_token,
                 "client_id": settings.agent_client_id, "client_secret": settings.agent_client_secret,
-            })
+            }
+            logger.warning(
+                "Agent token refresh request: method=%s url=%s body=%s",
+                "POST",
+                settings.agent_refresh_url,
+                _safe_log_value(request_body),
+            )
+            response = await client.post(settings.agent_refresh_url, json=request_body)
             response.raise_for_status()
             payload = response.json()
+            logger.warning(
+                "Agent token refresh response: status=%s headers=%s body=%s",
+                response.status_code,
+                _safe_response_headers(response.headers),
+                _safe_log_value(payload),
+            )
             if payload.get("code") != 0:
                 raise ValueError(payload.get("msg") or "第三方令牌刷新失败")
             result = AgentTokenResponse.model_validate(payload)
+            logger.info("Agent token refreshed; expires_in=%s", result.data.expires_in)
     except (httpx.HTTPError, ValueError, TypeError) as error:
+        logger.exception("Agent token refresh upstream error: %s", _safe_error_text(str(error)))
         raise HTTPException(status_code=502, detail="刷新智能体令牌失败，请重新登录。") from error
     session.agent_access_token = result.data.access_token
     session.agent_refresh_token = result.data.refresh_token
@@ -171,21 +335,66 @@ async def _refresh_agent_token(session: AuthSession, db: Session) -> AgentTokenR
 async def _fetch_agent_runtime_access(session: AuthSession, db: Session) -> dict:
     if session.agent_access_token_expires_at and session.agent_access_token_expires_at <= datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=60):
         await _refresh_agent_token(session, db)
+    if not _agent_token_is_oauth(session.agent_access_token, session):
+        raise HTTPException(status_code=403, detail="当前会话保存的不是有效 OAuth 用户令牌，请重新登录。")
+    request_headers = {"Authorization": f"Bearer {session.agent_access_token}"}
+    logger.warning(
+        "Agent runtime access request: method=%s url=%s headers=%s body=%s",
+        "POST",
+        settings.agent_runtime_access_url,
+        _safe_request_headers(request_headers),
+        {},
+    )
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.post(
+            upstream_request = client.build_request(
+                "POST",
                 settings.agent_runtime_access_url,
-                headers={"Authorization": f"Bearer {session.agent_access_token}"},
-                json={},
+                headers=request_headers,
             )
+            logger.warning(
+                "Agent runtime access effective request: method=%s url=%s headers=%s body=%s",
+                upstream_request.method,
+                upstream_request.url,
+                _safe_response_headers(upstream_request.headers),
+                _safe_log_value(upstream_request.content.decode("utf-8", errors="replace")),
+            )
+            response = await client.send(upstream_request)
             response.raise_for_status()
         payload = response.json()
+        logger.warning(
+            "Agent runtime access response: status=%s headers=%s body=%s",
+            response.status_code,
+            _safe_response_headers(response.headers),
+            _safe_log_value(payload),
+        )
         if not isinstance(payload, dict):
             raise ValueError("第三方运行时配置响应不是 JSON 对象")
         if payload.get("code") not in (None, 0, "0"):
             raise ValueError(payload.get("msg") or "第三方运行时配置获取失败")
-        return _safe_runtime_data(payload)
+        runtime_data = _normalize_runtime_credentials(
+            _safe_runtime_data(payload), session.agent_access_token
+        )
+        for context_key in ("accessContext", "access_context", "context"):
+            if context_key not in runtime_data:
+                continue
+            runtime_context = _context_from_value(runtime_data[context_key])
+            if runtime_context is None:
+                raise ValueError("第三方运行时配置包含无效的 agentId")
+            _save_agent_context(session, runtime_context, db)
+            break
+        return runtime_data
+    except httpx.HTTPStatusError as error:
+        logger.exception(
+            "Agent runtime access upstream HTTP error: status=%s url=%s headers=%s response=%s",
+            error.response.status_code,
+            error.request.url,
+            _safe_response_headers(error.response.headers),
+            _safe_error_text(error.response.text),
+        )
+        raise HTTPException(status_code=502, detail="获取智能体运行时配置失败。") from error
     except (httpx.HTTPError, ValueError) as error:
+        logger.exception("Agent runtime access upstream error: %s", _safe_error_text(str(error)))
         raise HTTPException(status_code=502, detail="获取智能体运行时配置失败。") from error
 
 
@@ -213,11 +422,121 @@ def _safe_runtime_data(payload: dict) -> dict:
     access = raw.get("access")
     if not isinstance(access, dict):
         raise ValueError("第三方运行时配置缺少 access")
-    return {
-        key: access[key]
-        for key in ("llm", "mcp")
-        if key in access
-    }
+    result = {key: access[key] for key in ("llm", "mcp", "api") if key in access}
+    for key in ("accessContext", "access_context", "context"):
+        if key in access:
+            result[key] = access[key]
+    return result
+
+
+def _normalize_runtime_credentials(runtime: dict, agent_access_token: str) -> dict:
+    """Ensure every LLM resource receives the OAuth token in its AccessToken header."""
+    llm = runtime.get("llm")
+    if not isinstance(llm, dict):
+        return runtime
+
+    def normalize_server(server: object) -> object:
+        if not isinstance(server, dict):
+            return server
+        headers = server.get("headers")
+        if not isinstance(headers, dict):
+            return server
+        normalized_headers = {
+            str(key): value
+            for key, value in headers.items()
+            if str(key).lower() not in {"accesstoken", "access-token", "aipaccesstoken"}
+        }
+        normalized_headers["AccessToken"] = agent_access_token
+        normalized_server = dict(server)
+        normalized_server["headers"] = normalized_headers
+        return normalized_server
+
+    normalized_llm = dict(llm)
+    if isinstance(llm.get("headers"), dict):
+        normalized_llm = normalize_server(normalized_llm)
+    llm_servers = llm.get("llmServers")
+    if isinstance(llm_servers, dict):
+        normalized_llm["llmServers"] = {
+            str(name): normalize_server(server) for name, server in llm_servers.items()
+        }
+    normalized_runtime = dict(runtime)
+    normalized_runtime["llm"] = normalized_llm
+    return normalized_runtime
+
+
+def _select_llm_server(runtime: dict) -> dict | None:
+    """Select a usable LLM resource from either the current or legacy shape."""
+    llm = runtime.get("llm")
+    if not isinstance(llm, dict):
+        return None
+    llm_servers = llm.get("llmServers")
+    if isinstance(llm_servers, dict):
+        for server in llm_servers.values():
+            if isinstance(server, dict) and isinstance(server.get("url"), str) and server["url"]:
+                return server
+        return None
+    if isinstance(llm.get("url"), str) and llm["url"]:
+        return llm
+    return None
+
+
+def _public_runtime_data(runtime: dict) -> dict:
+    """Return runtime metadata without forwarding gateway credentials to the browser."""
+    sensitive_keys = _SENSITIVE_HEADER_NAMES | {"token", "access_token", "refresh_token", "api_key", "apikey"}
+
+    def redact(value: object, key: str | None = None) -> object:
+        if key and key.lower() in sensitive_keys:
+            return "[REDACTED]"
+        if isinstance(value, dict):
+            return {str(item_key): redact(item_value, str(item_key)) for item_key, item_value in value.items()}
+        if isinstance(value, list):
+            return [redact(item) for item in value]
+        return value
+
+    return redact(runtime) if isinstance(runtime, dict) else {}
+
+
+async def _fetch_agent_access_context(session: AuthSession, db: Session) -> AgentAccessContext:
+    """Fetch IAM context with the OAuth user token, never a gateway token."""
+    if session.agent_access_token_expires_at and session.agent_access_token_expires_at <= datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=60):
+        await _refresh_agent_token(session, db)
+    oauth_token = session.agent_access_token
+    if not oauth_token or not _agent_token_is_oauth(oauth_token, session):
+        raise HTTPException(status_code=403, detail="当前会话没有可用的 OAuth 用户令牌。")
+    request_headers = {"Authorization": f"Bearer {oauth_token}"}
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(settings.agent_access_context_url, headers=request_headers)
+            response.raise_for_status()
+            payload = response.json()
+        if not isinstance(payload, dict):
+            raise ValueError("access-context 响应不是 JSON 对象")
+        if payload.get("code") not in (None, 0, "0"):
+            raise ValueError(payload.get("msg") or "access-context 获取失败")
+        context = _context_from_value(payload.get("data"))
+        if context is None:
+            raise ValueError("access-context 缺少有效的 agentId")
+        _save_agent_context(session, context, db)
+        return context
+    except httpx.HTTPStatusError as error:
+        logger.warning(
+            "Agent access-context upstream HTTP error: status=%s url=%s response=%s",
+            error.response.status_code,
+            error.request.url,
+            _safe_error_text(error.response.text),
+        )
+        raise HTTPException(status_code=502, detail="获取智能体访问上下文失败。") from error
+    except (httpx.HTTPError, ValueError, TypeError) as error:
+        logger.warning("Agent access-context upstream error: %s", _safe_error_text(str(error)))
+        raise HTTPException(status_code=502, detail="获取智能体访问上下文失败。") from error
+
+
+@router.get("/agent/access-context", response_model=AgentAccessContext)
+async def agent_access_context(
+    authorization: str | None = Header(default=None), db: Session = Depends(get_db)
+) -> AgentAccessContext:
+    session = _agent_session(authorization, db)
+    return await _fetch_agent_access_context(session, db)
 
 
 @router.post("/agent/runtime-access")
@@ -225,7 +544,11 @@ async def agent_runtime_access(
     authorization: str | None = Header(default=None), db: Session = Depends(get_db)
 ) -> dict:
     session = _agent_session(authorization, db)
-    return envelope(await _fetch_agent_runtime_access(session, db), "成功", 0)
+    runtime = await _fetch_agent_runtime_access(session, db)
+    if settings.agent_runtime_expose_sensitive:
+        logger.warning("AGENT_RUNTIME_EXPOSE_SENSITIVE is enabled; returning upstream credentials to the caller")
+        return envelope(runtime, "成功", 0)
+    return envelope(_public_runtime_data(runtime), "成功", 0)
 
 
 @router.post("/agent/runtime-chat", response_model=AgentRuntimeChatResponse)
@@ -235,10 +558,18 @@ async def agent_runtime_chat(
     db: Session = Depends(get_db),
 ) -> AgentRuntimeChatResponse:
     session = _agent_session(authorization, db)
+    logger.info(
+        "Agent runtime-chat params: message=%r model=%r chatContextId=%r stream=%s",
+        request.message,
+        request.model,
+        request.chatContextId,
+        request.stream,
+    )
     runtime = await _fetch_agent_runtime_access(session, db)
-    llm = runtime.get("llm")
-    if not isinstance(llm, dict) or not isinstance(llm.get("url"), str) or not llm["url"]:
+    llm = _select_llm_server(runtime)
+    if llm is None:
         raise HTTPException(status_code=502, detail="上游未返回可用的 LLM 配置。")
+    logger.info("Agent runtime LLM configuration: %s", _safe_log_value(llm))
 
     upstream_body = llm.get("body") if isinstance(llm.get("body"), dict) else {}
     body = dict(upstream_body)
@@ -249,23 +580,53 @@ async def agent_runtime_chat(
     body["messages"] = [{"role": "user", "content": request.message}]
     body["stream"] = request.stream
 
-    configured_headers = llm.get("headers") if isinstance(llm.get("headers"), dict) else {}
-    headers = {str(key): str(value) for key, value in configured_headers.items() if value is not None}
-    headers.setdefault("Content-Type", "application/json")
+    headers = _prepare_llm_headers(llm.get("headers"), session.agent_access_token)
+    method = str(llm.get("method") or "POST").upper()
+    logger.info(
+        "Agent runtime LLM request: method=%s url=%s headers=%s body=%s",
+        method,
+        llm["url"],
+        _safe_request_headers(headers),
+        _safe_log_value(body),
+    )
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.request(
-                str(llm.get("method") or "POST").upper(),
+            upstream_request = client.build_request(
+                method,
                 llm["url"],
                 headers=headers,
                 json=body,
             )
+            logger.info(
+                "Agent runtime LLM effective request: method=%s url=%s headers=%s body=%s",
+                upstream_request.method,
+                upstream_request.url,
+                _safe_response_headers(upstream_request.headers),
+                _safe_log_value(upstream_request.content.decode("utf-8", errors="replace")),
+            )
+            response = await client.send(upstream_request)
             response.raise_for_status()
             try:
                 result: object = response.json()
             except ValueError:
                 result = response.text
+        logger.info(
+            "Agent runtime LLM response: status=%s headers=%s body=%s",
+            response.status_code,
+            _safe_response_headers(response.headers),
+            _safe_log_value(result),
+        )
+    except httpx.HTTPStatusError as error:
+        logger.exception(
+            "Agent runtime LLM upstream HTTP error: status=%s url=%s headers=%s response=%s",
+            error.response.status_code,
+            error.request.url,
+            _safe_response_headers(error.response.headers),
+            _safe_error_text(error.response.text),
+        )
+        raise HTTPException(status_code=502, detail="调用智能体 LLM 网关失败。") from error
     except (httpx.HTTPError, ValueError) as error:
+        logger.exception("Agent runtime LLM upstream error: %s", error)
         raise HTTPException(status_code=502, detail="调用智能体 LLM 网关失败。") from error
     return AgentRuntimeChatResponse(status_code=response.status_code, data=result)
 

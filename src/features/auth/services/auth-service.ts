@@ -21,11 +21,36 @@ export type AgentAuthorizeResponse = {
   state: string
 }
 export type AgentRefreshResponse = { code: number; msg: string; data: { expires_in: number; token_type: string } }
+export type AgentRuntimeServer = {
+  url?: string | null
+  method?: string | null
+  headers?: Record<string, string>
+  body?: Record<string, unknown>
+  [key: string]: unknown
+}
 export type AgentRuntimeAccess = {
-  llm?: { url: string | null; method: string | null; headers?: Record<string, string>; body?: Record<string, unknown> }
+  llm?: {
+    url?: string | null
+    method?: string | null
+    headers?: Record<string, string>
+    body?: Record<string, unknown>
+    llmServers?: Record<string, AgentRuntimeServer>
+  }
   mcp?: { mcpServers?: Record<string, unknown> }
+  api?: { apiServers?: Record<string, AgentRuntimeServer> }
 }
 export type AgentRuntimeChatResponse = { status_code: number; data: unknown }
+export type AgentAccessContext = {
+  agentId: number
+  agentCode: string
+  agentName: string
+  clientId: string
+  userId: number | string | null
+  userName: string
+  fullName: string
+  resourceType: string
+  resourceCode: string
+}
 
 let agentLoginRequest: { code: string; promise: Promise<AuthUser> } | null = null
 let currentUserRequest: Promise<AuthUser> | null = null
@@ -56,7 +81,8 @@ export function getCaptcha() {
 
 export function getAgentSessionStatus() { return apiGet<{ connected: boolean; expiresAt: string | null }>('/api/auth/agent/session-status') }
 export function refreshAgentToken() { return apiPost<AgentRefreshResponse>('/api/auth/agent/refresh-token', {}) }
-export function getAgentRuntimeAccess() { return apiPost<AgentRuntimeAccess>('/api/auth/agent/runtime-access', {}) }
+export function getAgentRuntimeAccess() { return apiPost<AgentRuntimeAccess>('/api/auth/agent/runtime-access') }
+export function getAgentAccessContext() { return apiGet<AgentAccessContext>('/api/auth/agent/access-context') }
 export function sendAgentRuntimeChat(input: { message: string; model?: string; chatContextId?: string; stream?: boolean }) {
   return apiPost<AgentRuntimeChatResponse>('/api/auth/agent/runtime-chat', input)
 }

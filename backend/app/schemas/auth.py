@@ -77,6 +77,20 @@ class AgentRuntimeChatResponse(BaseModel):
     data: Any
 
 
+class AgentAccessContext(BaseModel):
+    """Identity and resource context returned by IAM access-context."""
+
+    agentId: int = Field(gt=0)
+    agentCode: str = ""
+    agentName: str = ""
+    clientId: str = ""
+    userId: int | str | None = None
+    userName: str = ""
+    fullName: str = ""
+    resourceType: str = ""
+    resourceCode: str = ""
+
+
 class AgentRefreshResponse(BaseModel):
     code: int
     msg: str

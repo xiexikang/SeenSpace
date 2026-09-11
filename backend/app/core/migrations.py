@@ -69,6 +69,9 @@ def migrate_existing_schema() -> None:
             missing_columns.append("agent_refresh_token VARCHAR(512) NULL")
         if "agent_access_token_expires_at" not in session_columns:
             missing_columns.append("agent_access_token_expires_at DATETIME NULL")
+        if "agent_context_json" not in session_columns:
+            context_column_type = "LONGTEXT" if engine.dialect.name == "mysql" else "TEXT"
+            missing_columns.append(f"agent_context_json {context_column_type} NULL")
         if missing_columns:
             with engine.begin() as connection:
                 for column in missing_columns:

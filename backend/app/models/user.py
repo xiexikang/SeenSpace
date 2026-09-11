@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -27,6 +27,7 @@ class AuthSession(Base):
     agent_access_token: Mapped[str | None] = mapped_column(String(512), nullable=True)
     agent_refresh_token: Mapped[str | None] = mapped_column(String(512), nullable=True)
     agent_access_token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    agent_context_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class CaptchaChallenge(Base):
