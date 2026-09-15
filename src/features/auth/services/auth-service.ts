@@ -39,7 +39,7 @@ export type AgentRuntimeAccess = {
   mcp?: { mcpServers?: Record<string, unknown> }
   api?: { apiServers?: Record<string, AgentRuntimeServer> }
 }
-export type AgentRuntimeChatResponse = { status_code: number; data: unknown }
+export type AgentRuntimeChatResponse = { status_code: number; data: unknown; mcp_session_id?: string | null }
 export type AgentAccessContext = {
   agentId: number
   agentCode: string
@@ -85,6 +85,12 @@ export function getAgentRuntimeAccess() { return apiPost<AgentRuntimeAccess>('/a
 export function getAgentAccessContext() { return apiGet<AgentAccessContext>('/api/auth/agent/access-context') }
 export function sendAgentRuntimeChat(input: { message: string; model?: string; llmServer?: string; chatContextId?: string; stream?: boolean }) {
   return apiPost<AgentRuntimeChatResponse>('/api/auth/agent/runtime-chat', input)
+}
+export function sendAgentRuntimeApi(input: { apiServer: string; body?: Record<string, unknown> }) {
+  return apiPost<AgentRuntimeChatResponse>('/api/auth/agent/runtime-api', input)
+}
+export function sendAgentRuntimeMcp(input: { mcpServer: string; body?: Record<string, unknown>; chatContextId?: string; mcpSessionId?: string }) {
+  return apiPost<AgentRuntimeChatResponse>('/api/auth/agent/runtime-mcp', input)
 }
 
 export async function login(input: {

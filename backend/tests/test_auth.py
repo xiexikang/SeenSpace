@@ -13,6 +13,8 @@ from app.api.routes.auth import (
     _fetch_agent_runtime_access,
     _normalize_runtime_credentials,
     _prepare_llm_headers,
+    _prepare_mcp_headers,
+    _parse_mcp_response,
     _safe_request_headers,
     _safe_runtime_data,
 )
@@ -87,6 +89,53 @@ def test_llm_headers_reject_oauth_token_in_api_key_slot() -> None:
 
     with pytest.raises(Exception, match="OAuth"):
         _prepare_llm_headers({"Authorization": "Bearer at_oauth-token"}, "at_agent-oauth-token")
+
+
+def test_mcp_headers_include_oauth_token_context_and_sse_accept() -> None:
+    headers = _prepare_mcp_headers({
+        "Authorization": "Bearer sk-bd6f4efe",
+        "AccessToken": "gw_gateway-token",
+        "chat-context-id": "old-context",
+    }, "at_agent-oauth-token", "debug-context")
+    assert headers == {
+        "Authorization": "Bearer sk-bd6f4efe",
+        "AccessToken": "at_agent-oauth-token",
+        "chat-context-id": "debug-context",
+        "Accept": "application/json, text/event-stream",
+        "Content-Type": "application/json",
+    }
+
+    resumed = _prepare_mcp_headers(
+        {"Authorization": "Bearer sk-bd6f4efe"},
+        "at_agent-oauth-token",
+        "debug-context",
+        "session-123",
+    )
+    assert resumed["MCP-Session-Id"] == "session-123"
+
+
+def test_mcp_sse_response_is_unwrapped_to_json() -> None:
+    response = httpx.Response(
+        200,
+        headers={"content-type": "text/event-stream; charset=utf-8"},
+        text='event: message\ndata: {"jsonrpc":"2.0","id":1,"result":{"tools":[]}}\n\n',
+    )
+
+    assert _parse_mcp_response(response) == {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {"tools": []},
+    }
+
+
+def test_mcp_sse_response_supports_multiple_data_events() -> None:
+    response = httpx.Response(
+        200,
+        headers={"content-type": "text/event-stream"},
+        text='data: {"progress":1}\n\ndata: plain text\n\ndata: [DONE]\n\n',
+    )
+
+    assert _parse_mcp_response(response) == [{"progress": 1}, "plain text"]
 
 
 def test_runtime_credentials_replace_gateway_aip_access_token() -> None:

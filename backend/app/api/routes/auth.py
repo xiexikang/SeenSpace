@@ -18,6 +18,9 @@ from app.schemas.auth import (
     AgentLoginRequest,
     AgentRuntimeChatRequest,
     AgentRuntimeChatResponse,
+    AgentRuntimeApiRequest,
+    AgentRuntimeMcpRequest,
+    AgentRuntimeMcpResponse,
     AgentRefreshResponse,
     AgentSessionStatus,
     AgentTokenResponse,
@@ -153,6 +156,60 @@ def _prepare_llm_headers(configured_headers: object, agent_access_token: str) ->
     headers["AccessToken"] = agent_access_token
     headers.setdefault("Content-Type", "application/json")
     return headers
+
+
+def _prepare_mcp_headers(
+    configured_headers: object,
+    agent_access_token: str,
+    chat_context_id: str,
+    mcp_session_id: str | None = None,
+) -> dict[str, str]:
+    """Build MCP gateway headers while binding the request to this OAuth session."""
+    raw = configured_headers if isinstance(configured_headers, dict) else {}
+    headers = {
+        str(key): str(value)
+        for key, value in raw.items()
+        if value is not None and str(key).lower() not in {
+            "accesstoken", "access-token", "aipaccesstoken", "chat-context-id", "mcp-session-id",
+        }
+    }
+    if not any(key.lower() == "authorization" and value.strip() for key, value in headers.items()):
+        raise HTTPException(status_code=502, detail="MCP 配置缺少 Authorization 凭证。")
+    if not agent_access_token or agent_access_token.startswith(("gw_", "sk_", "sk-")):
+        raise HTTPException(status_code=502, detail="当前智能体没有可用的 OAuth AccessToken。")
+    headers["AccessToken"] = agent_access_token
+    headers["chat-context-id"] = chat_context_id
+    if mcp_session_id:
+        headers["MCP-Session-Id"] = mcp_session_id
+    headers.setdefault("Accept", "application/json, text/event-stream")
+    headers.setdefault("Content-Type", "application/json")
+    return headers
+
+
+def _parse_mcp_response(response: httpx.Response) -> object:
+    """Decode JSON and SSE MCP responses into values suitable for the API client."""
+    content_type = response.headers.get("content-type", "").lower()
+    if "text/event-stream" not in content_type:
+        try:
+            return response.json()
+        except ValueError:
+            return response.text
+
+    messages: list[object] = []
+    for block in response.text.replace("\r\n", "\n").split("\n\n"):
+        data_lines = [line[5:].lstrip() for line in block.splitlines() if line.startswith("data:")]
+        if not data_lines:
+            continue
+        data = "\n".join(data_lines)
+        if data == "[DONE]":
+            continue
+        try:
+            messages.append(json.loads(data))
+        except json.JSONDecodeError:
+            messages.append(data)
+    if len(messages) == 1:
+        return messages[0]
+    return messages
 
 
 def _agent_token_is_oauth(token: str | None, session: AuthSession | None = None) -> bool:
@@ -483,6 +540,20 @@ def _select_llm_server(runtime: dict, server_name: str | None = None) -> dict | 
     return None
 
 
+def _select_api_server(runtime: dict, server_name: str) -> dict | None:
+    api = runtime.get("api")
+    servers = api.get("apiServers") if isinstance(api, dict) else None
+    server = servers.get(server_name) if isinstance(servers, dict) else None
+    return server if isinstance(server, dict) and isinstance(server.get("url"), str) and server["url"] else None
+
+
+def _select_mcp_server(runtime: dict, server_name: str) -> dict | None:
+    mcp = runtime.get("mcp")
+    servers = mcp.get("mcpServers") if isinstance(mcp, dict) else None
+    server = servers.get(server_name) if isinstance(servers, dict) else None
+    return server if isinstance(server, dict) and isinstance(server.get("url"), str) and server["url"] else None
+
+
 def _public_runtime_data(runtime: dict) -> dict:
     """Return runtime metadata without forwarding gateway credentials to the browser."""
     sensitive_keys = _SENSITIVE_HEADER_NAMES | {"token", "access_token", "refresh_token", "api_key", "apikey"}
@@ -634,6 +705,76 @@ async def agent_runtime_chat(
         logger.exception("Agent runtime LLM upstream error: %s", error)
         raise HTTPException(status_code=502, detail="调用智能体 LLM 网关失败。") from error
     return AgentRuntimeChatResponse(status_code=response.status_code, data=result)
+
+
+@router.post("/agent/runtime-api", response_model=AgentRuntimeChatResponse)
+async def agent_runtime_api(
+    request: AgentRuntimeApiRequest,
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+) -> AgentRuntimeChatResponse:
+    session = _agent_session(authorization, db)
+    runtime = await _fetch_agent_runtime_access(session, db)
+    server = _select_api_server(runtime, request.apiServer)
+    if server is None:
+        raise HTTPException(status_code=400, detail="指定的 API Server 不存在或不可用。")
+    headers = {str(key): str(value) for key, value in (server.get("headers") or {}).items() if value is not None}
+    method = str(server.get("method") or "GET").upper()
+    body = request.body if request.body is not None else (server.get("body") if isinstance(server.get("body"), dict) else None)
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.request(method, server["url"], headers=headers, json=body)
+            response.raise_for_status()
+            try:
+                result: object = response.json()
+            except ValueError:
+                result = response.text
+    except httpx.HTTPStatusError as error:
+        raise HTTPException(status_code=502, detail="调用智能体 API 网关失败。") from error
+    except (httpx.HTTPError, ValueError) as error:
+        raise HTTPException(status_code=502, detail="调用智能体 API 网关失败。") from error
+    return AgentRuntimeChatResponse(status_code=response.status_code, data=result)
+
+
+@router.post("/agent/runtime-mcp", response_model=AgentRuntimeMcpResponse)
+async def agent_runtime_mcp(
+    request: AgentRuntimeMcpRequest,
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+) -> AgentRuntimeMcpResponse:
+    session = _agent_session(authorization, db)
+    runtime = await _fetch_agent_runtime_access(session, db)
+    server = _select_mcp_server(runtime, request.mcpServer)
+    if server is None:
+        raise HTTPException(status_code=400, detail="指定的 MCP Server 不是 HTTP 服务或不存在。")
+    headers = _prepare_mcp_headers(
+        server.get("headers"),
+        session.agent_access_token,
+        request.chatContextId or str(uuid4()),
+        request.mcpSessionId,
+    )
+    body = request.body if request.body is not None else (server.get("body") if isinstance(server.get("body"), dict) else None)
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.request(str(server.get("method") or "POST").upper(), server["url"], headers=headers, json=body)
+            response.raise_for_status()
+            result = _parse_mcp_response(response)
+    except httpx.HTTPStatusError as error:
+        logger.warning(
+            "Agent runtime MCP upstream HTTP error: status=%s url=%s response=%s",
+            error.response.status_code,
+            error.request.url,
+            _safe_error_text(error.response.text),
+        )
+        raise HTTPException(status_code=502, detail="调用智能体 MCP 网关失败。") from error
+    except (httpx.HTTPError, ValueError) as error:
+        logger.warning("Agent runtime MCP upstream error: %s", _safe_error_text(str(error)))
+        raise HTTPException(status_code=502, detail="调用智能体 MCP 网关失败。") from error
+    return AgentRuntimeMcpResponse(
+        status_code=response.status_code,
+        data=result,
+        mcp_session_id=response.headers.get("mcp-session-id"),
+    )
 
 
 @router.get("/captcha", response_model=CaptchaResponse)

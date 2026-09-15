@@ -78,6 +78,22 @@ class AgentRuntimeChatResponse(BaseModel):
     data: Any
 
 
+class AgentRuntimeMcpResponse(AgentRuntimeChatResponse):
+    mcp_session_id: str | None = None
+
+
+class AgentRuntimeApiRequest(BaseModel):
+    apiServer: str = Field(min_length=1, max_length=200)
+    body: dict[str, Any] | None = None
+
+
+class AgentRuntimeMcpRequest(BaseModel):
+    mcpServer: str = Field(min_length=1, max_length=200)
+    body: dict[str, Any] | None = None
+    chatContextId: str | None = Field(default=None, max_length=200)
+    mcpSessionId: str | None = Field(default=None, max_length=500)
+
+
 class AgentAccessContext(BaseModel):
     """Identity and resource context returned by IAM access-context."""
 
