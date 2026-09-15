@@ -1,5 +1,6 @@
 import asyncio
 import json
+from datetime import datetime
 from types import SimpleNamespace
 
 import httpx
@@ -22,6 +23,22 @@ from app.services import auth_service
 
 
 client = TestClient(app)
+
+
+def test_agent_session_status_marks_expiry_as_utc(monkeypatch: MonkeyPatch) -> None:
+    session = SimpleNamespace(agent_access_token_expires_at=datetime(2026, 9, 15, 4, 30))
+    monkeypatch.setattr("app.api.routes.auth._agent_session", lambda _authorization, _db: session)
+
+    response = client.get(
+        "/api/auth/agent/session-status",
+        headers={"Authorization": "Bearer local-session"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"] == {
+        "connected": True,
+        "expiresAt": "2026-09-15T04:30:00Z",
+    }
 
 
 def test_runtime_data_returns_only_upstream_access_config(caplog) -> None:

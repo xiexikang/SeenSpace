@@ -328,12 +328,23 @@ def _agent_session(authorization: str | None, db: Session) -> AuthSession:
     return session
 
 
+def _utc_isoformat(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+    if value.tzinfo is not None:
+        value = value.astimezone(UTC).replace(tzinfo=None)
+    return f"{value.isoformat()}Z"
+
+
 @router.get("/agent/session-status", response_model=AgentSessionStatus)
 def agent_session_status(
     authorization: str | None = Header(default=None), db: Session = Depends(get_db)
 ) -> AgentSessionStatus:
     session = _agent_session(authorization, db)
-    return AgentSessionStatus(connected=True, expiresAt=session.agent_access_token_expires_at.isoformat() if session.agent_access_token_expires_at else None)
+    return AgentSessionStatus(
+        connected=True,
+        expiresAt=_utc_isoformat(session.agent_access_token_expires_at),
+    )
 
 
 @router.post("/agent/refresh-token", response_model=AgentRefreshResponse)
