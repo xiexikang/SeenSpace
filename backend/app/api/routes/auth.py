@@ -160,11 +160,11 @@ def _prepare_llm_headers(configured_headers: object, agent_access_token: str) ->
 
 def _prepare_mcp_headers(
     configured_headers: object,
-    agent_access_token: str,
+    aip_access_token: str,
     chat_context_id: str,
     mcp_session_id: str | None = None,
 ) -> dict[str, str]:
-    """Build MCP gateway headers while binding the request to this OAuth session."""
+    """Build MCP gateway headers with the caller's gateway token and context."""
     raw = configured_headers if isinstance(configured_headers, dict) else {}
     headers = {
         str(key): str(value)
@@ -175,9 +175,9 @@ def _prepare_mcp_headers(
     }
     if not any(key.lower() == "authorization" and value.strip() for key, value in headers.items()):
         raise HTTPException(status_code=502, detail="MCP 配置缺少 Authorization 凭证。")
-    if not agent_access_token or agent_access_token.startswith(("gw_", "sk_", "sk-")):
-        raise HTTPException(status_code=502, detail="当前智能体没有可用的 OAuth AccessToken。")
-    headers["AccessToken"] = agent_access_token
+    if not aip_access_token:
+        raise HTTPException(status_code=503, detail="未配置调用方 aipAccessToken。")
+    headers["AccessToken"] = aip_access_token
     headers["chat-context-id"] = chat_context_id
     if mcp_session_id:
         headers["MCP-Session-Id"] = mcp_session_id
@@ -490,7 +490,7 @@ def _safe_runtime_data(payload: dict) -> dict:
     access = raw.get("access")
     if not isinstance(access, dict):
         raise ValueError("第三方运行时配置缺少 access")
-    result = {key: access[key] for key in ("llm", "mcp", "api") if key in access}
+    result = {key: access[key] for key in ("llm", "mcp", "api", "knowledge", "database") if key in access}
     for key in ("accessContext", "access_context", "context"):
         if key in access:
             result[key] = access[key]
@@ -551,18 +551,42 @@ def _select_llm_server(runtime: dict, server_name: str | None = None) -> dict | 
     return None
 
 
-def _select_api_server(runtime: dict, server_name: str) -> dict | None:
-    api = runtime.get("api")
-    servers = api.get("apiServers") if isinstance(api, dict) else None
+def _select_api_server(runtime: dict, server_name: str, resource_type: str = "api") -> dict | None:
+    section = runtime.get(resource_type)
+    servers = section.get({"api": "apiServers", "knowledge": "knowledgeServers"}[resource_type]) if isinstance(section, dict) else None
     server = servers.get(server_name) if isinstance(servers, dict) else None
     return server if isinstance(server, dict) and isinstance(server.get("url"), str) and server["url"] else None
 
 
-def _select_mcp_server(runtime: dict, server_name: str) -> dict | None:
-    mcp = runtime.get("mcp")
-    servers = mcp.get("mcpServers") if isinstance(mcp, dict) else None
+def _select_mcp_server(runtime: dict, server_name: str, resource_type: str = "mcp") -> dict | None:
+    section = runtime.get(resource_type)
+    servers = section.get({"mcp": "mcpServers", "database": "databaseServers"}[resource_type]) if isinstance(section, dict) else None
     server = servers.get(server_name) if isinstance(servers, dict) else None
     return server if isinstance(server, dict) and isinstance(server.get("url"), str) and server["url"] else None
+
+
+def _gateway_headers(configured_headers: object) -> dict[str, str]:
+    token = settings.agent_aip_access_token.strip()
+    if not token:
+        raise HTTPException(status_code=503, detail="未配置 AGENT_AIP_ACCESS_TOKEN。")
+    raw = configured_headers if isinstance(configured_headers, dict) else {}
+    headers = {str(key): str(value) for key, value in raw.items()
+               if value is not None and str(key).lower() not in {"accesstoken", "access-token", "aipaccesstoken"}}
+    if not any(key.lower() == "authorization" and value.strip() for key, value in headers.items()):
+        raise HTTPException(status_code=502, detail="资源配置缺少 Authorization 凭证。")
+    headers["AccessToken"] = token
+    return headers
+
+
+def _gateway_api_request(server: dict, path: str, method: str | None) -> tuple[str, str]:
+    # Paths come from the resource's info contract; never allow a client-selected host.
+    if path.startswith(("/", "\\")) or "://" in path or ".." in path.split("/") or "\\" in path:
+        raise HTTPException(status_code=400, detail="接口路径必须是相对路径。")
+    allowed = str(server.get("method") or "ANY").upper().split("/")
+    selected = (method or (allowed[0] if allowed[0] != "ANY" else "POST")).upper()
+    if selected not in {"GET", "POST", "PUT", "PATCH", "DELETE"} or ("ANY" not in allowed and selected not in allowed):
+        raise HTTPException(status_code=400, detail="请求方法不在资源允许范围内。")
+    return server["url"].rstrip("/") + "/" + path.lstrip("/"), selected
 
 
 def _public_runtime_data(runtime: dict) -> dict:
@@ -726,15 +750,17 @@ async def agent_runtime_api(
 ) -> AgentRuntimeChatResponse:
     session = _agent_session(authorization, db)
     runtime = await _fetch_agent_runtime_access(session, db)
-    server = _select_api_server(runtime, request.apiServer)
+    if request.resourceType not in {"api", "knowledge"}:
+        raise HTTPException(status_code=400, detail="资源类型无效。")
+    server = _select_api_server(runtime, request.apiServer, request.resourceType)
     if server is None:
         raise HTTPException(status_code=400, detail="指定的 API Server 不存在或不可用。")
-    headers = {str(key): str(value) for key, value in (server.get("headers") or {}).items() if value is not None}
-    method = str(server.get("method") or "GET").upper()
+    headers = _gateway_headers(server.get("headers"))
+    url, method = _gateway_api_request(server, request.path, request.method)
     body = request.body if request.body is not None else (server.get("body") if isinstance(server.get("body"), dict) else None)
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.request(method, server["url"], headers=headers, json=body)
+            response = await client.request(method, url, headers=headers, json=body if method != "GET" else None)
             response.raise_for_status()
             try:
                 result: object = response.json()
@@ -755,12 +781,14 @@ async def agent_runtime_mcp(
 ) -> AgentRuntimeMcpResponse:
     session = _agent_session(authorization, db)
     runtime = await _fetch_agent_runtime_access(session, db)
-    server = _select_mcp_server(runtime, request.mcpServer)
+    if request.resourceType not in {"mcp", "database"}:
+        raise HTTPException(status_code=400, detail="资源类型无效。")
+    server = _select_mcp_server(runtime, request.mcpServer, request.resourceType)
     if server is None:
         raise HTTPException(status_code=400, detail="指定的 MCP Server 不是 HTTP 服务或不存在。")
     headers = _prepare_mcp_headers(
         server.get("headers"),
-        session.agent_access_token,
+        settings.agent_aip_access_token,
         request.chatContextId or str(uuid4()),
         request.mcpSessionId,
     )

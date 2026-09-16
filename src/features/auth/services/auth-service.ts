@@ -38,6 +38,8 @@ export type AgentRuntimeAccess = {
   }
   mcp?: { mcpServers?: Record<string, unknown> }
   api?: { apiServers?: Record<string, AgentRuntimeServer> }
+  knowledge?: { knowledgeServers?: Record<string, AgentRuntimeServer> }
+  database?: { databaseServers?: Record<string, unknown> }
 }
 export type AgentRuntimeChatResponse = { status_code: number; data: unknown; mcp_session_id?: string | null }
 export type AgentAccessContext = {
@@ -86,10 +88,10 @@ export function getAgentAccessContext() { return apiGet<AgentAccessContext>('/ap
 export function sendAgentRuntimeChat(input: { message: string; model?: string; llmServer?: string; chatContextId?: string; stream?: boolean }) {
   return apiPost<AgentRuntimeChatResponse>('/api/auth/agent/runtime-chat', input)
 }
-export function sendAgentRuntimeApi(input: { apiServer: string; body?: Record<string, unknown> }) {
+export function sendAgentRuntimeApi(input: { apiServer: string; resourceType?: 'api' | 'knowledge'; path?: string; method?: string; body?: Record<string, unknown> }) {
   return apiPost<AgentRuntimeChatResponse>('/api/auth/agent/runtime-api', input)
 }
-export function sendAgentRuntimeMcp(input: { mcpServer: string; body?: Record<string, unknown>; chatContextId?: string; mcpSessionId?: string }) {
+export function sendAgentRuntimeMcp(input: { mcpServer: string; resourceType?: 'mcp' | 'database'; body?: Record<string, unknown>; chatContextId?: string; mcpSessionId?: string }) {
   return apiPost<AgentRuntimeChatResponse>('/api/auth/agent/runtime-mcp', input)
 }
 

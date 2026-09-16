@@ -12,6 +12,8 @@ from app.main import app
 from app.core.config import settings
 from app.api.routes.auth import (
     _fetch_agent_runtime_access,
+    _gateway_api_request,
+    _gateway_headers,
     _normalize_runtime_credentials,
     _prepare_llm_headers,
     _prepare_mcp_headers,
@@ -108,15 +110,15 @@ def test_llm_headers_reject_oauth_token_in_api_key_slot() -> None:
         _prepare_llm_headers({"Authorization": "Bearer at_oauth-token"}, "at_agent-oauth-token")
 
 
-def test_mcp_headers_include_oauth_token_context_and_sse_accept() -> None:
+def test_mcp_headers_include_aip_token_context_and_sse_accept() -> None:
     headers = _prepare_mcp_headers({
         "Authorization": "Bearer sk-bd6f4efe",
         "AccessToken": "gw_gateway-token",
         "chat-context-id": "old-context",
-    }, "at_agent-oauth-token", "debug-context")
+    }, "gw_caller-token", "debug-context")
     assert headers == {
         "Authorization": "Bearer sk-bd6f4efe",
-        "AccessToken": "at_agent-oauth-token",
+        "AccessToken": "gw_caller-token",
         "chat-context-id": "debug-context",
         "Accept": "application/json, text/event-stream",
         "Content-Type": "application/json",
@@ -124,7 +126,7 @@ def test_mcp_headers_include_oauth_token_context_and_sse_accept() -> None:
 
     resumed = _prepare_mcp_headers(
         {"Authorization": "Bearer sk-bd6f4efe"},
-        "at_agent-oauth-token",
+        "gw_caller-token",
         "debug-context",
         "session-123",
     )
@@ -187,6 +189,44 @@ def test_runtime_data_preserves_api_servers() -> None:
     }
 
     assert _safe_runtime_data(payload)["api"] == payload["data"]["access"]["api"]
+
+
+def test_runtime_data_preserves_all_keyed_resource_types_and_missing_sections() -> None:
+    access = {
+        "knowledge": {"knowledgeServers": {"产品文档(APP-docs，member)": {"url": "https://gateway/knowledge/"}}},
+        "database": {"databaseServers": {"订单库(APP-db，member)": {"url": "https://gateway/mcp/db"}}},
+    }
+    result = _safe_runtime_data({"data": {"access": access}})
+    assert result == access
+    assert "llm" not in result
+    assert "mcp" not in result
+    assert "api" not in result
+
+
+def test_gateway_headers_replace_access_token_and_preserve_authorization(monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "agent_aip_access_token", "gw_caller-token")
+    assert _gateway_headers({
+        "Authorization": "Bearer app-token",
+        "AccessToken": "",
+        "Content-Type": "application/json",
+    }) == {
+        "Authorization": "Bearer app-token",
+        "AccessToken": "gw_caller-token",
+        "Content-Type": "application/json",
+    }
+
+
+def test_gateway_api_request_appends_info_path_and_enforces_method() -> None:
+    server = {"url": "https://gateway.example/app-id-api/", "method": "POST/GET"}
+    assert _gateway_api_request(server, "knowledge/search", "POST") == (
+        "https://gateway.example/app-id-api/knowledge/search", "POST"
+    )
+
+    import pytest
+    with pytest.raises(Exception, match="允许范围"):
+        _gateway_api_request(server, "knowledge/search", "DELETE")
+    with pytest.raises(Exception, match="相对路径"):
+        _gateway_api_request(server, "https://upstream.example/search", "POST")
 
 
 def test_nested_llm_servers_receive_agent_access_token() -> None:

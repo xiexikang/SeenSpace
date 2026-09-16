@@ -102,9 +102,10 @@ LLM_TIMEOUT_SECONDS=45
 AGENT_CLIENT_ID=你的 Agent Client ID
 AGENT_CLIENT_SECRET=轮换后的 Agent Client Secret
 AGENT_ACCESS_CONTEXT_URL=http://你的 IAM 地址/auth/agent/oauth2/access-context
+AGENT_AIP_ACCESS_TOKEN=调用方自己的 aipAccessToken
 ```
 
-智能体 OAuth 凭证只在后端环境变量中配置。`runtime-access` 和 `access-context` 使用授权码换取的 OAuth `access_token`；调用 LLM 网关时，`AccessToken` 也必须使用该 `access_token`。不要把 IAM 创建网关返回的 `aipAccessToken`（通常为 `gw_` 开头）当作 `AccessToken`，也不要把任一 Token 写入前端或日志。审计日志由网关侧负责上报，Agent 只需确保请求上下文来自 `access-context`，不要自行调用审计接口。
+智能体 OAuth 凭证只在后端环境变量中配置，`runtime-access` 和 `access-context` 使用授权码换取的 OAuth `access_token`。API、knowledge、MCP 和 database 网关请求的 `AccessToken` 使用 `AGENT_AIP_ACCESS_TOKEN`；资源返回的 `Authorization` 原样携带，不自行添加上游认证。不要把任一 Token 写入前端或日志。
 
 如果 Python 后端或模型请求失败，前端 AI 分析会自动降级为本地启发式洞察，保证画布功能仍可使用。
 

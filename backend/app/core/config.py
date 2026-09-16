@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     agent_refresh_url: str = "http://10.30.1.53:9090/auth/agent/oauth2/token/refresh"
     agent_runtime_access_url: str = "http://10.30.1.53:9090/auth/agent/oauth2/runtime-access"
     agent_access_context_url: str = "http://10.30.1.53:9090/auth/agent/oauth2/access-context"
+    agent_aip_access_token: str = Field(default="", validation_alias=AliasChoices("AGENT_AIP_ACCESS_TOKEN"))
     agent_redirect_uri: str = "http://10.30.1.53:7788"
     agent_debug_log_sensitive: bool = Field(
         default=False,

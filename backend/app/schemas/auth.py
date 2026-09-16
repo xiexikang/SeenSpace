@@ -84,11 +84,15 @@ class AgentRuntimeMcpResponse(AgentRuntimeChatResponse):
 
 class AgentRuntimeApiRequest(BaseModel):
     apiServer: str = Field(min_length=1, max_length=200)
+    resourceType: str = "api"
+    path: str = ""
+    method: str | None = None
     body: dict[str, Any] | None = None
 
 
 class AgentRuntimeMcpRequest(BaseModel):
     mcpServer: str = Field(min_length=1, max_length=200)
+    resourceType: str = "mcp"
     body: dict[str, Any] | None = None
     chatContextId: str | None = Field(default=None, max_length=200)
     mcpSessionId: str | None = Field(default=None, max_length=500)
