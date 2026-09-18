@@ -203,23 +203,34 @@ def test_runtime_data_preserves_all_keyed_resource_types_and_missing_sections() 
     assert "api" not in result
 
 
-def test_gateway_headers_replace_access_token_and_preserve_authorization(monkeypatch: MonkeyPatch) -> None:
-    monkeypatch.setattr(settings, "agent_aip_access_token", "gw_caller-token")
+def test_gateway_headers_replace_access_token_and_normalize_authorization() -> None:
     assert _gateway_headers({
         "Authorization": "Bearer app-token",
         "AccessToken": "",
         "Content-Type": "application/json",
-    }) == {
+    }, "at_agent-oauth-token") == {
         "Authorization": "Bearer app-token",
-        "AccessToken": "gw_caller-token",
+        "AccessToken": "at_agent-oauth-token",
         "Content-Type": "application/json",
     }
+    assert _gateway_headers({
+        "authorization": "sk-gateway-token",
+    }, "at_agent-oauth-token") == {
+        "authorization": "Bearer sk-gateway-token",
+        "AccessToken": "at_agent-oauth-token",
+    }
+    assert _gateway_headers({
+        "Authorization": "Basic configured-value",
+    }, "at_agent-oauth-token")["Authorization"] == "Basic configured-value"
 
 
 def test_gateway_api_request_appends_info_path_and_enforces_method() -> None:
     server = {"url": "https://gateway.example/app-id-api/", "method": "POST/GET"}
     assert _gateway_api_request(server, "knowledge/search", "POST") == (
         "https://gateway.example/app-id-api/knowledge/search", "POST"
+    )
+    assert _gateway_api_request(server, "/knowledge/search", "GET") == (
+        "https://gateway.example/app-id-api/knowledge/search", "GET"
     )
 
     import pytest
@@ -506,6 +517,198 @@ def test_agent_runtime_chat_uses_upstream_llm_configuration(monkeypatch: MonkeyP
     assert "gw_gateway-token" not in caplog.text
     assert "at_agent-oauth-token" not in caplog.text
     assert "body=" in caplog.text
+
+
+def test_agent_runtime_api_logs_upstream_http_error_without_credentials(
+    monkeypatch: MonkeyPatch, caplog
+) -> None:
+    monkeypatch.setattr(settings, "agent_debug_log_sensitive", False)
+    caplog.set_level("INFO", logger="app.api.routes.auth")
+
+    async def fake_runtime_access(_session, _db):
+        return {
+            "api": {
+                "apiServers": {
+                    "weather": {
+                        "url": "https://gateway.example/app-api",
+                        "method": "POST",
+                        "headers": {
+                            "Authorization": "Bearer sk_gateway-secret",
+                            "AccessToken": "at_stale-token",
+                        },
+                    }
+                }
+            }
+        }
+
+    class FakeClient:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        def build_request(self, method, url, **kwargs):
+            return httpx.Request(method, url, **kwargs)
+
+        async def send(self, request):
+            return httpx.Response(
+                403,
+                request=request,
+                headers={"content-type": "application/json"},
+                json={"message": "AccessToken rejected"},
+            )
+
+    monkeypatch.setattr(
+        "app.api.routes.auth._agent_session",
+        lambda _authorization, _db: SimpleNamespace(agent_access_token="at_current-oauth-token"),
+    )
+    monkeypatch.setattr("app.api.routes.auth._fetch_agent_runtime_access", fake_runtime_access)
+    monkeypatch.setattr("app.api.routes.auth.httpx.AsyncClient", FakeClient)
+
+    response = client.post(
+        "/api/auth/agent/runtime-api",
+        headers={"Authorization": "Bearer local-session"},
+        json={"apiServer": "weather", "path": "/v1/forecast", "method": "POST", "body": {"city": "Shanghai"}},
+    )
+
+    assert response.status_code == 502
+    assert "Agent runtime API upstream HTTP error" in caplog.text
+    assert "status=403" in caplog.text
+    assert "https://gateway.example/app-api/v1/forecast" in caplog.text
+    assert "AccessToken rejected" in caplog.text
+    assert "sk_gateway-secret" not in caplog.text
+    assert "at_current-oauth-token" not in caplog.text
+
+
+def test_agent_runtime_api_sends_get_body_as_query_params(monkeypatch: MonkeyPatch) -> None:
+    requests: list[httpx.Request] = []
+
+    async def fake_runtime_access(_session, _db):
+        return {
+            "api": {
+                "apiServers": {
+                    "catalog": {
+                        "url": "https://gateway.example/app-api/",
+                        "method": "GET",
+                        "headers": {"Authorization": "sk-gateway-token"},
+                    }
+                }
+            }
+        }
+
+    class FakeClient:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        def build_request(self, method, url, **kwargs):
+            return httpx.Request(method, url, **kwargs)
+
+        async def send(self, request):
+            requests.append(request)
+            return httpx.Response(200, request=request, json={"items": []})
+
+    monkeypatch.setattr(
+        "app.api.routes.auth._agent_session",
+        lambda _authorization, _db: SimpleNamespace(agent_access_token="at_current-oauth-token"),
+    )
+    monkeypatch.setattr("app.api.routes.auth._fetch_agent_runtime_access", fake_runtime_access)
+    monkeypatch.setattr("app.api.routes.auth.httpx.AsyncClient", FakeClient)
+
+    response = client.post(
+        "/api/auth/agent/runtime-api",
+        headers={"Authorization": "Bearer local-session"},
+        json={
+            "apiServer": "catalog",
+            "method": "GET",
+            "body": {"list-type": 2, "keyword": "Shanghai"},
+        },
+    )
+
+    assert response.status_code == 200
+    assert len(requests) == 1
+    assert requests[0].method == "GET"
+    assert dict(requests[0].url.params) == {"list-type": "2", "keyword": "Shanghai"}
+    assert requests[0].content == b""
+    assert requests[0].headers["Authorization"] == "Bearer sk-gateway-token"
+
+
+def test_agent_runtime_mcp_logs_upstream_http_error_without_credentials(
+    monkeypatch: MonkeyPatch, caplog
+) -> None:
+    monkeypatch.setattr(settings, "agent_debug_log_sensitive", False)
+    caplog.set_level("INFO", logger="app.api.routes.auth")
+
+    async def fake_runtime_access(_session, _db):
+        return {
+            "mcp": {
+                "mcpServers": {
+                    "tools": {
+                        "url": "https://gateway.example/mcp/tools",
+                        "method": "POST",
+                        "headers": {"Authorization": "Bearer sk_mcp-secret"},
+                    }
+                }
+            }
+        }
+
+    class FakeClient:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        def build_request(self, method, url, **kwargs):
+            return httpx.Request(method, url, **kwargs)
+
+        async def send(self, request):
+            return httpx.Response(
+                401,
+                request=request,
+                headers={"content-type": "application/json"},
+                json={"message": "MCP authentication failed"},
+            )
+
+    monkeypatch.setattr(
+        "app.api.routes.auth._agent_session",
+        lambda _authorization, _db: SimpleNamespace(agent_access_token="at_current-oauth-token"),
+    )
+    monkeypatch.setattr("app.api.routes.auth._fetch_agent_runtime_access", fake_runtime_access)
+    monkeypatch.setattr("app.api.routes.auth.httpx.AsyncClient", FakeClient)
+
+    response = client.post(
+        "/api/auth/agent/runtime-mcp",
+        headers={"Authorization": "Bearer local-session"},
+        json={
+            "mcpServer": "tools",
+            "chatContextId": "private-chat-context",
+            "mcpSessionId": "private-mcp-session",
+            "body": {"jsonrpc": "2.0", "method": "tools/list", "id": 1},
+        },
+    )
+
+    assert response.status_code == 502
+    assert "Agent runtime MCP upstream HTTP error" in caplog.text
+    assert "status=401" in caplog.text
+    assert "https://gateway.example/mcp/tools" in caplog.text
+    assert "MCP authentication failed" in caplog.text
+    assert "sk_mcp-secret" not in caplog.text
+    assert "at_current-oauth-token" not in caplog.text
+    assert "private-chat-context" not in caplog.text
+    assert "private-mcp-session" not in caplog.text
 
 
 def test_register_me_and_logout(monkeypatch: MonkeyPatch) -> None:

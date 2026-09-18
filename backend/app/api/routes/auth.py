@@ -57,6 +57,8 @@ _SENSITIVE_HEADER_NAMES = {
     "cookie",
     "proxy-authorization",
     "set-cookie",
+    "chat-context-id",
+    "mcp-session-id",
 }
 
 
@@ -565,22 +567,27 @@ def _select_mcp_server(runtime: dict, server_name: str, resource_type: str = "mc
     return server if isinstance(server, dict) and isinstance(server.get("url"), str) and server["url"] else None
 
 
-def _gateway_headers(configured_headers: object) -> dict[str, str]:
-    token = settings.agent_aip_access_token.strip()
+def _gateway_headers(configured_headers: object, access_token: str | None) -> dict[str, str]:
+    """Prepare API/knowledge gateway headers using the current OAuth access token."""
+    token = (access_token or "").strip()
     if not token:
-        raise HTTPException(status_code=503, detail="未配置 AGENT_AIP_ACCESS_TOKEN。")
+        raise HTTPException(status_code=403, detail="当前会话没有可用的 OAuth AccessToken。")
     raw = configured_headers if isinstance(configured_headers, dict) else {}
     headers = {str(key): str(value) for key, value in raw.items()
                if value is not None and str(key).lower() not in {"accesstoken", "access-token", "aipaccesstoken"}}
-    if not any(key.lower() == "authorization" and value.strip() for key, value in headers.items()):
+    authorization_key = next((key for key in headers if key.lower() == "authorization"), None)
+    authorization = headers[authorization_key].strip() if authorization_key is not None else ""
+    if not authorization:
         raise HTTPException(status_code=502, detail="资源配置缺少 Authorization 凭证。")
+    if authorization.startswith(("sk-", "sk_")):
+        headers[authorization_key] = f"Bearer {authorization}"
     headers["AccessToken"] = token
     return headers
 
 
 def _gateway_api_request(server: dict, path: str, method: str | None) -> tuple[str, str]:
     # Paths come from the resource's info contract; never allow a client-selected host.
-    if path.startswith(("/", "\\")) or "://" in path or ".." in path.split("/") or "\\" in path:
+    if "://" in path or ".." in path.split("/") or "\\" in path:
         raise HTTPException(status_code=400, detail="接口路径必须是相对路径。")
     allowed = str(server.get("method") or "ANY").upper().split("/")
     selected = (method or (allowed[0] if allowed[0] != "ANY" else "POST")).upper()
@@ -755,20 +762,69 @@ async def agent_runtime_api(
     server = _select_api_server(runtime, request.apiServer, request.resourceType)
     if server is None:
         raise HTTPException(status_code=400, detail="指定的 API Server 不存在或不可用。")
-    headers = _gateway_headers(server.get("headers"))
+    headers = _gateway_headers(server.get("headers"), session.agent_access_token)
     url, method = _gateway_api_request(server, request.path, request.method)
     body = request.body if request.body is not None else (server.get("body") if isinstance(server.get("body"), dict) else None)
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.request(method, url, headers=headers, json=body if method != "GET" else None)
+            upstream_request = client.build_request(
+                method,
+                url,
+                headers=headers,
+                params=body if method == "GET" else None,
+                json=body if method != "GET" else None,
+            )
+            logger.info(
+                "Agent runtime API request: resource_type=%s server=%r method=%s url=%s headers=%s body=%s",
+                request.resourceType,
+                request.apiServer,
+                upstream_request.method,
+                upstream_request.url,
+                _safe_response_headers(upstream_request.headers),
+                _safe_log_value(body),
+            )
+            response = await client.send(upstream_request)
             response.raise_for_status()
             try:
                 result: object = response.json()
             except ValueError:
                 result = response.text
+        logger.info(
+            "Agent runtime API response: status=%s url=%s headers=%s body=%s",
+            response.status_code,
+            response.request.url,
+            _safe_response_headers(response.headers),
+            _safe_log_value(result),
+        )
     except httpx.HTTPStatusError as error:
+        logger.exception(
+            "Agent runtime API upstream HTTP error: status=%s method=%s url=%s "
+            "request_headers=%s response_headers=%s response=%s",
+            error.response.status_code,
+            error.request.method,
+            error.request.url,
+            _safe_response_headers(error.request.headers),
+            _safe_response_headers(error.response.headers),
+            _safe_error_text(error.response.text),
+        )
         raise HTTPException(status_code=502, detail="调用智能体 API 网关失败。") from error
-    except (httpx.HTTPError, ValueError) as error:
+    except httpx.HTTPError as error:
+        error_request = getattr(error, "request", None)
+        logger.exception(
+            "Agent runtime API upstream transport error: type=%s method=%s url=%s error=%s",
+            type(error).__name__,
+            getattr(error_request, "method", method),
+            getattr(error_request, "url", url),
+            _safe_error_text(str(error)),
+        )
+        raise HTTPException(status_code=502, detail="调用智能体 API 网关失败。") from error
+    except ValueError as error:
+        logger.exception(
+            "Agent runtime API response parsing error: method=%s url=%s error=%s",
+            method,
+            url,
+            _safe_error_text(str(error)),
+        )
         raise HTTPException(status_code=502, detail="调用智能体 API 网关失败。") from error
     return AgentRuntimeChatResponse(status_code=response.status_code, data=result)
 
@@ -788,26 +844,67 @@ async def agent_runtime_mcp(
         raise HTTPException(status_code=400, detail="指定的 MCP Server 不是 HTTP 服务或不存在。")
     headers = _prepare_mcp_headers(
         server.get("headers"),
-        settings.agent_aip_access_token,
+        session.agent_access_token,
         request.chatContextId or str(uuid4()),
         request.mcpSessionId,
     )
     body = request.body if request.body is not None else (server.get("body") if isinstance(server.get("body"), dict) else None)
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.request(str(server.get("method") or "POST").upper(), server["url"], headers=headers, json=body)
+            upstream_request = client.build_request(
+                str(server.get("method") or "POST").upper(),
+                server["url"],
+                headers=headers,
+                json=body,
+            )
+            logger.info(
+                "Agent runtime MCP request: resource_type=%s server=%r method=%s url=%s headers=%s body=%s",
+                request.resourceType,
+                request.mcpServer,
+                upstream_request.method,
+                upstream_request.url,
+                _safe_response_headers(upstream_request.headers),
+                _safe_log_value(body),
+            )
+            response = await client.send(upstream_request)
             response.raise_for_status()
             result = _parse_mcp_response(response)
+        logger.info(
+            "Agent runtime MCP response: status=%s url=%s headers=%s body=%s",
+            response.status_code,
+            response.request.url,
+            _safe_response_headers(response.headers),
+            _safe_log_value(result),
+        )
     except httpx.HTTPStatusError as error:
-        logger.warning(
-            "Agent runtime MCP upstream HTTP error: status=%s url=%s response=%s",
+        logger.exception(
+            "Agent runtime MCP upstream HTTP error: status=%s method=%s url=%s "
+            "request_headers=%s response_headers=%s response=%s",
             error.response.status_code,
+            error.request.method,
             error.request.url,
+            _safe_response_headers(error.request.headers),
+            _safe_response_headers(error.response.headers),
             _safe_error_text(error.response.text),
         )
         raise HTTPException(status_code=502, detail="调用智能体 MCP 网关失败。") from error
-    except (httpx.HTTPError, ValueError) as error:
-        logger.warning("Agent runtime MCP upstream error: %s", _safe_error_text(str(error)))
+    except httpx.HTTPError as error:
+        error_request = getattr(error, "request", None)
+        logger.exception(
+            "Agent runtime MCP upstream transport error: type=%s method=%s url=%s error=%s",
+            type(error).__name__,
+            getattr(error_request, "method", str(server.get("method") or "POST").upper()),
+            getattr(error_request, "url", server["url"]),
+            _safe_error_text(str(error)),
+        )
+        raise HTTPException(status_code=502, detail="调用智能体 MCP 网关失败。") from error
+    except ValueError as error:
+        logger.exception(
+            "Agent runtime MCP response parsing error: method=%s url=%s error=%s",
+            str(server.get("method") or "POST").upper(),
+            server["url"],
+            _safe_error_text(str(error)),
+        )
         raise HTTPException(status_code=502, detail="调用智能体 MCP 网关失败。") from error
     return AgentRuntimeMcpResponse(
         status_code=response.status_code,
