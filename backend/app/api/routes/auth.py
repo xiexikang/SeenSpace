@@ -1,7 +1,9 @@
+import base64
 import json
 import logging
 from hashlib import sha256
 from datetime import UTC, datetime, timedelta
+from secrets import choice
 from uuid import uuid4
 
 import httpx
@@ -10,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
 from app.core.database import get_db
-from app.models.user import AuthSession, User
+from app.models.user import AgentAuthorizationSession, AuthSession, User
 from app.schemas.auth import (
     AuthResponse,
     AgentAuthorizeData,
@@ -47,6 +49,14 @@ from app.services.auth_service import (
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
+_PKCE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
+_PKCE_SESSION_TTL = timedelta(minutes=15)
+
+
+def _create_pkce_pair() -> tuple[str, str]:
+    verifier = "".join(choice(_PKCE_ALPHABET) for _ in range(64))
+    challenge = sha256(verifier.encode("ascii")).digest()
+    return verifier, base64.urlsafe_b64encode(challenge).decode("ascii").rstrip("=")
 
 
 _SENSITIVE_HEADER_NAMES = {
@@ -248,12 +258,18 @@ def _cached_agent_context(session: AuthSession) -> AgentAccessContext | None:
 
 
 @router.post("/agent/getAuthorizeUrl", response_model=AgentAuthorizeData)
-async def get_agent_authorize_url() -> AgentAuthorizeData:
+async def get_agent_authorize_url(db: Session = Depends(get_db)) -> AgentAuthorizeData:
+    code_verifier, code_challenge = _create_pkce_pair()
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(
                 settings.agent_authorize_url,
-                json={"clientId": settings.agent_client_id, "clientSecret": settings.agent_client_secret},
+                json={
+                    "clientId": settings.agent_client_id,
+                    "clientSecret": settings.agent_client_secret,
+                    "code_challenge": code_challenge,
+                    "code_challenge_method": "S256",
+                },
             )
             response.raise_for_status()
             payload = response.json()
@@ -267,7 +283,18 @@ async def get_agent_authorize_url() -> AgentAuthorizeData:
         if upstream_code not in (None, 0, "0"):
             message = payload.get("msg") or "第三方授权地址获取失败"
             raise HTTPException(status_code=502, detail=f"智能体授权失败：{message}")
-        return AgentAuthorizeData.model_validate(payload.get("data"))
+        authorize_data = AgentAuthorizeData.model_validate(payload.get("data"))
+        db.query(AgentAuthorizationSession).filter(
+            AgentAuthorizationSession.expires_at < datetime.now(UTC).replace(tzinfo=None)
+        ).delete(synchronize_session=False)
+        db.merge(AgentAuthorizationSession(
+            state=authorize_data.state,
+            code_verifier=code_verifier,
+            created_at=datetime.now(UTC).replace(tzinfo=None),
+            expires_at=datetime.now(UTC).replace(tzinfo=None) + _PKCE_SESSION_TTL,
+        ))
+        db.commit()
+        return authorize_data
     except HTTPException:
         raise
     except ValueError as error:
@@ -276,6 +303,14 @@ async def get_agent_authorize_url() -> AgentAuthorizeData:
 
 @router.post("/agent/login", response_model=AuthResponse)
 async def agent_login(request: AgentLoginRequest, db: Session = Depends(get_db)) -> AuthResponse:
+    authorization_session = db.get(AgentAuthorizationSession, request.state)
+    now = datetime.now(UTC).replace(tzinfo=None)
+    if authorization_session is None or authorization_session.expires_at < now:
+        if authorization_session is not None:
+            db.delete(authorization_session)
+            db.commit()
+        raise HTTPException(status_code=400, detail="智能体授权 state 无效或已过期，请重新发起登录。")
+    code_verifier = authorization_session.code_verifier
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             token_response = await client.post(
@@ -286,6 +321,7 @@ async def agent_login(request: AgentLoginRequest, db: Session = Depends(get_db))
                     "client_id": settings.agent_client_id,
                     "client_secret": settings.agent_client_secret,
                     "redirect_uri": settings.agent_redirect_uri,
+                    "code_verifier": code_verifier,
                 },
             )
             token_response.raise_for_status()
@@ -310,6 +346,8 @@ async def agent_login(request: AgentLoginRequest, db: Session = Depends(get_db))
     except (httpx.HTTPError, ValueError, TypeError) as error:
         raise HTTPException(status_code=502, detail="智能体登录失败。") from error
 
+    db.delete(authorization_session)
+    db.commit()
     return upsert_agent_user(
         db,
         int(user_id),

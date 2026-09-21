@@ -60,6 +60,18 @@ def migrate_users_table() -> None:
 def migrate_existing_schema() -> None:
     migrate_users_table()
     inspector = inspect(engine)
+    if not inspector.has_table("agent_authorization_sessions"):
+        with engine.begin() as connection:
+            connection.execute(text(
+                """
+                CREATE TABLE agent_authorization_sessions (
+                    state VARCHAR(255) PRIMARY KEY,
+                    code_verifier VARCHAR(128) NOT NULL,
+                    created_at DATETIME NOT NULL,
+                    expires_at DATETIME NOT NULL
+                )
+                """
+            ))
     if inspector.has_table("auth_sessions"):
         session_columns = {column["name"] for column in inspector.get_columns("auth_sessions")}
         missing_columns = []

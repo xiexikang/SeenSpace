@@ -37,17 +37,17 @@ function AgentCallbackPage() {
     const state = params.get('state')
     const expectedState = window.sessionStorage.getItem('seenspace-agent-oauth-state')
     window.sessionStorage.removeItem('seenspace-agent-oauth-state')
-    return { code: code && state && expectedState === state ? code : null }
+    return { code: code && state && expectedState === state ? code : null, state: state && expectedState === state ? state : null }
   })
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (!callback.code) return
 
-    void agentLogin(callback.code)
+    void agentLogin(callback.code, callback.state!)
       .then(() => navigate('/', { replace: true }))
       .catch(() => setError('统一登录失败，请重新发起登录。'))
-  }, [callback.code, navigate])
+  }, [callback.code, callback.state, navigate])
 
   const message = !callback.code ? '统一登录校验失败，请重新发起登录。' : error
 

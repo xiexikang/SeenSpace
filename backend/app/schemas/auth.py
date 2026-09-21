@@ -50,6 +50,7 @@ class AgentAuthorizeData(BaseModel):
 
 class AgentLoginRequest(BaseModel):
     code: str = Field(min_length=1)
+    state: str = Field(min_length=1)
 
 
 class AgentTokenData(BaseModel):

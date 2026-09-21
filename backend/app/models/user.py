@@ -30,6 +30,15 @@ class AuthSession(Base):
     agent_context_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class AgentAuthorizationSession(Base):
+    __tablename__ = "agent_authorization_sessions"
+
+    state: Mapped[str] = mapped_column(String(255), primary_key=True)
+    code_verifier: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+
+
 class CaptchaChallenge(Base):
     __tablename__ = "captcha_challenges"
 

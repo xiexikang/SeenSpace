@@ -54,7 +54,7 @@ export type AgentAccessContext = {
   resourceCode: string
 }
 
-let agentLoginRequest: { code: string; promise: Promise<AuthUser> } | null = null
+let agentLoginRequest: { code: string; state: string; promise: Promise<AuthUser> } | null = null
 let currentUserRequest: Promise<AuthUser> | null = null
 const agentLoginMarkerKey = 'seenspace-agent-login'
 
@@ -62,18 +62,18 @@ export function getAgentAuthorizeUrl() {
   return apiPost<AgentAuthorizeResponse>('/api/auth/agent/getAuthorizeUrl')
 }
 
-export async function agentLogin(code: string) {
-  if (agentLoginRequest?.code === code) return agentLoginRequest.promise
-  const promise = apiPost<AuthResponse>('/api/auth/agent/login', { code })
+export async function agentLogin(code: string, state: string) {
+  if (agentLoginRequest?.code === code && agentLoginRequest.state === state) return agentLoginRequest.promise
+  const promise = apiPost<AuthResponse>('/api/auth/agent/login', { code, state })
     .then((response) => {
       setAuthToken(response.token)
       window.localStorage.setItem(agentLoginMarkerKey, 'true')
       return response.user
     })
     .finally(() => {
-      if (agentLoginRequest?.code === code) agentLoginRequest = null
+      if (agentLoginRequest?.code === code && agentLoginRequest.state === state) agentLoginRequest = null
     })
-  agentLoginRequest = { code, promise }
+  agentLoginRequest = { code, state, promise }
   return promise
 }
 
