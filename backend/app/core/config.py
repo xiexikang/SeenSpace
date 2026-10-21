@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -41,16 +41,17 @@ class Settings(BaseSettings):
     )
     llm_api_style: str = "chat_completions"
     llm_timeout_seconds: float = 45.0
-    agent_authorize_url: str = "http://10.30.1.53:9090/auth/agent/oauth2/authorize-url"
+    agent_base_url: str = "http://10.30.1.53:9090"
     # Credentials must be supplied through the environment; never commit them.
     agent_client_id: str = Field(default="", validation_alias=AliasChoices("AGENT_CLIENT_ID"))
     agent_client_secret: str = Field(default="", validation_alias=AliasChoices("AGENT_CLIENT_SECRET"))
-    agent_token_url: str = "http://10.30.1.53:9090/auth/agent/oauth2/token"
-    agent_userinfo_url: str = "http://10.30.1.53:9090/auth/agent/oauth2/userinfo"
-    agent_logout_url: str = "http://10.30.1.53:9090/auth/agent/oauth2/logout"
-    agent_refresh_url: str = "http://10.30.1.53:9090/auth/agent/oauth2/token/refresh"
-    agent_runtime_access_url: str = "http://10.30.1.53:9090/auth/agent/oauth2/runtime-access"
-    agent_access_context_url: str = "http://10.30.1.53:9090/auth/agent/oauth2/access-context"
+    agent_authorize_url: str = ""
+    agent_token_url: str = ""
+    agent_userinfo_url: str = ""
+    agent_logout_url: str = ""
+    agent_refresh_url: str = ""
+    agent_runtime_access_url: str = ""
+    agent_access_context_url: str = ""
     agent_redirect_uri: str = "http://10.30.1.53:7788"
     agent_debug_log_sensitive: bool = Field(
         default=False,
@@ -62,6 +63,23 @@ class Settings(BaseSettings):
         default=False,
         validation_alias=AliasChoices("AGENT_RUNTIME_EXPOSE_SENSITIVE"),
     )
+
+    @model_validator(mode="after")
+    def set_agent_service_urls(self) -> "Settings":
+        base_url = self.agent_base_url.rstrip("/")
+        endpoint_paths = {
+            "agent_authorize_url": "/auth/agent/oauth2/authorize-url",
+            "agent_token_url": "/auth/agent/oauth2/token",
+            "agent_userinfo_url": "/auth/agent/oauth2/userinfo",
+            "agent_logout_url": "/auth/agent/oauth2/logout",
+            "agent_refresh_url": "/auth/agent/oauth2/token/refresh",
+            "agent_runtime_access_url": "/auth/agent/oauth2/runtime-access",
+            "agent_access_context_url": "/auth/agent/oauth2/access-context",
+        }
+        for field_name, path in endpoint_paths.items():
+            if not getattr(self, field_name):
+                setattr(self, field_name, f"{base_url}{path}")
+        return self
 
 
 @lru_cache
