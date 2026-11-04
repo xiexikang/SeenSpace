@@ -57,7 +57,7 @@ def migrate_users_table() -> None:
             connection.execute(text("ALTER TABLE users MODIFY email VARCHAR(255) NULL"))
 
 
-def migrate_existing_schema() -> None:
+def migrate_existing_schema(seed_demo: bool = True) -> None:
     migrate_users_table()
     inspector = inspect(engine)
     if not inspector.has_table("agent_authorization_sessions"):
@@ -91,8 +91,9 @@ def migrate_existing_schema() -> None:
     if not inspector.has_table("projects"):
         return
 
-    ensure_demo_user_for_migration()
     columns = {column["name"] for column in inspector.get_columns("projects")}
+    if seed_demo or "owner_id" not in columns:
+        ensure_demo_user_for_migration()
     if "owner_id" not in columns:
         with engine.begin() as connection:
             connection.execute(text("ALTER TABLE projects ADD COLUMN owner_id VARCHAR(64) NULL"))

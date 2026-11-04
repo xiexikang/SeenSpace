@@ -23,6 +23,7 @@ class Settings(BaseSettings):
 
     api_host: str = "127.0.0.1"
     api_port: int = 8787
+    seed_demo: bool = True
     database_url: str
     cors_origins: list[str] = ["http://localhost:7788", "http://127.0.0.1:7788"]
     llm_api_key: str | None = Field(

@@ -99,6 +99,7 @@ DATABASE_URL=mysql+pymysql://seenspace:seenspace@127.0.0.1:3306/seenspace?charse
 
 ```text
 CORS_ORIGINS=["http://localhost:7788","http://127.0.0.1:7788"]
+SEED_DEMO=false
 LLM_API_KEY=你的 API Key
 LLM_BASE_URL=https://api.openai.com/v1
 LLM_MODEL=gpt-4o-mini

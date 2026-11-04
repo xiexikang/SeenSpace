@@ -13,9 +13,10 @@ from app.core.response import ResponseEnvelopeMiddleware, envelope, http_excepti
 
 def create_app() -> FastAPI:
     Base.metadata.create_all(bind=engine)
-    migrate_existing_schema()
+    migrate_existing_schema(seed_demo=settings.seed_demo)
     Base.metadata.create_all(bind=engine)
-    ensure_project_seed()
+    if settings.seed_demo:
+        ensure_project_seed()
 
     app = FastAPI(title="SeenSpace API", version="0.1.0")
     app.add_middleware(
