@@ -108,6 +108,24 @@ AGENT_ACCESS_CONTEXT_URL=http://你的 IAM 地址/auth/agent/oauth2/access-conte
 
 如果 Python 后端或模型请求失败，前端 AI 分析会自动降级为本地启发式洞察，保证画布功能仍可使用。
 
+### IAM 客户端证书认证（mTLS）
+
+在项目根目录的 `.env.local` 配置后端 IAM 连接。证书和私钥放在项目外，不使用 `VITE_` 前缀。
+
+```text
+AGENT_BASE_URL=https://localhost:9443
+AGENT_PKI_ENABLED=true
+AGENT_TLS_CA_CERT=C:/Users/DabbyDesign/agent18-pki-test/root_ca.crt
+AGENT_TLS_CERT_CHAIN=C:/Users/DabbyDesign/agent18-pki-test/agent-chain.pem
+AGENT_TLS_PRIVATE_KEY=C:/Users/DabbyDesign/agent18-pki-test/agent.key
+```
+
+`agent-chain.pem` 按客户端证书、中间 CA 证书的顺序拼接 PEM 内容。私钥必须与客户端证书匹配，证书 CN 必须等于 `AGENT_CLIENT_ID`。`AGENT_TLS_CA_CERT` 用于校验 IAM 服务端证书，不能关闭 TLS 校验。
+
+保留 `AGENT_CLIENT_ID`、`AGENT_CLIENT_SECRET` 和已登记的 `AGENT_REDIRECT_URI`。当前 IAM 的 `authorize-url` 接口仍需客户端密钥；开启 PKI 后，token 和 refresh 请求改用客户端证书，不发送 `client_secret`。用户信息、运行时配置等 IAM 请求也使用同一 TLS 配置，上游 LLM、API 和 MCP 请求不携带 IAM 客户端私钥。
+
+修改配置后重启 Python 后端。浏览器继续从登录页发起智能体登录，由后端保存 PKCE verifier，并在回调后携带证书换取令牌。刷新令牌仍使用现有的 `/api/auth/agent/refresh-token` 接口。关闭 PKI 时设置 `AGENT_PKI_ENABLED=false`，恢复客户端密钥认证。
+
 ### 账号登录
 
 后端启动时会创建一个演示账号：

@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     # Credentials must be supplied through the environment; never commit them.
     agent_client_id: str = Field(default="", validation_alias=AliasChoices("AGENT_CLIENT_ID"))
     agent_client_secret: str = Field(default="", validation_alias=AliasChoices("AGENT_CLIENT_SECRET"))
+    agent_pki_enabled: bool = False
+    agent_tls_ca_cert: str = ""
+    agent_tls_cert_chain: str = ""
+    agent_tls_private_key: str = ""
     agent_authorize_url: str = ""
     agent_token_url: str = ""
     agent_userinfo_url: str = ""
@@ -79,6 +83,12 @@ class Settings(BaseSettings):
         for field_name, path in endpoint_paths.items():
             if not getattr(self, field_name):
                 setattr(self, field_name, f"{base_url}{path}")
+        if self.agent_pki_enabled:
+            for name in ("agent_tls_ca_cert", "agent_tls_cert_chain", "agent_tls_private_key"):
+                if not getattr(self, name):
+                    raise ValueError(f"{name.upper()} is required when AGENT_PKI_ENABLED=true")
+            if not all(getattr(self, name).startswith("https://") for name in ("agent_token_url", "agent_refresh_url")):
+                raise ValueError("PKI token and refresh URLs must use HTTPS")
         return self
 
 

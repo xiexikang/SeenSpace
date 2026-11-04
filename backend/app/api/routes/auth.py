@@ -35,6 +35,7 @@ from app.schemas.auth import (
 )
 from app.core.response import envelope
 from app.core.config import settings
+from app.core.agent_http import agent_http_client
 from app.services.auth_service import (
     create_captcha,
     delete_session,
@@ -48,7 +49,7 @@ from app.services.auth_service import (
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("uvicorn.error.agent.auth")
 _PKCE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
 _PKCE_SESSION_TTL = timedelta(minutes=15)
 
@@ -261,7 +262,7 @@ def _cached_agent_context(session: AuthSession) -> AgentAccessContext | None:
 async def get_agent_authorize_url(db: Session = Depends(get_db)) -> AgentAuthorizeData:
     code_verifier, code_challenge = _create_pkce_pair()
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with agent_http_client(timeout=10.0) as client:
             response = await client.post(
                 settings.agent_authorize_url,
                 json={
@@ -273,7 +274,9 @@ async def get_agent_authorize_url(db: Session = Depends(get_db)) -> AgentAuthori
             )
             response.raise_for_status()
             payload = response.json()
+            logger.info("[IAM authorize] response_code=%s", payload.get("code") if isinstance(payload, dict) else "invalid_json_shape")
     except (httpx.HTTPError, ValueError) as error:
+        logger.error("[IAM authorize] Failed: error_type=%s reason=%s", type(error).__name__, _safe_error_text(str(error)))
         raise HTTPException(status_code=502, detail="获取智能体授权地址失败。") from error
 
     try:
@@ -294,6 +297,7 @@ async def get_agent_authorize_url(db: Session = Depends(get_db)) -> AgentAuthori
             expires_at=datetime.now(UTC).replace(tzinfo=None) + _PKCE_SESSION_TTL,
         ))
         db.commit()
+        logger.info("[IAM authorize] PKCE session saved; ready for browser login")
         return authorize_data
     except HTTPException:
         raise
@@ -306,30 +310,34 @@ async def agent_login(request: AgentLoginRequest, db: Session = Depends(get_db))
     authorization_session = db.get(AgentAuthorizationSession, request.state)
     now = datetime.now(UTC).replace(tzinfo=None)
     if authorization_session is None or authorization_session.expires_at < now:
+        logger.warning("[IAM login] Callback rejected: PKCE session missing or expired")
         if authorization_session is not None:
             db.delete(authorization_session)
             db.commit()
         raise HTTPException(status_code=400, detail="智能体授权 state 无效或已过期，请重新发起登录。")
     code_verifier = authorization_session.code_verifier
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with agent_http_client(timeout=10.0) as client:
             token_response = await client.post(
                 settings.agent_token_url,
                 json={
                     "code": request.code,
                     "grant_type": "authorization_code",
                     "client_id": settings.agent_client_id,
-                    "client_secret": settings.agent_client_secret,
+                    **({"client_secret": settings.agent_client_secret} if not settings.agent_pki_enabled else {}),
                     "redirect_uri": settings.agent_redirect_uri,
                     "code_verifier": code_verifier,
                 },
             )
             token_response.raise_for_status()
             token_payload = token_response.json()
+            logger.info("[IAM token] response_code=%s", token_payload.get("code"))
             if token_payload.get("code") != 0:
                 raise ValueError(token_payload.get("msg") or "第三方令牌获取失败")
             token_data = AgentTokenResponse.model_validate(token_payload).data
             access_token = token_data.access_token
+            logger.info("[IAM token] Exchange succeeded: expires_in=%s refresh_token_present=%s",
+                        token_data.expires_in, bool(token_data.refresh_token))
 
             user_response = await client.get(
                 settings.agent_userinfo_url,
@@ -344,10 +352,12 @@ async def agent_login(request: AgentLoginRequest, db: Session = Depends(get_db))
             if user_id is None:
                 raise ValueError("第三方未返回 userId")
     except (httpx.HTTPError, ValueError, TypeError) as error:
+        logger.error("[IAM login] Failed: error_type=%s reason=%s", type(error).__name__, _safe_error_text(str(error)))
         raise HTTPException(status_code=502, detail="智能体登录失败。") from error
 
     db.delete(authorization_session)
     db.commit()
+    logger.info("[IAM login] Userinfo received; creating local login session")
     return upsert_agent_user(
         db,
         int(user_id),
@@ -406,10 +416,11 @@ async def _refresh_agent_token(session: AuthSession, db: Session) -> AgentTokenR
     if not session.agent_refresh_token:
         raise HTTPException(status_code=409, detail="当前会话没有 refresh_token，请重新登录。")
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with agent_http_client(timeout=10.0) as client:
             request_body = {
                 "grant_type": "refresh_token", "refresh_token": session.agent_refresh_token,
-                "client_id": settings.agent_client_id, "client_secret": settings.agent_client_secret,
+                "client_id": settings.agent_client_id,
+                **({"client_secret": settings.agent_client_secret} if not settings.agent_pki_enabled else {}),
             }
             logger.warning(
                 "Agent token refresh request: method=%s url=%s body=%s",
@@ -454,7 +465,7 @@ async def _fetch_agent_runtime_access(session: AuthSession, db: Session) -> dict
         {},
     )
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with agent_http_client(timeout=15.0) as client:
             upstream_request = client.build_request(
                 "POST",
                 settings.agent_runtime_access_url,
@@ -659,7 +670,7 @@ async def _fetch_agent_access_context(session: AuthSession, db: Session) -> Agen
         raise HTTPException(status_code=403, detail="当前会话没有可用的 OAuth 用户令牌。")
     request_headers = {"Authorization": f"Bearer {oauth_token}"}
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with agent_http_client(timeout=15.0) as client:
             response = await client.get(settings.agent_access_context_url, headers=request_headers)
             response.raise_for_status()
             payload = response.json()
@@ -1021,7 +1032,7 @@ async def _logout_session(
         delete_session(db, local_token)
         if revoke_agent_token and agent_access_token:
             try:
-                async with httpx.AsyncClient(timeout=10.0) as client:
+                async with agent_http_client(timeout=10.0) as client:
                     response = await client.post(
                         settings.agent_logout_url,
                         headers={"Authorization": f"Bearer {agent_access_token}"},
