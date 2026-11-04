@@ -107,6 +107,7 @@ LLM_API_STYLE=chat_completions
 LLM_TIMEOUT_SECONDS=45
 AGENT_CLIENT_ID=你的 Agent Client ID
 AGENT_CLIENT_SECRET=轮换后的 Agent Client Secret
+AGENT_REDIRECT_URI=http://127.0.0.1:7788
 AGENT_ACCESS_CONTEXT_URL=http://你的 IAM 地址/auth/agent/oauth2/access-context
 ```
 
