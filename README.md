@@ -89,10 +89,15 @@ LLM_MODEL=中转站提供的视觉模型 ID
 
 修改配置后需要重启 Python 后端。
 
-可选配置：
+数据库连接必须通过 `.env` 或当前终端环境变量配置：
 
 ```text
 DATABASE_URL=mysql+pymysql://seenspace:seenspace@127.0.0.1:3306/seenspace?charset=utf8mb4
+```
+
+其他可选配置：
+
+```text
 CORS_ORIGINS=["http://localhost:7788","http://127.0.0.1:7788"]
 LLM_API_KEY=你的 API Key
 LLM_BASE_URL=https://api.openai.com/v1
