@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "FastAPI backend for SeenSpace."
 requires-python = ">=3.11"
 dependencies = [
+  "bcrypt>=4.0",
+  "cryptography>=43.0",
   "fastapi>=0.136.0",
   "httpx>=0.28.0",
   "pydantic>=2.12.0",
