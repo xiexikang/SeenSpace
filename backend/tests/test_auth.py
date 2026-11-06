@@ -343,6 +343,184 @@ def test_runtime_access_upstream_request_has_bearer_and_no_body(monkeypatch: Mon
     }]
 
 
+def test_runtime_access_refreshes_oauth_token_after_2002(monkeypatch: MonkeyPatch) -> None:
+    calls: list[str] = []
+
+    class FakeResponse:
+        headers = {"content-type": "application/json"}
+        text = ""
+
+        def __init__(self, payload: dict, status_code: int = 200):
+            self.payload = payload
+            self.status_code = status_code
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return self.payload
+
+    class FakeClient:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        def build_request(self, method, url, **kwargs):
+            return httpx.Request(method, url, **kwargs)
+
+        async def send(self, request):
+            calls.append(request.headers["authorization"])
+            if len(calls) == 1:
+                return FakeResponse({"code": 2002, "msg": "accessToken不可用"})
+            return FakeResponse({"code": 0, "data": {"access": {"api": {"apiServers": {}}}}})
+
+    async def fake_refresh(session, _db):
+        session.agent_access_token = "at_fresh-oauth-token"
+
+    monkeypatch.setattr("app.api.routes.auth.httpx.AsyncClient", FakeClient)
+    monkeypatch.setattr("app.api.routes.auth._refresh_agent_token", fake_refresh)
+    session = SimpleNamespace(
+        agent_access_token="at_stale-oauth-token",
+        agent_access_token_expires_at=None,
+    )
+
+    runtime = asyncio.run(_fetch_agent_runtime_access(session, SimpleNamespace()))
+
+    assert runtime == {"api": {"apiServers": {}}}
+    assert calls == ["Bearer at_stale-oauth-token", "Bearer at_fresh-oauth-token"]
+
+
+def test_agent_runtime_chat_refreshes_oauth_token_after_403(monkeypatch: MonkeyPatch) -> None:
+    calls: list[str] = []
+
+    async def fake_runtime_access(_session, _db):
+        return {
+            "llm": {
+                "url": "https://llm.example/v1/chat/completions",
+                "method": "POST",
+                "headers": {"Authorization": "Bearer sk_llm-key"},
+            }
+        }
+
+    class FakeClient:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        def build_request(self, method, url, **kwargs):
+            return httpx.Request(method, url, **kwargs)
+
+        async def send(self, request):
+            calls.append(request.headers["accesstoken"])
+            if len(calls) == 1:
+                return httpx.Response(
+                    403,
+                    request=request,
+                    headers={"content-type": "text/plain"},
+                    text="无权访问该资源",
+                )
+            return httpx.Response(
+                200,
+                request=request,
+                json={"choices": [{"message": {"content": "retry succeeded"}}]},
+            )
+
+    session = SimpleNamespace(
+        user_id="agent-42",
+        agent_access_token="at_stale-oauth-token",
+        agent_refresh_token="rt_refresh-token",
+    )
+
+    async def fake_refresh(refresh_session, _db):
+        refresh_session.agent_access_token = "at_fresh-oauth-token"
+
+    monkeypatch.setattr("app.api.routes.auth._agent_session", lambda _authorization, _db: session)
+    monkeypatch.setattr("app.api.routes.auth._fetch_agent_runtime_access", fake_runtime_access)
+    monkeypatch.setattr("app.api.routes.auth._refresh_agent_token", fake_refresh)
+    monkeypatch.setattr("app.api.routes.auth.httpx.AsyncClient", FakeClient)
+
+    response = client.post(
+        "/api/auth/agent/runtime-chat",
+        headers={"Authorization": "Bearer local-session"},
+        json={"message": "hello"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["data"] == {
+        "choices": [{"message": {"content": "retry succeeded"}}]
+    }
+    assert calls == ["at_stale-oauth-token", "at_fresh-oauth-token"]
+
+
+def test_agent_runtime_chat_returns_403_after_token_refresh(monkeypatch: MonkeyPatch) -> None:
+    calls: list[str] = []
+
+    async def fake_runtime_access(_session, _db):
+        return {
+            "llm": {
+                "url": "https://llm.example/v1/chat/completions",
+                "method": "POST",
+                "headers": {"Authorization": "Bearer sk_llm-key"},
+            }
+        }
+
+    class FakeClient:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        def build_request(self, method, url, **kwargs):
+            return httpx.Request(method, url, **kwargs)
+
+        async def send(self, request):
+            calls.append(request.headers["accesstoken"])
+            return httpx.Response(
+                403,
+                request=request,
+                headers={"content-type": "text/plain"},
+                text="无权访问该资源",
+            )
+
+    session = SimpleNamespace(
+        user_id="agent-42",
+        agent_access_token="at_stale-oauth-token",
+        agent_refresh_token="rt_refresh-token",
+    )
+
+    async def fake_refresh(refresh_session, _db):
+        refresh_session.agent_access_token = "at_fresh-oauth-token"
+
+    monkeypatch.setattr("app.api.routes.auth._agent_session", lambda _authorization, _db: session)
+    monkeypatch.setattr("app.api.routes.auth._fetch_agent_runtime_access", fake_runtime_access)
+    monkeypatch.setattr("app.api.routes.auth._refresh_agent_token", fake_refresh)
+    monkeypatch.setattr("app.api.routes.auth.httpx.AsyncClient", FakeClient)
+
+    response = client.post(
+        "/api/auth/agent/runtime-chat",
+        headers={"Authorization": "Bearer local-session"},
+        json={"message": "hello"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["message"] == "无权访问该资源"
+    assert calls == ["at_stale-oauth-token", "at_fresh-oauth-token"]
+
+
 def fixed_captcha(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(auth_service.random, "choice", lambda alphabet: "A")
 

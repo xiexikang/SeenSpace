@@ -455,21 +455,45 @@ async def _fetch_agent_runtime_access(session: AuthSession, db: Session) -> dict
     )
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            upstream_request = client.build_request(
-                "POST",
-                settings.agent_runtime_access_url,
-                headers=request_headers,
-            )
-            logger.warning(
-                "Agent runtime access effective request: method=%s url=%s headers=%s body=%s",
-                upstream_request.method,
-                upstream_request.url,
-                _safe_response_headers(upstream_request.headers),
-                _safe_log_value(upstream_request.content.decode("utf-8", errors="replace")),
-            )
+            def build_request() -> httpx.Request:
+                upstream_request = client.build_request(
+                    "POST",
+                    settings.agent_runtime_access_url,
+                    headers={"Authorization": f"Bearer {session.agent_access_token}"},
+                )
+                logger.warning(
+                    "Agent runtime access effective request: method=%s url=%s headers=%s body=%s",
+                    upstream_request.method,
+                    upstream_request.url,
+                    _safe_response_headers(upstream_request.headers),
+                    _safe_log_value(upstream_request.content.decode("utf-8", errors="replace")),
+                )
+                return upstream_request
+
+            upstream_request = build_request()
             response = await client.send(upstream_request)
+            try:
+                payload = response.json()
+            except ValueError:
+                payload = None
+            if response.status_code in {401, 403} or (
+                isinstance(payload, dict) and payload.get("code") == 2002
+            ):
+                logger.warning(
+                    "Agent runtime access rejected OAuth token: status=%s response=%s; refreshing and retrying once",
+                    response.status_code,
+                    _safe_log_value(payload if payload is not None else response.text),
+                )
+                await _refresh_agent_token(session, db)
+                upstream_request = build_request()
+                response = await client.send(upstream_request)
+                try:
+                    payload = response.json()
+                except ValueError:
+                    payload = None
             response.raise_for_status()
-        payload = response.json()
+        if isinstance(payload, dict) and payload.get("code") == 2002:
+            raise HTTPException(status_code=401, detail="智能体 OAuth 授权已失效，请重新登录。")
         logger.warning(
             "Agent runtime access response: status=%s headers=%s body=%s",
             response.status_code,
@@ -500,6 +524,9 @@ async def _fetch_agent_runtime_access(session: AuthSession, db: Session) -> dict
             _safe_response_headers(error.response.headers),
             _safe_error_text(error.response.text),
         )
+        if error.response.status_code in {401, 403}:
+            detail = _safe_error_text(error.response.text).strip() or "智能体 OAuth 授权已失效，请重新登录。"
+            raise HTTPException(status_code=error.response.status_code, detail=detail) from error
         raise HTTPException(status_code=502, detail="获取智能体运行时配置失败。") from error
     except (httpx.HTTPError, ValueError) as error:
         logger.exception("Agent runtime access upstream error: %s", _safe_error_text(str(error)))
@@ -747,20 +774,34 @@ async def agent_runtime_chat(
     )
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
-            upstream_request = client.build_request(
-                method,
-                llm["url"],
-                headers=headers,
-                json=body,
-            )
-            logger.info(
-                "Agent runtime LLM effective request: method=%s url=%s headers=%s body=%s",
-                upstream_request.method,
-                upstream_request.url,
-                _safe_response_headers(upstream_request.headers),
-                _safe_log_value(upstream_request.content.decode("utf-8", errors="replace")),
-            )
+            def build_request() -> httpx.Request:
+                upstream_request = client.build_request(
+                    method,
+                    llm["url"],
+                    headers=_prepare_llm_headers(llm.get("headers"), session.agent_access_token),
+                    json=body,
+                )
+                logger.info(
+                    "Agent runtime LLM effective request: method=%s url=%s headers=%s body=%s",
+                    upstream_request.method,
+                    upstream_request.url,
+                    _safe_response_headers(upstream_request.headers),
+                    _safe_log_value(upstream_request.content.decode("utf-8", errors="replace")),
+                )
+                return upstream_request
+
+            upstream_request = build_request()
             response = await client.send(upstream_request)
+            if response.status_code in {401, 403}:
+                logger.warning(
+                    "Agent runtime LLM rejected OAuth token: status=%s url=%s response=%s; refreshing and retrying once",
+                    response.status_code,
+                    upstream_request.url,
+                    _safe_error_text(response.text),
+                )
+                await _refresh_agent_token(session, db)
+                upstream_request = build_request()
+                response = await client.send(upstream_request)
             response.raise_for_status()
             try:
                 result: object = response.json()
@@ -780,6 +821,9 @@ async def agent_runtime_chat(
             _safe_response_headers(error.response.headers),
             _safe_error_text(error.response.text),
         )
+        if error.response.status_code in {401, 403}:
+            detail = _safe_error_text(error.response.text).strip() or "智能体 OAuth 授权已失效，请重新登录。"
+            raise HTTPException(status_code=error.response.status_code, detail=detail) from error
         raise HTTPException(status_code=502, detail="调用智能体 LLM 网关失败。") from error
     except (httpx.HTTPError, ValueError) as error:
         logger.exception("Agent runtime LLM upstream error: %s", error)
