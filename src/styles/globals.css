@@ -32,6 +32,14 @@
     radial-gradient(circle at top right, rgba(227, 255, 127, 0.2), transparent 22%);
 }
 
+.agent-connection-page {
+  --accent: #d40028;
+  --accent-strong: #a8001f;
+  --accent-soft: rgba(212, 0, 40, 0.1);
+  --text-secondary: #5d6470;
+  --text-muted: #686f79;
+}
+
 .dark {
   color-scheme: dark;
   --background: #16181c;
@@ -56,6 +64,14 @@
   --hero-glow:
     radial-gradient(circle at top left, rgba(255, 74, 101, 0.16), transparent 34%),
     radial-gradient(circle at top right, rgba(227, 255, 127, 0.08), transparent 22%);
+}
+
+.dark .agent-connection-page {
+  --accent: #d40028;
+  --accent-strong: #ff8b9c;
+  --accent-soft: rgba(212, 0, 40, 0.16);
+  --text-secondary: #b8bec8;
+  --text-muted: #9da4af;
 }
 
 * {

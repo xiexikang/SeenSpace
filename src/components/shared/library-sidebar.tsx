@@ -168,7 +168,7 @@ export function LibrarySidebar() {
       </div>
 
       <nav className={cn('flex-1', isCollapsed ? 'px-4 pt-5' : 'px-4 pt-6')}>
-        <div className={cn('mb-3 px-2 text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--text-muted)]', isCollapsed && 'sr-only')}>
+        <div className={cn('mb-3 px-2 text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--text-secondary)]', isCollapsed && 'sr-only')}>
           内容分区
         </div>
         <div className={cn(isCollapsed ? 'flex flex-col items-center gap-1' : 'space-y-2')}>
