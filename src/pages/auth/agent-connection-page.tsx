@@ -472,7 +472,7 @@ export function AgentConnectionPage() {
                               ))}
                             </select>
                           </Field>
-                          <Field label="MCP Session ID" hint="">
+                          <Field label="MCP Session ID" hint="可留空">
                             <input
                               value={mcpSessionId}
                               onChange={(event) => setMcpSessionId(event.target.value)}
